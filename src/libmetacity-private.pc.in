@@ -4,9 +4,9 @@ libdir=@libdir@
 includedir=@includedir@
 libgnome_serverdir=@libexecdir@
 
-Name: libmetacity-private
-Description: Metacity internals shared 
+Name: libdeepin-metacity-private
+Description: Deepin metacity internals shared 
 Requires: gtk+-3.0
 Version: @VERSION@
-Libs: -L${libdir} -lmetacity-private
-Cflags: -I${includedir}/metacity
+Libs: -L${libdir} -ldeepin-metacity-private
+Cflags: -I${includedir}/deepin-metacity

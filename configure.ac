@@ -6,7 +6,7 @@ m4_define([metacity_micro_version], [2])
 
 m4_define([metacity_version],
           [metacity_major_version.metacity_minor_version.metacity_micro_version])
-AC_INIT([metacity], [metacity_version],
+AC_INIT([deepin-metacity], [metacity_version],
         [http://bugzilla.gnome.org/enter_bug.cgi?product=metacity])
 
 AC_CONFIG_SRCDIR(src/core/display.c)
@@ -21,7 +21,7 @@ GNOME_MAINTAINER_MODE_DEFINES
 # Honor aclocal flags
 AC_SUBST(ACLOCAL_AMFLAGS, "\${ACLOCAL_FLAGS}")
 
-GETTEXT_PACKAGE=metacity
+GETTEXT_PACKAGE=deepin-metacity
 AC_SUBST(GETTEXT_PACKAGE)
 AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE,"$GETTEXT_PACKAGE",[Name of default gettext domain])
 
@@ -468,7 +468,7 @@ fi
 
 dnl ==========================================================================
 echo "
-metacity-$VERSION (using gtk+-${GTK_API_VERSION}):
+deepin-metacity-$VERSION (using gtk+-${GTK_API_VERSION}):
 
 	prefix:                   ${prefix}
 	source code location:	  ${srcdir}

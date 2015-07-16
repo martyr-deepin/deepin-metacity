@@ -10,7 +10,7 @@ can get from <URL:http://ftp.gnome.org/pub/GNOME/sources/libcm/>.
 When Metacity is compiled, you will need to turn the compositor on in gsettings
 for it to have any effect. You will find the boolean switch at
 
-   org.gnome.metacity compositing-manager
+   com.deepin.wrap.gnome.metacity compositing-manager
 
 When that's done, you can set some environment variables before you launch
 Metacity to influence how the compositor works. These will eventually become

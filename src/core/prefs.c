@@ -53,9 +53,9 @@
 
 /* These are the different schemas we are keeping
  * a GSettings instance for */
-#define SCHEMA_GENERAL         "org.gnome.desktop.wm.preferences"
-#define SCHEMA_METACITY        "org.gnome.metacity"
-#define SCHEMA_INTERFACE       "org.gnome.desktop.interface"
+#define SCHEMA_GENERAL         "com.deepin.wrap.gnome.desktop.wm.preferences"
+#define SCHEMA_METACITY        "com.deepin.wrap.gnome.metacity"
+#define SCHEMA_INTERFACE       "com.deepin.wrap.gnome.desktop.interface"
 
 #define SETTINGS(s) g_hash_table_lookup (settings_schemas, (s))
 

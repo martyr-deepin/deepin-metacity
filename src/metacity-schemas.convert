@@ -1,4 +1,4 @@
-[org.gnome.metacity]
+[com.deepin.wrap.gnome.metacity]
 compositing-manager = /apps/metacity/general/compositing_manager
 reduced-resources = /apps/metacity/general/reduced_resources
 side-by-side-tiling = /apps/metacity/general/side_by_side_tiling

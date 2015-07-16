@@ -4,7 +4,7 @@
 
 # The name of the directory in /usr/share/gnome/help/, 
 # and the name of the main .xml file:
-HELP_ID = creating-metacity-themes
+HELP_ID = creating-deepin-metacity-themes
 
 HELP_FILES = index.docbook
 
