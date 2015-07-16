@@ -10,7 +10,7 @@ THEMES=			\
 	Simple
 
 THEME_DIR=$(datadir)/themes
-THEME_SUBDIR=metacity-1
+THEME_SUBDIR=deepin-metacity-1
 
 install-data-local:
 	$(mkinstalldirs) $(DESTDIR)$(THEME_DIR);					     \
@@ -52,3 +52,4 @@ dist-hook:
 	done
 
 -include $(top_srcdir)/git.mk
+

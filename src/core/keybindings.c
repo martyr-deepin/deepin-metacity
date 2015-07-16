@@ -45,8 +45,8 @@
 #include <X11/XKBlib.h>
 #endif
 
-#define SCHEMA_COMMON_KEYBINDINGS "org.gnome.desktop.wm.keybindings"
-#define SCHEMA_METACITY_KEYBINDINGS "org.gnome.metacity.keybindings"
+#define SCHEMA_COMMON_KEYBINDINGS "com.deepin.wrap.gnome.desktop.wm.keybindings"
+#define SCHEMA_METACITY_KEYBINDINGS "com.deepin.wrap.gnome.metacity.keybindings"
 
 static gboolean all_bindings_disabled = FALSE;
 

@@ -1,17 +1,17 @@
-lib_LTLIBRARIES = libmetacity-private.la
+lib_LTLIBRARIES = libdeepin-metacity-private.la
 
 SUBDIRS = tools themes
 
-AM_CPPFLAGS=-I$(srcdir)/include -DMETACITY_LIBEXECDIR=\"$(libexecdir)\" -DHOST_ALIAS=\"@HOST_ALIAS@\" -DMETACITY_LOCALEDIR=\"$(prefix)/@DATADIRNAME@/locale\" -DMETACITY_PKGDATADIR=\"$(pkgdatadir)\" -DMETACITY_DATADIR=\"$(datadir)\" -DG_LOG_DOMAIN=\"metacity\" -DSN_API_NOT_YET_FROZEN=1 @METACITY_CFLAGS@
+AM_CPPFLAGS=-I$(srcdir)/include -DMETACITY_LIBEXECDIR=\"$(libexecdir)\" -DHOST_ALIAS=\"@HOST_ALIAS@\" -DMETACITY_LOCALEDIR=\"$(prefix)/@DATADIRNAME@/locale\" -DMETACITY_PKGDATADIR=\"$(pkgdatadir)\" -DMETACITY_DATADIR=\"$(datadir)\" -DG_LOG_DOMAIN=\"deepin_metacity\" -DSN_API_NOT_YET_FROZEN=1 @METACITY_CFLAGS@
 
-metacity_SOURCES= 				\
+deepin_metacity_SOURCES= 				\
 	core/main.c				\
 	include/main.h
 
-# by setting libmetacity_private_la_CFLAGS, the files shared with
-# metacity proper will be compiled with different names.
-libmetacity_private_la_CFLAGS =
-libmetacity_private_la_SOURCES=			\
+# by setting libdeepin_metacity_private_la_CFLAGS, the files shared with
+# deepin_metacity proper will be compiled with different names.
+libdeepin_metacity_private_la_CFLAGS =
+libdeepin_metacity_private_la_SOURCES=			\
 	core/async-getprop.c			\
 	core/async-getprop.h			\
 	core/atomnames.h                        \
@@ -111,12 +111,12 @@ libmetacity_private_la_SOURCES=			\
 	ui/theme.h				\
 	ui/ui.c
 
-libmetacity_private_la_LDFLAGS = -no-undefined -version-info 3:0:0
-libmetacity_private_la_LIBADD  = @METACITY_LIBS@
+libdeepin_metacity_private_la_LDFLAGS = -no-undefined -version-info 3:0:0
+libdeepin_metacity_private_la_LIBADD  = @METACITY_LIBS@
 
-libmetacityincludedir = $(includedir)/metacity/metacity-private
+libdeepin_metacityincludedir = $(includedir)/deepin-metacity/metacity-private
 
-libmetacityinclude_HEADERS =			\
+libdeepin_metacityinclude_HEADERS =			\
 	include/boxes.h				\
 	ui/gradient.h				\
 	include/util.h				\
@@ -125,7 +125,7 @@ libmetacityinclude_HEADERS =			\
 	ui/theme-parser.h			\
 	ui/theme.h
 
-metacity_theme_viewer_SOURCES=  \
+deepin_metacity_theme_viewer_SOURCES=  \
 	ui/theme-viewer.c
 
 gsettings_SCHEMAS = org.gnome.metacity.gschema.xml
@@ -135,10 +135,10 @@ gsettings_SCHEMAS = org.gnome.metacity.gschema.xml
 convertdir = $(datadir)/GConf/gsettings/
 convert_DATA = metacity-schemas.convert
 
-bin_PROGRAMS=metacity metacity-theme-viewer
+bin_PROGRAMS=deepin-metacity deepin-metacity-theme-viewer
 
-metacity_LDADD=@METACITY_LIBS@ libmetacity-private.la
-metacity_theme_viewer_LDADD= @METACITY_LIBS@ libmetacity-private.la
+deepin_metacity_LDADD=@METACITY_LIBS@ libdeepin-metacity-private.la
+deepin_metacity_theme_viewer_LDADD= @METACITY_LIBS@ libdeepin-metacity-private.la
 
 testboxes_SOURCES=include/util.h core/util.c include/boxes.h core/boxes.c core/testboxes.c
 testgradient_SOURCES=ui/gradient.h ui/gradient.c ui/testgradient.c
@@ -190,3 +190,9 @@ EXTRA_DIST=$(desktopfiles_files)	 	\
 	libmetacity-private.pc.in
 
 -include $(top_srcdir)/git.mk
+
+# add prefix 'deepin-'
+install-data-hook:
+	cd $(DESTDIR) && find ./ -type f -a -name '*metacity*' |grep -v gschema.xml | grep -v deepin-metacity | awk '{a=$$0; gsub("metacity", "deepin-metacity", $$0); print "mv" ,a,$$0}' | sh -
+	mv $(DESTDIR)$(gsettingsschemadir)/org.gnome.metacity.gschema.xml $(DESTDIR)$(gsettingsschemadir)/com.deepin.wrap.gnome.metacity.gschema.xml
+

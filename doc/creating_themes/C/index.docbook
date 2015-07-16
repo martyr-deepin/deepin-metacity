@@ -266,7 +266,7 @@ for a theme installed for all users.</para></listitem>
 <para>When you're editing a theme, you can view it without using it on the whole desktop using
 <command>metacity-theme-viewer YourThemeName</command></para>
 <para>and view it on the whole desktop using
-<command>gsettings set org.gnome.desktop.wm.preferences theme YourThemeName</command></para>
+<command>gsettings set com.deepin.wrap.gnome.desktop.wm.preferences theme YourThemeName</command></para>
 
 <para>Whenever you change the selected theme in GSettings, Metacity will load the newly-chosen theme.  This is how control-center does it.  But when you change a theme, as you're working on it, you might want to ask Metacity to reload the theme which is currently used on the whole desktop to reflect your changes.  You can do this using the little-known <command>metacity-message</command> program, with the command <literal>metacity-message reload-theme</literal>.  This works by sending the ClientMessage <literal>_METACITY_RELOAD_THEME_MESSAGE</literal> to the root window, in case you're interested.</para>
 

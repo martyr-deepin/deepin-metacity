@@ -1,6 +1,6 @@
 <schemalist>
 
-  <enum id="org.gnome.metacity.MetaPlacementMode">
+  <enum id="com.deepin.wrap.gnome.metacity.MetaPlacementMode">
     <value nick="smart" value="0" />
     <value nick="cascade" value="1" />
     <value nick="center" value="2" />
@@ -8,7 +8,7 @@
     <value nick="random" value="4" />
   </enum>
 
-  <schema id="org.gnome.metacity" path="/org/gnome/metacity/"
+  <schema id="com.deepin.wrap.gnome.metacity" path="/com/deepin/wrap/gnome/metacity/"
           gettext-domain="@GETTEXT_PACKAGE@">
     <key name="compositing-manager" type="b">
       <default>true</default>
@@ -39,7 +39,7 @@
         area. Dropping windows on the top screen edge maximizes them completely.
       </_description>
     </key>
-    <key name="placement-mode" enum="org.gnome.metacity.MetaPlacementMode">
+    <key name="placement-mode" enum="com.deepin.wrap.gnome.metacity.MetaPlacementMode">
       <default>'smart'</default>
       <_summary>Window placement behavior</_summary>
       <_description>
@@ -72,7 +72,7 @@
     </key>
   </schema>
 
-  <schema id="org.gnome.metacity.keybindings" path="/org/gnome/metacity/keybindings/">
+  <schema id="com.deepin.wrap.gnome.metacity.keybindings" path="/com/deepin/wrap/gnome/metacity/keybindings/">
     <key name="toggle-tiled-left" type="as">
       <default><![CDATA[['<Super>Left']]]></default>
     </key>

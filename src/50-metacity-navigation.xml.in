@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<KeyListEntries schema="org.gnome.desktop.wm.keybindings"
+<KeyListEntries schema="com.deepin.wrap.gnome.desktop.wm.keybindings"
                 group="system"
                 _name="Navigation"
                 wm_name="Metacity"
