@@ -35,6 +35,7 @@
 #include "screen.h"
 #include <X11/Xutil.h>
 #include "ui.h"
+#include "../ui/deepin-design.h"
 
 typedef struct _MetaXineramaScreenInfo MetaXineramaScreenInfo;
 

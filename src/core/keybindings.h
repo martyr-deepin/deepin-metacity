@@ -80,4 +80,9 @@ gboolean meta_prefs_add_keybinding          (const char           *name,
                                              MetaKeyBindingAction  action,
                                              MetaKeyBindingFlags   flags);
 
+gboolean deepin_meta_override_keybinding_handler(const char* name,
+                                                 MetaKeyHandlerFunc func,
+                                                 gpointer data,
+                                                 GDestroyNotify data_free_func);
+
 #endif

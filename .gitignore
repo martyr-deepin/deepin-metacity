@@ -70,3 +70,6 @@ debian/libdeepin-metacity-private3.postinst.debhelper
 debian/libdeepin-metacity-private3.postrm.debhelper
 debian/libdeepin-metacity-private3.substvars
 debian/libdeepin-metacity-private3/
+.tags*
+.ycm*
+tags

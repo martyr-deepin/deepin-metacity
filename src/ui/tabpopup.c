@@ -30,6 +30,7 @@
 #include "select-workspace.h"
 #include <gtk/gtk.h>
 #include <math.h>
+#include "deepin-design.h"
 
 typedef struct _TabEntry TabEntry;
 
@@ -47,7 +48,6 @@ struct _TabEntry
 struct _MetaTabPopup
 {
   GtkWidget *window;
-  GtkWidget *label;
   GList *current;
   GList *entries;
   TabEntry *current_selected_entry;
@@ -193,6 +193,40 @@ tab_entry_new (const MetaTabEntry *entry,
   return te;
 }
 
+static void meta_ui_tab_popup_setup_style(MetaTabPopup* popup)
+{
+  GtkStyleContext* style_ctx = gtk_widget_get_style_context(popup->window);
+
+  GtkCssProvider* css_style = gtk_css_provider_new();
+
+  GFile* f = g_file_new_for_path(METACITY_PKGDATADIR "/deepin-wm.css");
+  GError* error = NULL;
+  if (!gtk_css_provider_load_from_file(css_style, f, &error)) {
+      meta_topic(META_DEBUG_UI, "load css failed: %s", error->message);
+      g_error_free(error);
+      return;
+  }
+
+  gtk_style_context_add_provider(style_ctx,
+          GTK_STYLE_PROVIDER(css_style), GTK_STYLE_PROVIDER_PRIORITY_USER);
+  gtk_style_context_add_class(style_ctx, "deepin-window-switcher");
+
+  GList* tmp = popup->entries;
+  while (tmp) {
+      TabEntry* te = (TabEntry*)tmp->data;
+      if (te->widget) {
+          style_ctx = gtk_widget_get_style_context(te->widget);
+          gtk_style_context_add_provider(style_ctx,
+                  GTK_STYLE_PROVIDER(css_style), GTK_STYLE_PROVIDER_PRIORITY_USER);
+          gtk_style_context_add_class(style_ctx, "deepin-window-switcher-item");
+      }
+      tmp = tmp->next;
+  }
+
+  g_object_unref(f);
+  g_object_unref(css_style);
+}
+
 MetaTabPopup*
 meta_ui_tab_popup_new (const MetaTabEntry *entries,
                        int                 screen_number,
@@ -206,12 +240,12 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
   GtkWidget *grid;
   GtkWidget *vbox;
   GList *tmp;
-  GtkWidget *frame;
-  int max_label_width; /* the actual max width of the labels we create */
   AtkObject *obj;
   GdkScreen *screen;
   GdkVisual *visual;
   int screen_width;
+  int max_width;
+  double item_scale = 1.0;
 
   popup = g_new (MetaTabPopup, 1);
 
@@ -221,7 +255,7 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
 
   if (outline)
     {
-      GdkRGBA black = { 0.0, 0.0, 0.0, 1.0 };
+      GdkRGBA black = { 0.0, 1.0, 0.0, 0.4 };
 
       popup->outline_window = gtk_window_new (GTK_WINDOW_POPUP);
 
@@ -246,6 +280,8 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
     popup->outline_window = NULL;
 
   popup->window = gtk_window_new (GTK_WINDOW_POPUP);
+  if (visual)
+      gtk_widget_set_visual (popup->window, visual);
 
   gtk_window_set_screen (GTK_WINDOW (popup->window),
                          screen);
@@ -261,6 +297,7 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
   popup->outline = outline;
 
   screen_width = gdk_screen_get_width (screen);
+  max_width = screen_width - POPUP_SCREEN_PADDING * 2 - POPUP_PADDING * 2;
   for (i = 0; i < entry_count; ++i)
     {
       TabEntry* new_entry = tab_entry_new (&entries[i], screen_width, outline);
@@ -274,31 +311,23 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
   if (i % width)
     height += 1;
 
+  if (i < width) width = i;
+  int real_width = (max_width / width - SWITCHER_ITEM_SHAPE_PADDING*2);
+  if (real_width < SWITCHER_ITEM_PREFER_WIDTH) {
+      item_scale = (double)real_width / SWITCHER_ITEM_PREFER_WIDTH;
+  }
+
   grid = gtk_grid_new ();
   vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+  g_object_set(G_OBJECT(vbox), "margin", POPUP_PADDING, NULL);
 
-  frame = gtk_frame_new (NULL);
-  gtk_frame_set_shadow_type (GTK_FRAME (frame), GTK_SHADOW_OUT);
-  gtk_container_set_border_width (GTK_CONTAINER (grid), 1);
-  gtk_container_add (GTK_CONTAINER (popup->window),
-                     frame);
-  gtk_container_add (GTK_CONTAINER (frame),
-                     vbox);
+  gtk_container_set_border_width (GTK_CONTAINER (grid), 0);
+  g_object_set(G_OBJECT(grid), "row-spacing", 10, "column-spacing", POPUP_PADDING, NULL);
+  gtk_container_add (GTK_CONTAINER (popup->window), vbox);
 
   gtk_box_pack_start (GTK_BOX (vbox), grid, TRUE, TRUE, 0);
 
-  popup->label = gtk_label_new ("");
 
-  /* Set the accessible role of the label to a status bar so it
-   * will emit name changed events that can be used by screen
-   * readers.
-   */
-  obj = gtk_widget_get_accessible (popup->label);
-  atk_object_set_role (obj, ATK_ROLE_STATUSBAR);
-
-  gtk_box_pack_end (GTK_BOX (vbox), popup->label, FALSE, FALSE, 3);
-
-  max_label_width = 0;
   top = 0;
   bottom = 1;
   tmp = popup->entries;
@@ -317,39 +346,34 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
 
           te = tmp->data;
 
-          if (te->blank)
-            {
+          if (te->blank) {
               /* just stick a widget here to avoid special cases */
               image = gtk_label_new ("");
-            }
-          else if (outline)
-            {
-              if (te->dimmed_icon)
-                {
+          } else if (outline) {
+              if (te->dimmed_icon) {
                   image = meta_select_image_new (te->dimmed_icon);
-                }
-              else
-                {
-                  image = meta_select_image_new (te->icon);
-                }
+              } else {
+                  if (item_scale < 1.0) {
+                      GdkPixbuf* scaled = gdk_pixbuf_scale_simple(
+                              te->icon,
+                              gdk_pixbuf_get_width(te->icon) * item_scale,
+                              gdk_pixbuf_get_height(te->icon) * item_scale,
+                              GDK_INTERP_BILINEAR);
+                      image = meta_select_image_new (scaled);
+                      g_object_unref(scaled);
+                  } else
+                      image = meta_select_image_new (te->icon);
+              }
 
               gtk_widget_set_halign (image, GTK_ALIGN_CENTER);
               gtk_widget_set_valign (image, GTK_ALIGN_CENTER);
-            }
-          else
-            {
+          } else {
               image = meta_select_workspace_new ((MetaWorkspace *) te->key);
-            }
+          }
 
           te->widget = image;
 
           gtk_grid_attach (GTK_GRID (grid), te->widget, left, top, 1, 1);
-
-          /* Efficiency rules! */
-          gtk_label_set_markup (GTK_LABEL (popup->label),
-                              te->title);
-          gtk_widget_get_preferred_size (popup->label, &req, NULL);
-          max_label_width = MAX (max_label_width, req.width);
 
           tmp = tmp->next;
 
@@ -361,22 +385,9 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
       ++bottom;
     }
 
-  /* remove all the temporary text */
-  gtk_label_set_text (GTK_LABEL (popup->label), "");
-  /* Make it so that we ellipsize if the text is too long */
-  gtk_label_set_ellipsize (GTK_LABEL (popup->label), PANGO_ELLIPSIZE_END);
+  /*gtk_window_set_default_size (GTK_WINDOW (popup->window), max_width, -1);*/
 
-  /* Limit the window size to no bigger than screen_width/4 */
-  if (max_label_width>(screen_width/4))
-    {
-      max_label_width = screen_width/4;
-    }
-
-  max_label_width += 20; /* add random padding */
-
-  gtk_window_set_default_size (GTK_WINDOW (popup->window),
-                               max_label_width,
-                               -1);
+  meta_ui_tab_popup_setup_style(popup);
 
   return popup;
 }
@@ -443,8 +454,6 @@ display_entry (MetaTabPopup *popup,
     else
       meta_select_workspace_unselect (META_SELECT_WORKSPACE (popup->current_selected_entry->widget));
   }
-
-  gtk_label_set_markup (GTK_LABEL (popup->label), te->title);
 
   if (popup->outline)
     meta_select_image_select (META_SELECT_IMAGE (te->widget));

@@ -319,6 +319,8 @@ topic_name (MetaDebugTopic topic)
       return "COMPOSITOR";
     case META_DEBUG_EDGE_RESISTANCE:
       return "EDGE_RESISTANCE";
+    case META_DEBUG_UI:
+      return "UI";
     }
 
   return "WM";

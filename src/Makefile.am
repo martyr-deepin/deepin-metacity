@@ -6,6 +6,7 @@ AM_CPPFLAGS=-I$(srcdir)/include -DMETACITY_LIBEXECDIR=\"$(libexecdir)\" -DHOST_A
 
 deepin_metacity_SOURCES= 				\
 	core/main.c				\
+	deepin-keybindings.c \
 	include/main.h
 
 # by setting libdeepin_metacity_private_la_CFLAGS, the files shared with
@@ -179,6 +180,9 @@ pkgconfigdir = $(libdir)/pkgconfig
 
 pkgconfig_DATA = libmetacity-private.pc
 
+stylesdir = $(pkgdatadir)
+styles_DATA = deepin-wm.css texture.png close.png
+
 EXTRA_DIST=$(desktopfiles_files)	 	\
 	$(wmproperties_files)			\
 	$(IMAGES)		 		\
@@ -187,7 +191,10 @@ EXTRA_DIST=$(desktopfiles_files)	 	\
 	metacity-schemas.convert		\
 	org.gnome.metacity.gschema.xml.in	\
 	$(xml_in_files)				\
-	libmetacity-private.pc.in
+	libmetacity-private.pc.in \
+	deepin-wm.css \
+	close.png \
+	texture.png 
 
 -include $(top_srcdir)/git.mk
 
