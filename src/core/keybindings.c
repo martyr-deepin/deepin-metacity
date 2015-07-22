@@ -3870,3 +3870,21 @@ meta_display_init_keys (MetaDisplay *display)
                      XkbNewKeyboardNotifyMask | XkbMapNotifyMask);
 #endif
 }
+
+gboolean 
+deepin_meta_override_keybinding_handler(const char* name, MetaKeyHandlerFunc func,
+  gpointer data, GDestroyNotify data_free_func)
+{
+  MetaKeyHandler *handler = HANDLER(name);
+  if (handler) {
+    if (handler->user_data && handler->user_data_free_func) {
+      handler->user_data_free_func(handler->user_data);
+    }
+
+    handler->func = func;
+    handler->data = data;
+    handler->user_data_free_func = data_free_func;
+    return TRUE;
+  } 
+  return FALSE;
+}

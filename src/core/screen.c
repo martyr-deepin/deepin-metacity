@@ -1213,7 +1213,8 @@ meta_screen_update_cursor (MetaScreen *screen)
   XFreeCursor (screen->display->xdisplay, xcursor);
 }
 
-#define MAX_PREVIEW_SIZE 150.0
+#define MAX_PREVIEW_WIDTH RECT_PREFER_WIDTH
+#define MAX_PREVIEW_HEIGHT RECT_PREFER_HEIGHT
 
 static GdkPixbuf *
 get_window_pixbuf (MetaWindow *window,
@@ -1236,19 +1237,14 @@ get_window_pixbuf (MetaWindow *window,
   *width = gdk_pixbuf_get_width (pixbuf);
   *height = gdk_pixbuf_get_height (pixbuf);
 
-  /* Scale pixbuf to max dimension MAX_PREVIEW_SIZE */
-  if (*width > *height)
-    {
-      ratio = ((double) *width) / MAX_PREVIEW_SIZE;
-      *width = (int) MAX_PREVIEW_SIZE;
-      *height = (int) (((double) *height) / ratio);
-    }
-  else
-    {
-      ratio = ((double) *height) / MAX_PREVIEW_SIZE;
-      *height = (int) MAX_PREVIEW_SIZE;
-      *width = (int) (((double) *width) / ratio);
-    }
+  if (*width <= MAX_PREVIEW_WIDTH && *height <= MAX_PREVIEW_HEIGHT) {
+      return pixbuf;
+  }
+
+  ratio = MAX(((double) *width) / MAX_PREVIEW_WIDTH,
+          ((double) *height) / MAX_PREVIEW_HEIGHT);
+  *height = (int) (((double) *height) / ratio);
+  *width = (int) (((double) *width) / ratio);
 
   scaled = gdk_pixbuf_scale_simple (pixbuf, *width, *height,
                                     GDK_INTERP_BILINEAR);
@@ -1307,8 +1303,7 @@ meta_screen_ensure_tab_popup (MetaScreen      *screen,
           GdkPixbuf *scaled;
           int icon_width, icon_height, t_width, t_height;
 
-#define ICON_SIZE 32
-#define ICON_OFFSET 6
+#define ICON_SIZE 48
 
           scaled = gdk_pixbuf_scale_simple (window->icon,
                                             ICON_SIZE, ICON_SIZE,
@@ -1317,19 +1312,20 @@ meta_screen_ensure_tab_popup (MetaScreen      *screen,
           icon_width = gdk_pixbuf_get_width (scaled);
           icon_height = gdk_pixbuf_get_height (scaled);
 
-          t_width = width + ICON_OFFSET;
-          t_height = height + ICON_OFFSET;
+          t_width = RECT_PREFER_WIDTH;
+          t_height = RECT_PREFER_HEIGHT;
 
           entries[i].icon = gdk_pixbuf_new (GDK_COLORSPACE_RGB, TRUE, 8,
                                             t_width, t_height);
           gdk_pixbuf_fill (entries[i].icon, 0x00000000);
           gdk_pixbuf_copy_area (win_pixbuf, 0, 0, width, height,
-                                entries[i].icon, 0, 0);
+                                entries[i].icon,
+                                (t_width - width)/2, (t_height - height)/2);
           g_object_unref (win_pixbuf);
           gdk_pixbuf_composite (scaled, entries[i].icon,
-                                t_width - icon_width, t_height - icon_height,
+                                (t_width - icon_width)/2, t_height - icon_height,
                                 icon_width, icon_height,
-                                t_width - icon_width, t_height - icon_height, 
+                                (t_width - icon_width)/2, t_height - icon_height,
                                 1.0, 1.0, GDK_INTERP_BILINEAR, 255);
 
           g_object_unref (scaled);
