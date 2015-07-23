@@ -15,10 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-* {
-    transition-property: background, background-color;
-    transition-duration: .5s;
-}
+/** {*/
+    /*transition-property: background, background-color, border-width;*/
+    /*transition-duration: .3s;*/
+/*}*/
 
 .deepin-window-manager {
     background: rgba(105, 105, 105, 1.0);

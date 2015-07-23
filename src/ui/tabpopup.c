@@ -26,7 +26,8 @@
 #include "util.h"
 #include "core.h"
 #include "tabpopup.h"
-#include "select-image.h"
+#include "deepin-tab-widget.h"
+#include "deepin-fixed.h"
 #include "select-workspace.h"
 #include <gtk/gtk.h>
 #include <math.h>
@@ -235,12 +236,10 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
                        gboolean            outline)
 {
   MetaTabPopup *popup;
-  int i, left, right, top, bottom;
+  int i;
   int height;
   GtkWidget *grid;
-  GtkWidget *vbox;
   GList *tmp;
-  AtkObject *obj;
   GdkScreen *screen;
   GdkVisual *visual;
   int screen_width;
@@ -253,8 +252,7 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
                                    screen_number);
   visual = gdk_screen_get_rgba_visual (screen);
 
-  if (outline)
-    {
+  if (outline) {
       GdkRGBA black = { 0.0, 1.0, 0.0, 0.4 };
 
       popup->outline_window = gtk_window_new (GTK_WINDOW_POPUP);
@@ -317,73 +315,39 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
       item_scale = (double)real_width / SWITCHER_ITEM_PREFER_WIDTH;
   }
 
-  grid = gtk_grid_new ();
-  vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-  g_object_set(G_OBJECT(vbox), "margin", POPUP_PADDING, NULL);
+  gint item_width = SWITCHER_ITEM_PREFER_WIDTH * item_scale, 
+       item_height = SWITCHER_ITEM_PREFER_HEIGHT * item_scale;
 
-  gtk_container_set_border_width (GTK_CONTAINER (grid), 0);
-  g_object_set(G_OBJECT(grid), "row-spacing", 10, "column-spacing", POPUP_PADDING, NULL);
-  gtk_container_add (GTK_CONTAINER (popup->window), vbox);
+  grid = deepin_fixed_new();
+  g_object_set(G_OBJECT(grid), "margin", POPUP_PADDING, NULL);
+  gtk_container_add (GTK_CONTAINER (popup->window), grid);
 
-  gtk_box_pack_start (GTK_BOX (vbox), grid, TRUE, TRUE, 0);
-
-
-  top = 0;
-  bottom = 1;
+  int left = 0, top = 0;
   tmp = popup->entries;
+  while (tmp) {
+      GtkWidget *w;
 
-  while (tmp && top < height)
-    {
-      left = 0;
-      right = 1;
+      TabEntry *te = (TabEntry*)tmp->data;
 
-      while (tmp && left < width)
-        {
-          GtkWidget *image;
-          GtkRequisition req;
+      if (te->blank) {
+          /* just stick a widget here to avoid special cases */
+          w = gtk_label_new ("");
+      } else if (outline) {
+          w = meta_deepin_tab_widget_new(te->dimmed_icon? te->dimmed_icon: te->icon);
+          meta_deepin_tab_widget_set_scale(META_DEEPIN_TAB_WIDGET(w), item_scale);
+      } else {
+          w = meta_select_workspace_new ((MetaWorkspace *) te->key);
+      }
 
-          TabEntry *te;
+      te->widget = w;
+      deepin_fixed_put(DEEPIN_FIXED(grid), w, 
+              left * (item_width + SWITCHER_ITEM_SHAPE_PADDING) 
+              + item_width/2 + SWITCHER_ITEM_SHAPE_PADDING,
+              item_height/2 + 10);
 
-          te = tmp->data;
-
-          if (te->blank) {
-              /* just stick a widget here to avoid special cases */
-              image = gtk_label_new ("");
-          } else if (outline) {
-              if (te->dimmed_icon) {
-                  image = meta_select_image_new (te->dimmed_icon);
-              } else {
-                  if (item_scale < 1.0) {
-                      GdkPixbuf* scaled = gdk_pixbuf_scale_simple(
-                              te->icon,
-                              gdk_pixbuf_get_width(te->icon) * item_scale,
-                              gdk_pixbuf_get_height(te->icon) * item_scale,
-                              GDK_INTERP_BILINEAR);
-                      image = meta_select_image_new (scaled);
-                      g_object_unref(scaled);
-                  } else
-                      image = meta_select_image_new (te->icon);
-              }
-
-              gtk_widget_set_halign (image, GTK_ALIGN_CENTER);
-              gtk_widget_set_valign (image, GTK_ALIGN_CENTER);
-          } else {
-              image = meta_select_workspace_new ((MetaWorkspace *) te->key);
-          }
-
-          te->widget = image;
-
-          gtk_grid_attach (GTK_GRID (grid), te->widget, left, top, 1, 1);
-
-          tmp = tmp->next;
-
-          ++left;
-          ++right;
-        }
-
-      ++top;
-      ++bottom;
-    }
+      left++;
+      tmp = tmp->next;
+  }
 
   /*gtk_window_set_default_size (GTK_WINDOW (popup->window), max_width, -1);*/
 
@@ -450,13 +414,13 @@ display_entry (MetaTabPopup *popup,
   if (popup->current_selected_entry)
   {
     if (popup->outline)
-      meta_select_image_unselect (META_SELECT_IMAGE (popup->current_selected_entry->widget));
+      meta_deepin_tab_widget_unselect (META_DEEPIN_TAB_WIDGET (popup->current_selected_entry->widget));
     else
       meta_select_workspace_unselect (META_SELECT_WORKSPACE (popup->current_selected_entry->widget));
   }
 
   if (popup->outline)
-    meta_select_image_select (META_SELECT_IMAGE (te->widget));
+    meta_deepin_tab_widget_select (META_DEEPIN_TAB_WIDGET (te->widget));
   else
     meta_select_workspace_select (META_SELECT_WORKSPACE (te->widget));
 
