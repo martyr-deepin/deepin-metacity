@@ -106,6 +106,8 @@ libdeepin_metacity_private_la_SOURCES=			\
 	ui/deepin-tab-widget.h			\
 	ui/deepin-fixed.c			\
 	ui/deepin-fixed.h			\
+	ui/deepin-design.c			\
+	ui/deepin-design.h			\
 	ui/select-workspace.c			\
 	ui/select-workspace.h			\
 	ui/tile-preview.c			\

@@ -31,6 +31,7 @@
 struct _DeepinFixedPrivate
 {
   GList *children;
+  double scale;
 };
 
 enum {
@@ -122,7 +123,7 @@ deepin_fixed_child_type (GtkContainer *container)
 static void
 deepin_fixed_init (DeepinFixed *fixed)
 {
-  fixed->priv = deepin_fixed_get_instance_private (fixed);
+  fixed->priv = (DeepinFixedPrivate*)deepin_fixed_get_instance_private (fixed);
 
   gtk_widget_set_has_window (GTK_WIDGET (fixed), FALSE);
 
@@ -137,9 +138,11 @@ deepin_fixed_init (DeepinFixed *fixed)
  * Returns: a new #DeepinFixed.
  */
 GtkWidget*
-deepin_fixed_new (void)
+deepin_fixed_new (double scale)
 {
-  return g_object_new (DEEPIN_TYPE_FIXED, NULL);
+  DeepinFixed* fixed = (DeepinFixed*)g_object_new (DEEPIN_TYPE_FIXED, NULL);
+  fixed->priv->scale = scale;
+  return (GtkWidget*)fixed;
 }
 
 static DeepinFixedChild*
@@ -206,12 +209,14 @@ deepin_fixed_move_internal (DeepinFixed      *fixed,
 
   if (child->x != x)
     {
+      g_message("%s: moved to (%d, %d)", __func__, x, y);
       child->x = x;
       gtk_widget_child_notify (child->widget, "x");
     }
 
   if (child->y != y)
     {
+      g_message("%s: moved to (%d, %d)", __func__, x, y);
       child->y = y;
       gtk_widget_child_notify (child->widget, "y");
     }
@@ -350,20 +355,12 @@ deepin_fixed_get_preferred_width (GtkWidget *widget,
   *minimum = 0;
   *natural = 0;
 
-  for (children = priv->children; children; children = children->next)
-    {
-      child = children->data;
-
-      if (!gtk_widget_get_visible (child->widget))
-        continue;
-
-      gtk_widget_get_preferred_width (child->widget, &child_min, &child_nat);
-
-      *minimum = MAX (*minimum, child->x + child_min);
-      *natural = MAX (*natural, child->x + child_nat);
-    }
-  *minimum -= SWITCHER_ITEM_PREFER_WIDTH / 2;
-  *natural -= SWITCHER_ITEM_PREFER_WIDTH / 2;
+  gint screen_width = gdk_screen_get_width (gtk_widget_get_screen(widget));
+  gint max_width = screen_width - POPUP_SCREEN_PADDING * 2 - POPUP_PADDING * 2;
+  float box_width = 0;
+  calculate_preferred_size(g_list_length(priv->children), max_width,
+          &box_width, NULL, NULL, NULL, NULL);
+  *minimum = *natural = box_width;
 }
 
 static void
@@ -377,23 +374,12 @@ deepin_fixed_get_preferred_height (GtkWidget *widget,
   GList *children;
   gint child_min, child_nat;
 
-  *minimum = 0;
-  *natural = 0;
-
-  for (children = priv->children; children; children = children->next)
-    {
-      child = children->data;
-
-      if (!gtk_widget_get_visible (child->widget))
-        continue;
-
-      gtk_widget_get_preferred_height (child->widget, &child_min, &child_nat);
-
-      *minimum = MAX (*minimum, child->y + child_min);
-      *natural = MAX (*natural, child->y + child_nat);
-    }
-  *minimum -= SWITCHER_ITEM_PREFER_HEIGHT / 2;
-  *natural -= SWITCHER_ITEM_PREFER_HEIGHT / 2;
+  gint screen_width = gdk_screen_get_width (gtk_widget_get_screen(widget));
+  gint max_width = screen_width - POPUP_SCREEN_PADDING * 2 - POPUP_PADDING * 2;
+  float box_height = 0;
+  calculate_preferred_size(g_list_length(priv->children), max_width,
+          NULL, &box_height, NULL, NULL, NULL);
+  *minimum = *natural = box_height;
 }
 
 static void
@@ -419,8 +405,14 @@ deepin_fixed_size_allocate (GtkWidget     *widget,
                                 allocation->height);
     }
 
-  for (children = priv->children; children; children = children->next)
-    {
+  float box_width, box_height, item_width, item_height;
+  int max_items_each_row;
+  gint screen_width = gdk_screen_get_width (gtk_widget_get_screen(widget));
+  gint max_width = screen_width - POPUP_SCREEN_PADDING * 2 - POPUP_PADDING * 2;
+  calculate_preferred_size(g_list_length(priv->children), max_width,
+          &box_width, &box_height, &item_width, &item_height, &max_items_each_row);
+
+  for (children = priv->children; children; children = children->next) {
       child = children->data;
 
       if (!gtk_widget_get_visible (child->widget))

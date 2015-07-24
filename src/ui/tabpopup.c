@@ -244,7 +244,9 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
   GdkVisual *visual;
   int screen_width;
   int max_width;
+  float box_width, box_height;
   double item_scale = 1.0;
+  float item_width, item_height;
 
   popup = g_new (MetaTabPopup, 1);
 
@@ -304,22 +306,21 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
 
   popup->entries = g_list_reverse (popup->entries);
 
-  g_assert (width > 0);
+  calculate_preferred_size(entry_count, max_width,
+          &box_width, &box_height, &item_width, &item_height, &width);
+
+  item_scale = item_width / SWITCHER_ITEM_PREFER_WIDTH;
   height = i / width;
   if (i % width)
     height += 1;
 
-  if (i < width) width = i;
-  int real_width = (max_width / width - SWITCHER_ITEM_SHAPE_PADDING*2);
-  if (real_width < SWITCHER_ITEM_PREFER_WIDTH) {
-      item_scale = (double)real_width / SWITCHER_ITEM_PREFER_WIDTH;
-  }
+  g_message("%s: box(%f, %f), item (%f, %f), cols %d, rows %d, scale %g", __func__,
+          box_width, box_height, item_width, item_height,
+          width, height, item_scale);
 
-  gint item_width = SWITCHER_ITEM_PREFER_WIDTH * item_scale, 
-       item_height = SWITCHER_ITEM_PREFER_HEIGHT * item_scale;
-
-  grid = deepin_fixed_new();
+  grid = deepin_fixed_new(item_scale);
   g_object_set(G_OBJECT(grid), "margin", POPUP_PADDING, NULL);
+  gtk_widget_set_size_request(GTK_WIDGET(grid), box_width, box_height);
   gtk_container_add (GTK_CONTAINER (popup->window), grid);
 
   int left = 0, top = 0;
@@ -341,15 +342,15 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
 
       te->widget = w;
       deepin_fixed_put(DEEPIN_FIXED(grid), w, 
-              left * (item_width + SWITCHER_ITEM_SHAPE_PADDING) 
-              + item_width/2 + SWITCHER_ITEM_SHAPE_PADDING,
-              item_height/2 + 10);
+              left * (item_width + SWITCHER_COLUMN_SPACING) + item_width/2,
+              top * (item_height + SWITCHER_ROW_SPACING) + item_height/2 + 5);
 
       left++;
+      if (left >= width) {
+          left = 0, top++;
+      }
       tmp = tmp->next;
   }
-
-  /*gtk_window_set_default_size (GTK_WINDOW (popup->window), max_width, -1);*/
 
   meta_ui_tab_popup_setup_style(popup);
 
@@ -361,7 +362,7 @@ free_tab_entry (gpointer data, gpointer user_data)
 {
   TabEntry *te;
 
-  te = data;
+  te = (TabEntry*)data;
 
   g_free (te->title);
   if (te->icon)
