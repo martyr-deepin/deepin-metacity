@@ -209,14 +209,12 @@ deepin_fixed_move_internal (DeepinFixed      *fixed,
 
   if (child->x != x)
     {
-      g_message("%s: moved to (%d, %d)", __func__, x, y);
       child->x = x;
       gtk_widget_child_notify (child->widget, "x");
     }
 
   if (child->y != y)
     {
-      g_message("%s: moved to (%d, %d)", __func__, x, y);
       child->y = y;
       gtk_widget_child_notify (child->widget, "y");
     }
