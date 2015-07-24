@@ -20,6 +20,8 @@
 #ifndef DEEPIN_DESIGN_H
 #define DEEPIN_DESIGN_H
 
+#include <glib.h>
+
 /*
  * this file contains some design constants by deepin
  * these constants come from deepin-wm for consistency 
@@ -40,5 +42,14 @@
 #define POPUP_PADDING        36
 
 #define SWITCHER_SELECT_ANIMATION_DURATION 280
+
+#define SWITCHER_COLUMN_SPACING  20
+#define SWITCHER_ROW_SPACING  20
+#define SWITCHER_MIN_ITEMS_EACH_ROW  7
+#define SWITCHER_MAX_ROWS  2
+
+void calculate_preferred_size(gint entry_count, gint max_width,
+        float* box_width, float* box_height, float* item_width, float* item_height,
+        int* max_items_each_row);
 #endif
 

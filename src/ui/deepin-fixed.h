@@ -72,7 +72,7 @@ struct _DeepinFixedChild
 GDK_AVAILABLE_IN_ALL
 GType      deepin_fixed_get_type          (void) G_GNUC_CONST;
 GDK_AVAILABLE_IN_ALL
-GtkWidget* deepin_fixed_new               (void);
+GtkWidget* deepin_fixed_new               (double scale);
 
 /* x, y is considered center of widget, we need widget stand still around center */
 GDK_AVAILABLE_IN_ALL

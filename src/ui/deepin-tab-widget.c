@@ -21,6 +21,7 @@
  */
 
 #include <config.h>
+#include <math.h>
 #include <util.h>
 #include <gdk/gdk.h>
 #include "deepin-tab-widget.h"
@@ -191,6 +192,11 @@ static gboolean on_tick_callback(MetaDeepinTabWidget* self, GdkFrameClock* clock
     return G_SOURCE_CONTINUE;
 }
 
+static inline gint fast_round(double x) 
+{
+    return (gint)(x + 0.5);
+}
+
 static void meta_deepin_tab_widget_get_preferred_width (GtkWidget *widget,
                                        gint      *minimum_width,
                                        gint      *natural_width)
@@ -203,7 +209,7 @@ static void meta_deepin_tab_widget_get_preferred_width (GtkWidget *widget,
   *natural_width = priv->real_size.width;
 
   if (priv->animation) {
-      gint d = (priv->dest_req.width - priv->old_req.width) * priv->current_pos;
+      gint d = fast_round((priv->dest_req.width - priv->old_req.width) * priv->current_pos);
       *minimum_width = *natural_width = priv->old_req.width + d;
   }
 }
@@ -217,7 +223,7 @@ static void meta_deepin_tab_widget_get_preferred_height_for_width(GtkWidget *wid
             widget, width, minimum_height_out, natural_height_out);
 
     if (gtk_widget_get_mapped(widget) && priv->animation) {
-        gint d = (priv->dest_req.height - priv->old_req.height) * priv->current_pos;
+        gint d = fast_round((priv->dest_req.height - priv->old_req.height) * priv->current_pos);
         *minimum_height_out = *natural_height_out = priv->old_req.height + d;
     }
 }
@@ -234,7 +240,7 @@ static void meta_deepin_tab_widget_get_preferred_height (GtkWidget *widget,
   *natural_height = priv->real_size.height;
 
   if (gtk_widget_get_mapped(widget) && priv->animation) {
-      gint d = (priv->dest_req.height - priv->old_req.height) * priv->current_pos;
+      gint d = fast_round((priv->dest_req.height - priv->old_req.height) * priv->current_pos);
       *minimum_height = *natural_height = priv->old_req.height + d;
   }
 }
@@ -247,7 +253,7 @@ static void meta_deepin_tab_widget_get_preferred_width_for_height(GtkWidget *wid
 
     MetaDeepinTabWidgetPrivate* priv = META_DEEPIN_TAB_WIDGET(widget)->priv;
     if (gtk_widget_get_mapped(widget) && priv->animation) {
-        gint d = (priv->dest_req.width - priv->old_req.width) * priv->current_pos;
+        gint d = fast_round((priv->dest_req.width - priv->old_req.width) * priv->current_pos);
         *minimum_width_out = *natural_width_out = priv->old_req.width + d;
     }
 }
@@ -257,8 +263,8 @@ static void meta_deepin_tab_widget_update_image(MetaDeepinTabWidget* self)
     MetaDeepinTabWidgetPrivate* priv = self->priv;
 
     GtkRequisition req;
-    req.width = priv->scale * RECT_PREFER_WIDTH;
-    req.height = priv->scale * RECT_PREFER_HEIGHT;
+    req.width = fast_round(priv->scale * RECT_PREFER_WIDTH);
+    req.height = fast_round(priv->scale * RECT_PREFER_HEIGHT);
 
     if (priv->orig_thumb) {
         if (priv->scaled) {
