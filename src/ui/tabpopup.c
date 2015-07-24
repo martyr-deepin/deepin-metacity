@@ -309,7 +309,7 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
   calculate_preferred_size(entry_count, max_width,
           &box_width, &box_height, &item_width, &item_height, &width);
 
-  item_scale = item_width / SWITCHER_ITEM_PREFER_WIDTH;
+  item_scale = item_width * 1.033 / SWITCHER_ITEM_PREFER_WIDTH;
   height = i / width;
   if (i % width)
     height += 1;
@@ -342,8 +342,10 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
 
       te->widget = w;
       deepin_fixed_put(DEEPIN_FIXED(grid), w, 
-              left * (item_width + SWITCHER_COLUMN_SPACING) + item_width/2,
-              top * (item_height + SWITCHER_ROW_SPACING) + item_height/2 + 5);
+              left * (item_width + SWITCHER_COLUMN_SPACING) 
+              + (item_width + SWITCHER_ROW_SPACING) / 2,
+              top * (item_height + SWITCHER_ROW_SPACING) 
+              + (item_height + SWITCHER_ROW_SPACING) / 2);
 
       left++;
       if (left >= width) {

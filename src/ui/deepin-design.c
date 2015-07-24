@@ -83,6 +83,8 @@ void calculate_preferred_size(gint entry_count, gint max_width,
         bh = 0;
     }
 
+    bw += iw * 0.033, bh += ih * 0.033;
+
     cached.box_width = bw;
     cached.box_height = bh;
     cached.item_width = iw;

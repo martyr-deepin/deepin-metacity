@@ -121,14 +121,40 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
   GtkStyleContext *context;
 
   context = gtk_widget_get_style_context (widget);
+  gdouble x, y, w, h;
 
+  GtkAllocation alloc;
+  gtk_widget_get_allocation(widget, &alloc);
+
+  w = alloc.width / 1.033, h = alloc.height / 1.033;
+  x = (alloc.width - w) / 2.0, y = (alloc.height - h) / 2.0;
+  gdouble w2 = alloc.width / 2.0, h2 = alloc.height / 2.0;
+
+  cairo_save(cr);
   if (priv->selected) {
       gtk_style_context_set_state (context, GTK_STATE_FLAG_SELECTED);
   } else {
       gtk_style_context_set_state (context, gtk_widget_get_state_flags (widget));
   }
 
-  return GTK_WIDGET_CLASS (meta_deepin_tab_widget_parent_class)->draw (widget, cr);
+  gdouble pos = priv->animation ? priv->current_pos : 1.0;
+  cairo_translate(cr, w2, h2);
+  if (priv->selected) {
+      cairo_scale(cr, 1.0 + 0.033 * pos, 1.0 + 0.033 * pos);
+  } else {
+      cairo_scale(cr, 1.033 - 0.033 * pos, 1.033 - 0.033 * pos);
+  }
+
+  gtk_render_background(context, cr, x - w2, y - h2, w, h);
+  cairo_restore(cr);
+
+  cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
+  x = (alloc.width - gdk_pixbuf_get_width(priv->scaled) / 1.033) / 2.0,
+  y = (alloc.height - gdk_pixbuf_get_height(priv->scaled) / 1.033) / 2.0;
+  gdk_cairo_set_source_pixbuf(cr, priv->scaled, x, y);
+  cairo_paint(cr);
+
+  return TRUE;
 }
 
 static void meta_deepin_tab_widget_end_animation(MetaDeepinTabWidget* self)
@@ -178,11 +204,10 @@ static gboolean on_tick_callback(MetaDeepinTabWidget* self, GdkFrameClock* clock
     if (now < priv->end_time) {
         t = (now - priv->start_time) / (gdouble)(priv->end_time - priv->start_time);
     }
-    t = ease_out_cubic(t);
+    t = ease_in_out_quad(t);
     priv->current_pos = t * priv->target_pos;
     if (priv->current_pos > priv->target_pos) priv->current_pos = priv->target_pos;
-    gtk_widget_queue_resize(GTK_WIDGET(self));
-    /*g_print("%s: current %f\n", __func__, priv->current_pos);*/
+    gtk_widget_queue_draw(GTK_WIDGET(self));
 
     if (priv->current_pos >= priv->target_pos) {
         meta_deepin_tab_widget_end_animation(self);
@@ -207,6 +232,7 @@ static void meta_deepin_tab_widget_get_preferred_width (GtkWidget *widget,
   MetaDeepinTabWidgetPrivate* priv = META_DEEPIN_TAB_WIDGET(widget)->priv;
   *minimum_width = priv->real_size.width;
   *natural_width = priv->real_size.width;
+  return;
 
   if (priv->animation) {
       gint d = fast_round((priv->dest_req.width - priv->old_req.width) * priv->current_pos);
@@ -221,6 +247,7 @@ static void meta_deepin_tab_widget_get_preferred_height_for_width(GtkWidget *wid
 
     GTK_WIDGET_CLASS(meta_deepin_tab_widget_parent_class)->get_preferred_height_for_width(
             widget, width, minimum_height_out, natural_height_out);
+  return;
 
     if (gtk_widget_get_mapped(widget) && priv->animation) {
         gint d = fast_round((priv->dest_req.height - priv->old_req.height) * priv->current_pos);
@@ -238,6 +265,7 @@ static void meta_deepin_tab_widget_get_preferred_height (GtkWidget *widget,
   MetaDeepinTabWidgetPrivate* priv = META_DEEPIN_TAB_WIDGET(widget)->priv;
   *minimum_height = priv->real_size.height;
   *natural_height = priv->real_size.height;
+  return;
 
   if (gtk_widget_get_mapped(widget) && priv->animation) {
       gint d = fast_round((priv->dest_req.height - priv->old_req.height) * priv->current_pos);
@@ -250,6 +278,7 @@ static void meta_deepin_tab_widget_get_preferred_width_for_height(GtkWidget *wid
 {
     GTK_WIDGET_CLASS(meta_deepin_tab_widget_parent_class)->get_preferred_width_for_height(
             widget, height, minimum_width_out, natural_width_out);
+  return;
 
     MetaDeepinTabWidgetPrivate* priv = META_DEEPIN_TAB_WIDGET(widget)->priv;
     if (gtk_widget_get_mapped(widget) && priv->animation) {
@@ -287,8 +316,8 @@ static void meta_deepin_tab_widget_init (MetaDeepinTabWidget *self)
 {
   self->priv = (MetaDeepinTabWidgetPrivate*)meta_deepin_tab_widget_get_instance_private (self);
   self->priv->animation_duration = SWITCHER_SELECT_ANIMATION_DURATION;
-  self->priv->real_size.width = SWITCHER_ITEM_PREFER_WIDTH;
-  self->priv->real_size.height = SWITCHER_ITEM_PREFER_HEIGHT;
+  self->priv->real_size.width = SWITCHER_ITEM_PREFER_WIDTH * 1.033;
+  self->priv->real_size.height = SWITCHER_ITEM_PREFER_HEIGHT * 1.033;
   self->priv->init_size = self->priv->real_size;
 }
 
@@ -402,7 +431,7 @@ void meta_deepin_tab_widget_set_scale(MetaDeepinTabWidget* self, gdouble val)
     priv->real_size.height *= val;
 
     meta_deepin_tab_widget_update_image(self);
-    gtk_widget_queue_resize(GTK_WIDGET(self));
+    gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
 gdouble meta_deepin_tab_widget_get_scale(MetaDeepinTabWidget* self)
