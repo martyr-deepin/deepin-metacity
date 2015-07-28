@@ -83,7 +83,8 @@ void calculate_preferred_size(gint entry_count, gint max_width,
         bh = 0;
     }
 
-    bw += bw * 0.033, bh += bh * 0.033 + SWITCHER_ROW_SPACING;
+    /* expand box container to take care of scaling-up animation */
+    bw += SWITCHER_COLUMN_SPACING, bh += SWITCHER_ROW_SPACING;
 
     cached.box_width = bw;
     cached.box_height = bh;

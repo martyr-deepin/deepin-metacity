@@ -118,28 +118,33 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
 {
   MetaDeepinTabWidget *self = META_DEEPIN_TAB_WIDGET (widget);
   MetaDeepinTabWidgetPrivate* priv = self->priv;
-  GtkStyleContext *context;
 
-  context = gtk_widget_get_style_context (widget);
-  gdouble x, y, w, h;
+  GtkStyleContext* context = gtk_widget_get_style_context (widget);
 
-  /*GtkAllocation alloc;*/
-  /*gtk_widget_get_allocation(widget, &alloc);*/
+  GtkAllocation clip;
+  gtk_widget_get_clip(widget, &clip);
+
   GtkRequisition req;
   gtk_widget_get_preferred_size(widget, &req, NULL);
+  /*g_message("----- req(%d, %d), clip(%d, %d, %d, %d)", req.width, req.height, */
+          /*clip.x, clip.y, clip.width, clip.height);*/
 
+  gdouble x, y, w = req.width, h = req.height, cw = clip.width, ch = clip.height;
 
-  w = req.width / 1.033, h = req.height / 1.033;
-  x = (req.width - w) / 2.0, y = (req.height - h) / 2.0;
-  gdouble w2 = req.width / 2.0, h2 = req.height / 2.0;
+#ifdef META_UI_DEBUG
+  cairo_set_source_rgb(cr, 1, 0, 0);
+  cairo_rectangle(cr, 0, 0, cw, ch);
+  cairo_stroke(cr);
+#endif
 
-  cairo_save(cr);
+  gdouble w2 = cw / 2.0, h2 = ch / 2.0;
   if (priv->selected) {
       gtk_style_context_set_state (context, GTK_STATE_FLAG_SELECTED);
   } else {
       gtk_style_context_set_state (context, gtk_widget_get_state_flags (widget));
   }
 
+  cairo_save(cr);
   gdouble pos = priv->animation ? priv->current_pos : 1.0;
   cairo_translate(cr, w2, h2);
   if (priv->selected) {
@@ -148,12 +153,12 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
       cairo_scale(cr, 1.033 - 0.033 * pos, 1.033 - 0.033 * pos);
   }
 
-  gtk_render_background(context, cr, x - w2, y - h2, w, h);
+  gtk_render_background(context, cr, -w2, -h2, w, h);
   cairo_restore(cr);
 
   cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
-  x = (req.width - gdk_pixbuf_get_width(priv->scaled) / 1.033) / 2.0,
-  y = (req.height - gdk_pixbuf_get_height(priv->scaled) / 1.033) / 2.0;
+  x = (cw - gdk_pixbuf_get_width(priv->scaled)) / 2.0,
+  y = (ch - gdk_pixbuf_get_height(priv->scaled)) / 2.0;
   gdk_cairo_set_source_pixbuf(cr, priv->scaled, x, y);
   cairo_paint(cr);
 
@@ -313,6 +318,13 @@ static void meta_deepin_tab_widget_size_allocate(GtkWidget* widget,
         GtkAllocation* allocation)
 {
     gtk_widget_set_allocation(widget, allocation);
+
+    GtkAllocation expanded;
+    expanded.width = fast_round(allocation->width * 1.033);
+    expanded.height = fast_round(allocation->height * 1.033);
+    expanded.x = allocation->x - (expanded.width - allocation->width) / 2;
+    expanded.y = allocation->y - (expanded.height - allocation->height) / 2;
+    gtk_widget_set_clip(widget, &expanded);
 }
 
 static void meta_deepin_tab_widget_init (MetaDeepinTabWidget *self)
@@ -320,8 +332,8 @@ static void meta_deepin_tab_widget_init (MetaDeepinTabWidget *self)
   self->priv = (MetaDeepinTabWidgetPrivate*)meta_deepin_tab_widget_get_instance_private (self);
   self->priv->animation_duration = SWITCHER_SELECT_ANIMATION_DURATION;
   self->priv->scale = 1.0;
-  self->priv->real_size.width = SWITCHER_ITEM_PREFER_WIDTH * 1.033;
-  self->priv->real_size.height = SWITCHER_ITEM_PREFER_HEIGHT * 1.033;
+  self->priv->real_size.width = SWITCHER_ITEM_PREFER_WIDTH;
+  self->priv->real_size.height = SWITCHER_ITEM_PREFER_HEIGHT;
   self->priv->init_size = self->priv->real_size;
 }
 
