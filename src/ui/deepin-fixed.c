@@ -31,7 +31,6 @@
 struct _DeepinFixedPrivate
 {
   GList *children;
-  double scale;
 };
 
 enum {
@@ -138,10 +137,9 @@ deepin_fixed_init (DeepinFixed *fixed)
  * Returns: a new #DeepinFixed.
  */
 GtkWidget*
-deepin_fixed_new (double scale)
+deepin_fixed_new ()
 {
   DeepinFixed* fixed = (DeepinFixed*)g_object_new (DEEPIN_TYPE_FIXED, NULL);
-  fixed->priv->scale = scale;
   return (GtkWidget*)fixed;
 }
 
