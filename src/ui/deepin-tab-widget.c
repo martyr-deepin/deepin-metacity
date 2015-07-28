@@ -123,12 +123,15 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
   context = gtk_widget_get_style_context (widget);
   gdouble x, y, w, h;
 
-  GtkAllocation alloc;
-  gtk_widget_get_allocation(widget, &alloc);
+  /*GtkAllocation alloc;*/
+  /*gtk_widget_get_allocation(widget, &alloc);*/
+  GtkRequisition req;
+  gtk_widget_get_preferred_size(widget, &req, NULL);
 
-  w = alloc.width / 1.033, h = alloc.height / 1.033;
-  x = (alloc.width - w) / 2.0, y = (alloc.height - h) / 2.0;
-  gdouble w2 = alloc.width / 2.0, h2 = alloc.height / 2.0;
+
+  w = req.width / 1.033, h = req.height / 1.033;
+  x = (req.width - w) / 2.0, y = (req.height - h) / 2.0;
+  gdouble w2 = req.width / 2.0, h2 = req.height / 2.0;
 
   cairo_save(cr);
   if (priv->selected) {
@@ -149,8 +152,8 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
   cairo_restore(cr);
 
   cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
-  x = (alloc.width - gdk_pixbuf_get_width(priv->scaled) / 1.033) / 2.0,
-  y = (alloc.height - gdk_pixbuf_get_height(priv->scaled) / 1.033) / 2.0;
+  x = (req.width - gdk_pixbuf_get_width(priv->scaled) / 1.033) / 2.0,
+  y = (req.height - gdk_pixbuf_get_height(priv->scaled) / 1.033) / 2.0;
   gdk_cairo_set_source_pixbuf(cr, priv->scaled, x, y);
   cairo_paint(cr);
 
@@ -316,6 +319,7 @@ static void meta_deepin_tab_widget_init (MetaDeepinTabWidget *self)
 {
   self->priv = (MetaDeepinTabWidgetPrivate*)meta_deepin_tab_widget_get_instance_private (self);
   self->priv->animation_duration = SWITCHER_SELECT_ANIMATION_DURATION;
+  self->priv->scale = 1.0;
   self->priv->real_size.width = SWITCHER_ITEM_PREFER_WIDTH * 1.033;
   self->priv->real_size.height = SWITCHER_ITEM_PREFER_HEIGHT * 1.033;
   self->priv->init_size = self->priv->real_size;
@@ -420,15 +424,17 @@ void meta_deepin_tab_widget_set_scale(MetaDeepinTabWidget* self, gdouble val)
 {
     MetaDeepinTabWidgetPrivate* priv = self->priv;
     val = MIN(MAX(val, 0.0), 1.0);
+
+    gdouble p = val / priv->scale;
     priv->scale = val;
     /*FIXME: do animation and queue draw*/
     if (priv->animation) {
         meta_deepin_tab_widget_end_animation(self);
     }
-    priv->init_size.width *= val;
-    priv->init_size.height *= val;
-    priv->real_size.width *= val;
-    priv->real_size.height *= val;
+    priv->init_size.width *= p;
+    priv->init_size.height *= p;
+    priv->real_size.width *= p;
+    priv->real_size.height *= p;
 
     meta_deepin_tab_widget_update_image(self);
     gtk_widget_queue_draw(GTK_WIDGET(self));

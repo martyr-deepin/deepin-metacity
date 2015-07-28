@@ -314,11 +314,12 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
   if (i % width)
     height += 1;
 
-  g_message("%s: box(%f, %f), item (%f, %f), cols %d, rows %d, scale %g", __func__,
-          box_width, box_height, item_width, item_height,
+  meta_topic(META_DEBUG_UI, 
+          "%s: box(%f, %f), item (%f, %f), cols %d, rows %d, scale %g",
+          __func__, box_width, box_height, item_width, item_height,
           width, height, item_scale);
 
-  grid = deepin_fixed_new(item_scale);
+  grid = deepin_fixed_new();
   g_object_set(G_OBJECT(grid), "margin", POPUP_PADDING, NULL);
   gtk_widget_set_size_request(GTK_WIDGET(grid), box_width, box_height);
   gtk_container_add (GTK_CONTAINER (popup->window), grid);
@@ -343,7 +344,7 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
       te->widget = w;
       deepin_fixed_put(DEEPIN_FIXED(grid), w, 
               left * (item_width + SWITCHER_COLUMN_SPACING) 
-              + (item_width + SWITCHER_ROW_SPACING) / 2,
+              + (item_width + SWITCHER_COLUMN_SPACING) / 2,
               top * (item_height + SWITCHER_ROW_SPACING) 
               + (item_height + SWITCHER_ROW_SPACING) / 2);
 
