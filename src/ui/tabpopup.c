@@ -309,7 +309,7 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
   calculate_preferred_size(entry_count, max_width,
           &box_width, &box_height, &item_width, &item_height, &width);
 
-  item_scale = item_width * 1.033 / SWITCHER_ITEM_PREFER_WIDTH;
+  item_scale = item_width / SWITCHER_ITEM_PREFER_WIDTH;
   height = i / width;
   if (i % width)
     height += 1;
