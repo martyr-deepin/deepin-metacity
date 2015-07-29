@@ -40,9 +40,6 @@ typedef struct _MetaDeepinTabWidgetPrivate
   gint64 start_time;
   gint64 end_time;
 
-  GtkRequisition old_req;
-  GtkRequisition dest_req;
-
   guint tick_id;
   int  animation_duration;
 
@@ -176,8 +173,6 @@ static void meta_deepin_tab_widget_end_animation(MetaDeepinTabWidget* self)
     priv->animation = FALSE;
     priv->current_pos = priv->target_pos = 0;
 
-    priv->real_size = priv->dest_req;
-
     gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
@@ -240,12 +235,6 @@ static void meta_deepin_tab_widget_get_preferred_width (GtkWidget *widget,
   MetaDeepinTabWidgetPrivate* priv = META_DEEPIN_TAB_WIDGET(widget)->priv;
   *minimum_width = priv->real_size.width;
   *natural_width = priv->real_size.width;
-  return;
-
-  if (priv->animation) {
-      gint d = fast_round((priv->dest_req.width - priv->old_req.width) * priv->current_pos);
-      *minimum_width = *natural_width = priv->old_req.width + d;
-  }
 }
 
 static void meta_deepin_tab_widget_get_preferred_height_for_width(GtkWidget *widget,
@@ -255,12 +244,6 @@ static void meta_deepin_tab_widget_get_preferred_height_for_width(GtkWidget *wid
 
     GTK_WIDGET_CLASS(meta_deepin_tab_widget_parent_class)->get_preferred_height_for_width(
             widget, width, minimum_height_out, natural_height_out);
-  return;
-
-    if (gtk_widget_get_mapped(widget) && priv->animation) {
-        gint d = fast_round((priv->dest_req.height - priv->old_req.height) * priv->current_pos);
-        *minimum_height_out = *natural_height_out = priv->old_req.height + d;
-    }
 }
 
 static void meta_deepin_tab_widget_get_preferred_height (GtkWidget *widget,
@@ -273,12 +256,6 @@ static void meta_deepin_tab_widget_get_preferred_height (GtkWidget *widget,
   MetaDeepinTabWidgetPrivate* priv = META_DEEPIN_TAB_WIDGET(widget)->priv;
   *minimum_height = priv->real_size.height;
   *natural_height = priv->real_size.height;
-  return;
-
-  if (gtk_widget_get_mapped(widget) && priv->animation) {
-      gint d = fast_round((priv->dest_req.height - priv->old_req.height) * priv->current_pos);
-      *minimum_height = *natural_height = priv->old_req.height + d;
-  }
 }
 
 static void meta_deepin_tab_widget_get_preferred_width_for_height(GtkWidget *widget,
@@ -286,13 +263,6 @@ static void meta_deepin_tab_widget_get_preferred_width_for_height(GtkWidget *wid
 {
     GTK_WIDGET_CLASS(meta_deepin_tab_widget_parent_class)->get_preferred_width_for_height(
             widget, height, minimum_width_out, natural_width_out);
-  return;
-
-    MetaDeepinTabWidgetPrivate* priv = META_DEEPIN_TAB_WIDGET(widget)->priv;
-    if (gtk_widget_get_mapped(widget) && priv->animation) {
-        gint d = fast_round((priv->dest_req.width - priv->old_req.width) * priv->current_pos);
-        *minimum_width_out = *natural_width_out = priv->old_req.width + d;
-    }
 }
 
 static void meta_deepin_tab_widget_update_image(MetaDeepinTabWidget* self)
@@ -380,7 +350,6 @@ static void meta_deepin_tab_widget_prepare_animation(MetaDeepinTabWidget* self,
         gboolean select)
 {
     if (!gtk_widget_get_realized(GTK_WIDGET(self))) {
-        meta_topic(META_DEBUG_UI, "tab item is not realized");
         gtk_widget_realize(GTK_WIDGET(self));
     }
 
@@ -399,20 +368,6 @@ static void meta_deepin_tab_widget_prepare_animation(MetaDeepinTabWidget* self,
     priv->tick_id = gtk_widget_add_tick_callback(GTK_WIDGET(self),
             (GtkTickCallback)on_tick_callback, 0, 0);
 
-    if (select) {
-        priv->old_req = priv->init_size; 
-        priv->dest_req.width = priv->old_req.width * 1.033;
-        priv->dest_req.height = priv->old_req.height * 1.033;
-    } else {
-        priv->dest_req = priv->init_size; 
-        priv->old_req.width = priv->dest_req.width * 1.033;
-        priv->old_req.height = priv->dest_req.height * 1.033;
-    }
-
-    meta_topic(META_DEBUG_UI, "%s: start %ld, end %ld, req(%d, %d) -> (%d, %d)\n",
-            __func__, priv->start_time, priv->end_time,
-            priv->old_req.width, priv->old_req.height,
-            priv->dest_req.width, priv->dest_req.height);
     priv->animation = TRUE;
 }
 
@@ -439,7 +394,6 @@ void meta_deepin_tab_widget_set_scale(MetaDeepinTabWidget* self, gdouble val)
 
     gdouble p = val / priv->scale;
     priv->scale = val;
-    /*FIXME: do animation and queue draw*/
     if (priv->animation) {
         meta_deepin_tab_widget_end_animation(self);
     }
