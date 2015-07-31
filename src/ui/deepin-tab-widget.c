@@ -1,9 +1,6 @@
 /* -*- mode: C; c-file-style: "gnu"; indent-tabs-mode: nil; -*- */
 
 /*
- * Copyright (C) 2001 Havoc Pennington
- * Copyright (C) 2002 Red Hat, Inc.
- * Copyright (C) 2005 Elijah Newren
  * Copyright (C) 2015 Sian Cao <yinshuiboy@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +27,8 @@
 typedef struct _MetaDeepinTabWidgetPrivate
 {
   gboolean selected;
-  gdouble scale;
+  gdouble scale; /* this scale does not used for scaling animation, it only means
+                    that if thumbnail gets shrinked or expanded */
 
   gboolean animation; /* in animation */
 
@@ -58,7 +56,7 @@ enum {
 
 static GParamSpec* property_specs[N_PROPERTIES] = {NULL, };
 
-G_DEFINE_TYPE_WITH_PRIVATE (MetaDeepinTabWidget, meta_deepin_tab_widget, GTK_TYPE_IMAGE);
+G_DEFINE_TYPE_WITH_PRIVATE (MetaDeepinTabWidget, meta_deepin_tab_widget, GTK_TYPE_WIDGET);
 
 static void meta_deepin_tab_widget_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec)
 {
@@ -280,7 +278,6 @@ static void meta_deepin_tab_widget_update_image(MetaDeepinTabWidget* self)
 
         priv->scaled = gdk_pixbuf_scale_simple(priv->orig_thumb,
                 req.width, req.height, GDK_INTERP_BILINEAR);
-        gtk_image_set_from_pixbuf(GTK_IMAGE(self), priv->scaled);
     }
 }
 
@@ -305,6 +302,7 @@ static void meta_deepin_tab_widget_init (MetaDeepinTabWidget *self)
   self->priv->real_size.width = SWITCHER_ITEM_PREFER_WIDTH;
   self->priv->real_size.height = SWITCHER_ITEM_PREFER_HEIGHT;
   self->priv->init_size = self->priv->real_size;
+  gtk_widget_set_has_window(GTK_WIDGET(self), FALSE);
 }
 
 static void meta_deepin_tab_widget_class_init (MetaDeepinTabWidgetClass *klass)
@@ -397,8 +395,6 @@ void meta_deepin_tab_widget_set_scale(MetaDeepinTabWidget* self, gdouble val)
     if (priv->animation) {
         meta_deepin_tab_widget_end_animation(self);
     }
-    priv->init_size.width *= p;
-    priv->init_size.height *= p;
     priv->real_size.width *= p;
     priv->real_size.height *= p;
 

@@ -23,71 +23,17 @@
 
 #include <config.h>
 
+#include <gtk/gtk.h>
+#include <math.h>
 #include "util.h"
 #include "core.h"
-#include "tabpopup.h"
+#include "tabpopup-private.h"
+#include "deepin-cloned-widget.h"
 #include "deepin-tab-widget.h"
 #include "deepin-fixed.h"
 #include "select-workspace.h"
-#include <gtk/gtk.h>
-#include <math.h>
 #include "deepin-design.h"
-
-typedef struct _TabEntry TabEntry;
-
-struct _TabEntry
-{
-  MetaTabEntryKey  key;
-  char            *title;
-  GdkPixbuf       *icon, *dimmed_icon;
-  GtkWidget       *widget;
-  GdkRectangle     rect;
-  GdkRectangle     inner_rect;
-  guint blank : 1;
-};
-
-struct _MetaTabPopup
-{
-  GtkWidget *window;
-  GList *current;
-  GList *entries;
-  TabEntry *current_selected_entry;
-  GtkWidget *outline_window;
-  gboolean outline;
-};
-
-static gboolean
-outline_window_draw (GtkWidget *widget,
-                     cairo_t   *cr,
-                     gpointer   data)
-{
-  MetaTabPopup *popup;
-  TabEntry *te;
-
-  popup = data;
-
-  if (!popup->outline || popup->current_selected_entry == NULL)
-    return FALSE;
-
-  te = popup->current_selected_entry;
-
-  cairo_set_line_width (cr, 1.0);
-  cairo_set_source_rgb (cr, 1.0, 1.0, 1.0);
-
-  cairo_rectangle (cr,
-                   0.5, 0.5,
-                   te->rect.width - 1,
-                   te->rect.height - 1);
-  cairo_stroke (cr);
-
-  cairo_rectangle (cr,
-                   te->inner_rect.x - 0.5, te->inner_rect.y - 0.5,
-                   te->inner_rect.width + 1,
-                   te->inner_rect.height + 1);
-  cairo_stroke (cr);
-
-  return FALSE;
-}
+#include "deepin-switch-previewer.h"
 
 static GdkPixbuf*
 dimm_icon (GdkPixbuf *pixbuf)
@@ -215,7 +161,7 @@ static void meta_ui_tab_popup_setup_style(MetaTabPopup* popup)
   GList* tmp = popup->entries;
   while (tmp) {
       TabEntry* te = (TabEntry*)tmp->data;
-      if (te->widget) {
+      if (te->widget && META_IS_DEEPIN_TAB_WIDGET(te->widget)) {
           style_ctx = gtk_widget_get_style_context(te->widget);
           gtk_style_context_add_provider(style_ctx,
                   GTK_STYLE_PROVIDER(css_style), GTK_STYLE_PROVIDER_PRIORITY_USER);
@@ -255,8 +201,6 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
   visual = gdk_screen_get_rgba_visual (screen);
 
   if (outline) {
-      GdkRGBA black = { 0.0, 1.0, 0.0, 0.4 };
-
       popup->outline_window = gtk_window_new (GTK_WINDOW_POPUP);
 
       if (visual)
@@ -265,16 +209,15 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
       gtk_window_set_screen (GTK_WINDOW (popup->outline_window),
                              screen);
 
-      gtk_widget_set_app_paintable (popup->outline_window, TRUE);
+  gtk_window_set_position (GTK_WINDOW (popup->outline_window),
+                           GTK_WIN_POS_CENTER_ALWAYS);
+      gtk_window_set_default_size(GTK_WINDOW(popup->outline_window), 
+                  gdk_screen_get_width(screen), 
+                  gdk_screen_get_height(screen));
       gtk_widget_realize (popup->outline_window);
 
-      gdk_window_set_background_rgba (gtk_widget_get_window (popup->outline_window),
-                                      &black);
-
-      g_signal_connect (G_OBJECT (popup->outline_window), "draw",
-                        G_CALLBACK (outline_window_draw), popup);
-
-      gtk_widget_show (popup->outline_window);
+      popup->previewer = (MetaDeepinSwitchPreviewer*)meta_deepin_switch_previewer_new(popup);
+      gtk_container_add(GTK_CONTAINER(popup->outline_window), (GtkWidget*)popup->previewer);
     }
   else
     popup->outline_window = NULL;
@@ -298,11 +241,10 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
 
   screen_width = gdk_screen_get_width (screen);
   max_width = screen_width - POPUP_SCREEN_PADDING * 2 - POPUP_PADDING * 2;
-  for (i = 0; i < entry_count; ++i)
-    {
+  for (i = 0; i < entry_count; ++i) {
       TabEntry* new_entry = tab_entry_new (&entries[i], screen_width, outline);
       popup->entries = g_list_prepend (popup->entries, new_entry);
-    }
+  }
 
   popup->entries = g_list_reverse (popup->entries);
 
@@ -356,6 +298,11 @@ meta_ui_tab_popup_new (const MetaTabEntry *entries,
   }
 
   meta_ui_tab_popup_setup_style(popup);
+
+  meta_deepin_switch_previewer_populate(popup->previewer);
+  gtk_widget_show_all(popup->outline_window);
+  GdkWindow *window = gtk_widget_get_window (popup->outline_window);
+  gdk_window_raise(window);
 
   return popup;
 }
@@ -429,35 +376,7 @@ display_entry (MetaTabPopup *popup,
     meta_select_workspace_select (META_SELECT_WORKSPACE (te->widget));
 
   if (popup->outline)
-    {
-      GdkRectangle rect;
-      GdkWindow *window;
-      cairo_region_t *region;
-
-      window = gtk_widget_get_window (popup->outline_window);
-
-      /* Do stuff behind gtk's back */
-      gdk_window_hide (window);
-      meta_core_increment_event_serial (GDK_DISPLAY_XDISPLAY (gdk_display_get_default ()));
-
-      rect = te->rect;
-      rect.x = 0;
-      rect.y = 0;
-
-      gtk_window_move (GTK_WINDOW (popup->outline_window), te->rect.x, te->rect.y);
-      gtk_window_resize (GTK_WINDOW (popup->outline_window), te->rect.width, te->rect.height);
-
-      region = cairo_region_create_rectangle (&rect);
-      cairo_region_subtract_rectangle (region, &te->inner_rect);
-
-      gdk_window_shape_combine_region (gtk_widget_get_window (popup->outline_window),
-                                       region,
-                                       0, 0);
-
-      cairo_region_destroy (region);
-
-      gdk_window_show_unraised (window);
-    }
+      meta_deepin_switch_previewer_select(popup->previewer, te);
 
   /* Must be before we handle an expose for the outline window */
   popup->current_selected_entry = te;
