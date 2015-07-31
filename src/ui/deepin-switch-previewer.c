@@ -1,0 +1,647 @@
+/* -*- mode: C; c-file-style: "gnu"; indent-tabs-mode: nil; -*- */
+
+/*
+ * Copyright (C) 2015 Sian Cao <yinshuiboy@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <config.h>
+#include <math.h>
+#include <util.h>
+#include <gdk/gdk.h>
+#include <gdk/gdkx.h>
+#include "../core/workspace.h"
+#include "compositor.h"
+#include "deepin-design.h"
+#include "deepin-switch-previewer.h"
+#include "tabpopup-private.h"
+#include "deepin-cloned-widget.h"
+#include "deepin-stackblur.h"
+
+#define SCALE_FACTOR 1.033
+#define BLUR_RADIUS 10.0
+
+struct _MetaDeepinSwitchPreviewerChild
+{
+    GtkWidget *widget;
+    gint x;
+    gint y;
+};
+
+/*TODO: handle multiple screens */
+struct _MetaDeepinSwitchPreviewerPrivate
+{
+    MetaScreen* screen;
+    MetaWorkspace* active_workspace;
+    GList *children;
+    MetaTabPopup* popup;
+    MetaDeepinClonedWidget* current_preview;
+
+    cairo_surface_t* cap_surface;
+};
+
+enum {
+    CHILD_PROP_0,
+    CHILD_PROP_X,
+    CHILD_PROP_Y
+};
+
+GQuark _cloned_widget_key_quark = 0;
+
+static void cloned_widget_set_key(GtkWidget* w, gpointer data)
+{
+    if (!_cloned_widget_key_quark) {
+        _cloned_widget_key_quark = g_quark_from_static_string("cloned-widget-key");
+    }
+    g_object_set_qdata(G_OBJECT(w), _cloned_widget_key_quark, data);
+}
+
+static gpointer cloned_widget_get_key(GtkWidget* w)
+{
+    if (!_cloned_widget_key_quark) {
+        _cloned_widget_key_quark = g_quark_from_static_string("cloned-widget-key");
+    }
+    return g_object_get_qdata(G_OBJECT(w), _cloned_widget_key_quark);
+}
+
+static GdkPixbuf* get_window_pixbuf (MetaWindow *window)
+{
+    Pixmap pmap;
+    GdkPixbuf *pixbuf;
+
+    pmap = meta_compositor_get_window_pixmap (window->display->compositor,
+            window);
+    if (pmap == None)
+        return NULL;
+
+    pixbuf = meta_ui_get_pixbuf_from_pixmap (pmap);
+    if (pixbuf == NULL) 
+        return NULL;
+
+    return pixbuf;
+}
+
+static void meta_deepin_switch_previewer_mix_background2(MetaDeepinSwitchPreviewer* self)
+{
+    MetaDeepinSwitchPreviewerPrivate* priv = self->priv;
+    GtkRequisition req;
+    gtk_widget_get_preferred_size(GTK_WIDGET(self), &req, NULL);
+
+    if (!priv->cap_surface) {
+        priv->cap_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
+                req.width, req.height);
+    }
+
+    cairo_t* cr = cairo_create(priv->cap_surface);
+    /*gtk_render_background(context, cr, 0, 0, req.width, req.height);*/
+    cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
+    cairo_set_source_rgb(cr, 105.0/255.0, 105.0/255.0, 105.0/255.0);
+    cairo_rectangle(cr, 0, 0, req.width, req.height);
+    cairo_fill(cr);
+
+    cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
+    MetaDeepinSwitchPreviewerChild *child;
+    GList *list;
+    for (list = priv->children; list; list = list->next) {
+        child = (MetaDeepinSwitchPreviewerChild*)list->data;
+        if (child->widget != (GtkWidget*)priv->current_preview) {
+            Window key = (Window)cloned_widget_get_key(child->widget);
+            MetaWindow* win = meta_display_lookup_x_window(meta_get_display(), key);
+            GdkPixbuf* pixbuf = get_window_pixbuf(win);
+
+            MetaRectangle r;
+            meta_window_get_outer_rect (win, &r);
+            gdk_cairo_set_source_pixbuf(cr, pixbuf, r.x, r.y);
+            cairo_paint(cr);
+            g_object_unref(pixbuf);
+        }
+    }
+
+    cairo_surface_flush(priv->cap_surface);
+    cairo_destroy(cr);
+
+    stack_blur_surface(priv->cap_surface, BLUR_RADIUS);
+}
+
+static void meta_deepin_switch_previewer_mix_background(MetaDeepinSwitchPreviewer* self)
+{
+    MetaDeepinSwitchPreviewerPrivate* priv = self->priv;
+    GtkRequisition req;
+    gtk_widget_get_preferred_size(GTK_WIDGET(self), &req, NULL);
+
+    if (!priv->cap_surface) {
+        priv->cap_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
+                req.width, req.height);
+    }
+
+    cairo_t* cr = cairo_create(priv->cap_surface);
+    GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(self));
+    gtk_render_background(context, cr, 0, 0, req.width, req.height);
+
+    MetaDeepinSwitchPreviewerChild *child;
+    GList *list;
+    for (list = priv->children; list; list = list->next) {
+        child = (MetaDeepinSwitchPreviewerChild*)list->data;
+        if (child->widget != (GtkWidget*)priv->current_preview) {
+            gtk_container_propagate_draw(GTK_CONTAINER(self), child->widget, cr);
+        }
+    }
+
+    cairo_surface_flush(priv->cap_surface);
+    cairo_destroy(cr);
+}
+
+static void meta_deepin_switch_previewer_realize       (GtkWidget        *widget);
+static void meta_deepin_switch_previewer_get_preferred_width  (GtkWidget *widget,
+        gint      *minimum,
+        gint      *natural);
+static void meta_deepin_switch_previewer_get_preferred_height (GtkWidget *widget,
+        gint      *minimum,
+        gint      *natural);
+static void meta_deepin_switch_previewer_size_allocate (GtkWidget        *widget,
+        GtkAllocation    *allocation);
+static gboolean meta_deepin_switch_previewer_draw      (GtkWidget        *widget,
+        cairo_t          *cr);
+static void meta_deepin_switch_previewer_add           (GtkContainer     *container,
+        GtkWidget        *widget);
+static void meta_deepin_switch_previewer_remove        (GtkContainer     *container,
+        GtkWidget        *widget);
+static void meta_deepin_switch_previewer_forall        (GtkContainer     *container,
+        gboolean          include_internals,
+        GtkCallback       callback,
+        gpointer          callback_data);
+static GType meta_deepin_switch_previewer_child_type   (GtkContainer     *container);
+
+static void meta_deepin_switch_previewer_set_child_property (GtkContainer *container,
+        GtkWidget    *child,
+        guint         property_id,
+        const GValue *value,
+        GParamSpec   *pspec);
+static void meta_deepin_switch_previewer_get_child_property (GtkContainer *container,
+        GtkWidget    *child,
+        guint         property_id,
+        GValue       *value,
+        GParamSpec   *pspec);
+
+G_DEFINE_TYPE_WITH_PRIVATE (MetaDeepinSwitchPreviewer, meta_deepin_switch_previewer, GTK_TYPE_CONTAINER)
+
+static void _setup_style(MetaDeepinSwitchPreviewer* self)
+{
+  GtkStyleContext* style_ctx = gtk_widget_get_style_context(GTK_WIDGET(self));
+
+  GtkCssProvider* css_style = gtk_css_provider_new();
+
+  GFile* f = g_file_new_for_path(METACITY_PKGDATADIR "/deepin-wm.css");
+  GError* error = NULL;
+  if (!gtk_css_provider_load_from_file(css_style, f, &error)) {
+      meta_topic(META_DEBUG_UI, "load css failed: %s", error->message);
+      g_error_free(error);
+      return;
+  }
+
+  gtk_style_context_add_provider(style_ctx,
+          GTK_STYLE_PROVIDER(css_style), GTK_STYLE_PROVIDER_PRIORITY_USER);
+  gtk_style_context_add_class(style_ctx, "deepin-window-manager");
+
+  g_object_unref(f);
+  g_object_unref(css_style);
+}
+
+static void meta_deepin_switch_previewer_class_init (MetaDeepinSwitchPreviewerClass *klass)
+{
+    GtkWidgetClass *widget_class;
+    GtkContainerClass *container_class;
+
+    widget_class = (GtkWidgetClass*) klass;
+    container_class = (GtkContainerClass*) klass;
+
+    widget_class->realize = meta_deepin_switch_previewer_realize;
+    widget_class->get_preferred_width = meta_deepin_switch_previewer_get_preferred_width;
+    widget_class->get_preferred_height = meta_deepin_switch_previewer_get_preferred_height;
+    widget_class->size_allocate = meta_deepin_switch_previewer_size_allocate;
+    widget_class->draw = meta_deepin_switch_previewer_draw;
+
+    container_class->add = meta_deepin_switch_previewer_add;
+    container_class->remove = meta_deepin_switch_previewer_remove;
+    container_class->forall = meta_deepin_switch_previewer_forall;
+    container_class->child_type = meta_deepin_switch_previewer_child_type;
+    container_class->set_child_property = meta_deepin_switch_previewer_set_child_property;
+    container_class->get_child_property = meta_deepin_switch_previewer_get_child_property;
+    gtk_container_class_handle_border_width (container_class);
+
+    gtk_container_class_install_child_property (container_class,
+            CHILD_PROP_X,
+            g_param_spec_int ("x",
+                ("X position"),
+                ("X position of child widget"),
+                G_MININT, G_MAXINT, 0,
+                G_PARAM_READWRITE));
+
+    gtk_container_class_install_child_property (container_class,
+            CHILD_PROP_Y,
+            g_param_spec_int ("y",
+                ("Y position"),
+                ("Y position of child widget"),
+                G_MININT, G_MAXINT, 0,
+                G_PARAM_READWRITE));
+}
+
+static GType meta_deepin_switch_previewer_child_type (GtkContainer *container)
+{
+    return GTK_TYPE_WIDGET;
+}
+
+static void meta_deepin_switch_previewer_init (MetaDeepinSwitchPreviewer *self)
+{
+    self->priv = (MetaDeepinSwitchPreviewerPrivate*)meta_deepin_switch_previewer_get_instance_private (self);
+
+    gtk_widget_set_has_window (GTK_WIDGET (self), FALSE);
+
+    self->priv->children = NULL;
+}
+
+GtkWidget* meta_deepin_switch_previewer_new (MetaTabPopup* popup)
+{
+    MetaDeepinSwitchPreviewer* self =
+        (MetaDeepinSwitchPreviewer*)g_object_new(META_TYPE_DEEPIN_SWITCH_PREVIEWER, NULL);
+    MetaDeepinSwitchPreviewerPrivate* priv = self->priv;
+    priv->popup = popup;
+
+    _setup_style(self);
+    return (GtkWidget*)self;
+}
+
+void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self)
+{
+    MetaDeepinSwitchPreviewerPrivate* priv = self->priv;
+    MetaDisplay* disp = meta_get_display();
+
+    GList* l = priv->popup->entries;
+    while (l) {
+        TabEntry* te = (TabEntry*)l->data;
+        MetaWindow* win = meta_display_lookup_x_window(disp, (Window)te->key);    
+
+        if (win) {
+            if (!priv->screen) {
+                priv->screen = meta_window_get_screen(win);
+            }
+            GtkWidget* widget = meta_deepin_cloned_widget_new(win);
+                    
+            /*gint w = te->rect.width / SCALE_FACTOR, h = te->rect.height / SCALE_FACTOR;*/
+            gint w = te->rect.width, h = te->rect.height;
+            meta_deepin_cloned_widget_set_size(META_DEEPIN_CLONED_WIDGET(widget),
+                w, h);
+            meta_deepin_cloned_widget_set_blur_radius(
+                    META_DEEPIN_CLONED_WIDGET(widget), BLUR_RADIUS);
+            /* put around center */
+            meta_deepin_switch_previewer_put(self, widget,
+                    te->rect.x + (te->rect.width - w)/2 + w/2,
+                    te->rect.y + (te->rect.height - h)/2 + h/2);
+            cloned_widget_set_key(widget, GINT_TO_POINTER(te->key));
+        }
+        l = l->next;
+    }
+
+    gtk_widget_queue_resize(GTK_WIDGET(self));
+}
+
+static MetaDeepinSwitchPreviewerChild* get_child (MetaDeepinSwitchPreviewer  *self,
+        GtkWidget *widget)
+{
+    MetaDeepinSwitchPreviewerPrivate *priv = self->priv;
+    MetaDeepinSwitchPreviewerChild *child;
+    GList *children;
+
+    for (children = priv->children; children; children = children->next) {
+        child = (MetaDeepinSwitchPreviewerChild*) children->data;
+        if (child->widget == widget)
+            return child;
+    }
+
+    return NULL;
+}
+
+void meta_deepin_switch_previewer_put (MetaDeepinSwitchPreviewer  *self,
+        GtkWidget *widget,
+        gint       x,
+        gint       y)
+{
+    MetaDeepinSwitchPreviewerPrivate *priv = self->priv;
+    MetaDeepinSwitchPreviewerChild *child_info;
+
+    g_return_if_fail (META_IS_DEEPIN_SWITCH_PREVIEWER (self));
+    g_return_if_fail (GTK_IS_WIDGET (widget));
+
+    child_info = g_new (MetaDeepinSwitchPreviewerChild, 1);
+    child_info->widget = widget;
+    child_info->x = x;
+    child_info->y = y;
+
+    gtk_widget_set_parent (widget, GTK_WIDGET (self));
+
+    priv->children = g_list_append (priv->children, child_info);
+}
+
+static void meta_deepin_switch_previewer_move_internal (
+        MetaDeepinSwitchPreviewer      *self,
+        MetaDeepinSwitchPreviewerChild *child,
+        gint           x,
+        gint           y)
+{
+    g_return_if_fail (META_IS_DEEPIN_SWITCH_PREVIEWER (self));
+    g_return_if_fail (gtk_widget_get_parent (child->widget) == GTK_WIDGET (self));
+
+    gtk_widget_freeze_child_notify (child->widget);
+
+    if (child->x != x) {
+        child->x = x;
+        gtk_widget_child_notify (child->widget, "x");
+    }
+
+    if (child->y != y) {
+        child->y = y;
+        gtk_widget_child_notify (child->widget, "y");
+    }
+
+    gtk_widget_thaw_child_notify (child->widget);
+
+    if (gtk_widget_get_visible (child->widget) &&
+            gtk_widget_get_visible (GTK_WIDGET (self)))
+        gtk_widget_queue_resize (GTK_WIDGET (self));
+}
+
+void meta_deepin_switch_previewer_move (MetaDeepinSwitchPreviewer  *self,
+        GtkWidget *widget,
+        gint       x,
+        gint       y)
+{
+    meta_deepin_switch_previewer_move_internal (self, get_child (self, widget), x, y);
+}
+
+static void meta_deepin_switch_previewer_set_child_property (GtkContainer *container,
+        GtkWidget    *child,
+        guint         property_id,
+        const GValue *value,
+        GParamSpec   *pspec)
+{
+    MetaDeepinSwitchPreviewer *self = META_DEEPIN_SWITCH_PREVIEWER (container);
+    MetaDeepinSwitchPreviewerChild *fixed_child = get_child (self, child);
+
+    switch (property_id)
+    {
+        case CHILD_PROP_X:
+            meta_deepin_switch_previewer_move_internal (self,
+                    fixed_child,
+                    g_value_get_int (value),
+                    fixed_child->y);
+            break;
+        case CHILD_PROP_Y:
+            meta_deepin_switch_previewer_move_internal (self,
+                    fixed_child,
+                    fixed_child->x,
+                    g_value_get_int (value));
+            break;
+        default:
+            GTK_CONTAINER_WARN_INVALID_CHILD_PROPERTY_ID (container, property_id, pspec);
+            break;
+    }
+}
+
+static void meta_deepin_switch_previewer_get_child_property (GtkContainer *container,
+        GtkWidget    *child,
+        guint         property_id,
+        GValue       *value,
+        GParamSpec   *pspec)
+{
+    MetaDeepinSwitchPreviewerChild *fixed_child;
+
+    fixed_child = get_child (META_DEEPIN_SWITCH_PREVIEWER (container), child);
+
+    switch (property_id)
+    {
+        case CHILD_PROP_X:
+            g_value_set_int (value, fixed_child->x);
+            break;
+        case CHILD_PROP_Y:
+            g_value_set_int (value, fixed_child->y);
+            break;
+        default:
+            GTK_CONTAINER_WARN_INVALID_CHILD_PROPERTY_ID (container, property_id, pspec);
+            break;
+    }
+}
+
+static void meta_deepin_switch_previewer_realize (GtkWidget *widget) 
+{
+    GtkAllocation allocation;
+    GdkWindow *window;
+    GdkWindowAttr attributes;
+    gint attributes_mask;
+
+    if (!gtk_widget_get_has_window (widget))
+        GTK_WIDGET_CLASS (meta_deepin_switch_previewer_parent_class)->realize (widget);
+    else
+    {
+        g_assert(0);
+        gtk_widget_set_realized (widget, TRUE);
+
+        gtk_widget_get_allocation (widget, &allocation);
+
+        attributes.window_type = GDK_WINDOW_CHILD;
+        attributes.x = allocation.x;
+        attributes.y = allocation.y;
+        attributes.width = allocation.width;
+        attributes.height = allocation.height;
+        attributes.wclass = GDK_INPUT_OUTPUT;
+        attributes.visual = gtk_widget_get_visual (widget);
+        attributes.event_mask = gtk_widget_get_events (widget);
+        attributes.event_mask |= GDK_EXPOSURE_MASK | GDK_BUTTON_PRESS_MASK;
+
+        attributes_mask = GDK_WA_X | GDK_WA_Y | GDK_WA_VISUAL;
+
+        window = gdk_window_new (gtk_widget_get_parent_window (widget),
+                &attributes, attributes_mask);
+        gtk_widget_set_window (widget, window);
+        gtk_widget_register_window (widget, window);
+
+        gtk_style_context_set_background (gtk_widget_get_style_context (widget),
+                window);
+    }
+}
+
+static void meta_deepin_switch_previewer_get_preferred_width (GtkWidget *widget,
+        gint* minimum, gint* natural)
+{
+    MetaDeepinSwitchPreviewer *self = META_DEEPIN_SWITCH_PREVIEWER (widget);
+    MetaDeepinSwitchPreviewerPrivate *priv = self->priv;
+
+    GdkScreen* screen = gtk_widget_get_screen(priv->popup->outline_window);
+    *minimum = *natural = gdk_screen_get_width(screen);
+}
+
+static void meta_deepin_switch_previewer_get_preferred_height (GtkWidget *widget,
+        gint* minimum, gint* natural)
+{
+    MetaDeepinSwitchPreviewer *self = META_DEEPIN_SWITCH_PREVIEWER (widget);
+    MetaDeepinSwitchPreviewerPrivate *priv = self->priv;
+    GdkScreen* screen = gtk_widget_get_screen(priv->popup->outline_window);
+    *minimum = *natural = gdk_screen_get_height(screen);
+}
+
+static void meta_deepin_switch_previewer_size_allocate (GtkWidget* widget,
+        GtkAllocation *allocation)
+{
+    MetaDeepinSwitchPreviewer *self = META_DEEPIN_SWITCH_PREVIEWER (widget);
+    MetaDeepinSwitchPreviewerPrivate *priv = self->priv;
+    MetaDeepinSwitchPreviewerChild *child;
+    GtkAllocation child_allocation;
+    GtkRequisition child_requisition;
+    GList *children;
+
+    gtk_widget_set_allocation (widget, allocation);
+
+    for (children = priv->children; children; children = children->next) {
+        child = (MetaDeepinSwitchPreviewerChild*)children->data;
+
+        if (!gtk_widget_get_visible (child->widget))
+            continue;
+
+        gtk_widget_get_preferred_size (child->widget, &child_requisition, NULL);
+        child_allocation.x = child->x - child_requisition.width/2;
+        child_allocation.y = child->y - child_requisition.height/2;
+
+        if (!gtk_widget_get_has_window (widget)) {
+            child_allocation.x += allocation->x;
+            child_allocation.y += allocation->y;
+        }
+
+        child_allocation.width = child_requisition.width;
+        child_allocation.height = child_requisition.height;
+        gtk_widget_size_allocate (child->widget, &child_allocation);
+        /*g_message("%s: (%d, %d, %d, %d)", __func__, child_allocation.x, */
+                /*child_allocation.y, child_allocation.width, child_allocation.height);*/
+    }
+}
+
+static void meta_deepin_switch_previewer_add (GtkContainer *container,
+        GtkWidget    *widget)
+{
+    meta_deepin_switch_previewer_put (META_DEEPIN_SWITCH_PREVIEWER (container), widget, 0, 0);
+}
+
+static void meta_deepin_switch_previewer_remove (GtkContainer *container,
+        GtkWidget    *widget)
+{
+    MetaDeepinSwitchPreviewer *self = META_DEEPIN_SWITCH_PREVIEWER (container);
+    MetaDeepinSwitchPreviewerPrivate *priv = self->priv;
+    MetaDeepinSwitchPreviewerChild *child;
+    GtkWidget *widget_container = GTK_WIDGET (container);
+    GList *children;
+
+    for (children = priv->children; children; children = children->next) {
+        child = (MetaDeepinSwitchPreviewerChild*)children->data;
+
+        if (child->widget == widget) {
+            gboolean was_visible = gtk_widget_get_visible (widget);
+
+            gtk_widget_unparent (widget);
+
+            priv->children = g_list_remove_link (priv->children, children);
+            g_list_free (children);
+            g_free (child);
+
+            if (was_visible && gtk_widget_get_visible (widget_container))
+                gtk_widget_queue_resize (widget_container);
+
+            break;
+        }
+    }
+}
+
+static void meta_deepin_switch_previewer_forall (GtkContainer *container,
+        gboolean      include_internals,
+        GtkCallback   callback,
+        gpointer      callback_data)
+{
+    MetaDeepinSwitchPreviewer *self = META_DEEPIN_SWITCH_PREVIEWER (container);
+    MetaDeepinSwitchPreviewerPrivate *priv = self->priv;
+    MetaDeepinSwitchPreviewerChild *child;
+    GList *children;
+
+    children = priv->children;
+    while (children) {
+        child = (MetaDeepinSwitchPreviewerChild*)children->data;
+        children = children->next;
+
+        (* callback) (child->widget, callback_data);
+    }
+}
+
+static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
+        cairo_t   *cr)
+{
+    MetaDeepinSwitchPreviewer *self = META_DEEPIN_SWITCH_PREVIEWER (widget);
+    MetaDeepinSwitchPreviewerPrivate *priv = self->priv;
+    GtkStyleContext* context = gtk_widget_get_style_context (widget);
+
+    GtkRequisition req;
+    gtk_widget_get_preferred_size(widget, &req, NULL);
+
+    /*g_message("%s, w %d, h %d", __func__, req.width,req.height);*/
+    /*gtk_render_background(context, cr, 0, 0, req.width, req.height);*/
+
+    if (priv->cap_surface) {
+        cairo_set_source_surface(cr, priv->cap_surface, 0, 0);
+        cairo_paint(cr);
+    }
+
+    gtk_container_propagate_draw(GTK_CONTAINER(self), GTK_WIDGET(priv->current_preview), cr);
+    return TRUE;
+}
+
+void meta_deepin_switch_previewer_select(MetaDeepinSwitchPreviewer* self,
+        TabEntry* te)
+{
+    MetaDeepinSwitchPreviewerPrivate* priv = self->priv;
+    MetaDeepinSwitchPreviewerChild* child;
+    MetaDeepinClonedWidget* w = NULL;
+
+    GList* l = priv->children;
+    while (l) {
+        child = (MetaDeepinSwitchPreviewerChild*)l->data;
+        if (te->key == cloned_widget_get_key(child->widget)) {
+            w = (MetaDeepinClonedWidget*)child->widget;
+            break;
+        }
+        l = l->next;
+    }
+
+    if (w) {
+        if (priv->current_preview) {
+            meta_deepin_cloned_widget_set_blur_radius(priv->current_preview, BLUR_RADIUS);
+            meta_deepin_cloned_widget_set_scale(w, 1.0, 1.0);
+            meta_deepin_cloned_widget_unselect(priv->current_preview);
+        } 
+
+        priv->current_preview = w;
+        meta_deepin_switch_previewer_mix_background(self);
+        
+        meta_deepin_cloned_widget_push_state(w);
+        meta_deepin_cloned_widget_set_scale(w, 1.033, 1.033);
+        meta_deepin_cloned_widget_set_blur_radius(w, 0.0);
+        meta_deepin_cloned_widget_select(w);
+    }
+}
+
