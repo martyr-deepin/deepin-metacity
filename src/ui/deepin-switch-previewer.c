@@ -22,6 +22,7 @@
 #include <util.h>
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
+#include <cairo-xlib.h>
 #include "../core/workspace.h"
 #include "compositor.h"
 #include "deepin-design.h"
@@ -77,21 +78,30 @@ static gpointer cloned_widget_get_key(GtkWidget* w)
     return g_object_get_qdata(G_OBJECT(w), _cloned_widget_key_quark);
 }
 
-static GdkPixbuf* get_window_pixbuf (MetaWindow *window)
+static cairo_surface_t* get_window_surface(MetaWindow* window)
 {
-    Pixmap pmap;
-    GdkPixbuf *pixbuf;
+    Pixmap pixmap;
 
-    pmap = meta_compositor_get_window_pixmap (window->display->compositor,
+    pixmap = meta_compositor_get_window_pixmap (window->display->compositor,
             window);
-    if (pmap == None)
+
+    Display *display;
+    Window root;
+    int x, y;
+    unsigned int width, height, border, depth;
+    GdkVisual *visual;
+    cairo_surface_t *surface;
+
+    display = GDK_DISPLAY_XDISPLAY (gdk_display_get_default ());
+
+    if (!XGetGeometry(display, pixmap, &root, &x, &y, &width, &height, &border, &depth))
         return NULL;
 
-    pixbuf = meta_ui_get_pixbuf_from_pixmap (pmap);
-    if (pixbuf == NULL) 
-        return NULL;
+    visual = gdk_screen_get_rgba_visual (gdk_screen_get_default());
+    surface = cairo_xlib_surface_create (display, pixmap,
+            GDK_VISUAL_XVISUAL (visual), width, height);
 
-    return pixbuf;
+    return surface;
 }
 
 static void meta_deepin_switch_previewer_mix_background2(MetaDeepinSwitchPreviewer* self)
@@ -106,13 +116,9 @@ static void meta_deepin_switch_previewer_mix_background2(MetaDeepinSwitchPreview
     }
 
     cairo_t* cr = cairo_create(priv->cap_surface);
-    /*gtk_render_background(context, cr, 0, 0, req.width, req.height);*/
-    cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
-    cairo_set_source_rgb(cr, 105.0/255.0, 105.0/255.0, 105.0/255.0);
-    cairo_rectangle(cr, 0, 0, req.width, req.height);
-    cairo_fill(cr);
+    GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(self));
+    gtk_render_background(context, cr, 0, 0, req.width, req.height);
 
-    cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
     MetaDeepinSwitchPreviewerChild *child;
     GList *list;
     for (list = priv->children; list; list = list->next) {
@@ -120,15 +126,13 @@ static void meta_deepin_switch_previewer_mix_background2(MetaDeepinSwitchPreview
         if (child->widget != (GtkWidget*)priv->current_preview) {
             Window key = (Window)cloned_widget_get_key(child->widget);
             MetaWindow* win = meta_display_lookup_x_window(meta_get_display(), key);
-            GdkPixbuf* pixbuf = get_window_pixbuf(win);
 
-            GtkAllocation alloc;
-            gtk_widget_get_allocation(child->widget, &alloc);
-            /*MetaRectangle r;*/
-            /*meta_window_get_outer_rect (win, &r);*/
-            gdk_cairo_set_source_pixbuf(cr, pixbuf, alloc.x, alloc.y);
+            MetaRectangle r;
+            meta_window_get_outer_rect(win, &r);
+
+            cairo_surface_t* ws = get_window_surface(win);
+            cairo_set_source_surface(cr, ws, r.x, r.y);
             cairo_paint(cr);
-            g_object_unref(pixbuf);
         }
     }
 
@@ -672,7 +676,7 @@ void meta_deepin_switch_previewer_select(MetaDeepinSwitchPreviewer* self,
     if (w) {
         if (priv->current_preview) {
             /*meta_deepin_cloned_widget_push_state(w);*/
-            /*meta_deepin_cloned_widget_set_scale(w, 1.0, 1.0);*/
+            meta_deepin_cloned_widget_set_scale(w, 1.0, 1.0);
             /*meta_deepin_cloned_widget_set_blur_radius(priv->current_preview, BLUR_RADIUS);*/
             meta_deepin_cloned_widget_unselect(priv->current_preview);
         } 

@@ -21,6 +21,8 @@
 #include <math.h>
 #include <util.h>
 #include <gdk/gdk.h>
+#include <gdk/gdkx.h>
+#include <cairo-xlib.h>
 #include "compositor.h"
 #include "deepin-cloned-widget.h"
 #include "deepin-design.h"
@@ -380,21 +382,30 @@ static void meta_deepin_cloned_widget_get_preferred_width_for_height(GtkWidget *
             widget, height, minimum_width_out, natural_width_out);
 }
 
-static GdkPixbuf* get_window_pixbuf (MetaWindow *window)
+static cairo_surface_t* get_window_surface(MetaWindow* window)
 {
-    Pixmap pmap;
-    GdkPixbuf *pixbuf;
+    Pixmap pixmap;
 
-    pmap = meta_compositor_get_window_pixmap (window->display->compositor,
+    pixmap = meta_compositor_get_window_pixmap (window->display->compositor,
             window);
-    if (pmap == None)
+
+    Display *display;
+    Window root;
+    int x, y;
+    unsigned int width, height, border, depth;
+    GdkVisual *visual;
+    cairo_surface_t *surface;
+
+    display = GDK_DISPLAY_XDISPLAY (gdk_display_get_default ());
+
+    if (!XGetGeometry(display, pixmap, &root, &x, &y, &width, &height, &border, &depth))
         return NULL;
 
-    pixbuf = meta_ui_get_pixbuf_from_pixmap (pmap);
-    if (pixbuf == NULL) 
-        return NULL;
+    visual = gdk_screen_get_rgba_visual (gdk_screen_get_default());
+    surface = cairo_xlib_surface_create (display, pixmap,
+            GDK_VISUAL_XVISUAL (visual), width, height);
 
-    return pixbuf;
+    return surface;
 }
 
 static void meta_deepin_cloned_widget_size_allocate(GtkWidget* widget, 
@@ -677,20 +688,18 @@ void meta_deepin_cloned_widget_set_size(MetaDeepinClonedWidget* self,
         g_clear_pointer(&priv->snapshot, cairo_surface_destroy);
     }
 
+    cairo_surface_t* ws = get_window_surface(priv->meta_window);
+    MetaRectangle r;
+    meta_window_get_outer_rect(priv->meta_window, &r);
+
     priv->snapshot = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
             width, height);
-
-    GdkPixbuf* orig = get_window_pixbuf(priv->meta_window);
-    GdkPixbuf* pixbuf = gdk_pixbuf_scale_simple(orig, width, height,
-            GDK_INTERP_BILINEAR);
-    g_object_unref(orig);
-
     cairo_t* cr = cairo_create(priv->snapshot);
-    gdk_cairo_set_source_pixbuf(cr, pixbuf, 0, 0);
+    cairo_scale(cr, (double)width/r.width, (double)height/r.height);
+    cairo_set_source_surface(cr, ws, 0, 0);
     cairo_paint(cr);
     cairo_destroy(cr);
-
-    g_object_unref(pixbuf);
+    cairo_surface_destroy(ws);
 
     priv->real_size.width = width;
     priv->real_size.height = height;
