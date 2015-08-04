@@ -71,4 +71,7 @@ void meta_deepin_cloned_widget_set_size(MetaDeepinClonedWidget*, gdouble, gdoubl
 void meta_deepin_cloned_widget_push_state(MetaDeepinClonedWidget*);
 /* start animation up */
 void meta_deepin_cloned_widget_pop_state(MetaDeepinClonedWidget*);
+
+cairo_surface_t* meta_deepin_cloned_widget_get_snapshot(MetaDeepinClonedWidget*);
+
 #endif

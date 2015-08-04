@@ -44,6 +44,8 @@ typedef struct _MetaDeepinTabWidgetPrivate
   GdkPixbuf* orig_thumb;
   GdkPixbuf* scaled;
 
+  int disposed;
+
   GtkRequisition init_size;
   GtkRequisition real_size;
 } MetaDeepinTabWidgetPrivate;
@@ -92,6 +94,9 @@ static void meta_deepin_tab_widget_dispose(GObject *object)
 {
     MetaDeepinTabWidget *self = META_DEEPIN_TAB_WIDGET(object);
     MetaDeepinTabWidgetPrivate* priv = self->priv;
+
+    if (priv->disposed) return;
+    priv->disposed = TRUE;
 
     if (priv->scaled) {
         g_clear_pointer(&priv->scaled, g_object_unref);

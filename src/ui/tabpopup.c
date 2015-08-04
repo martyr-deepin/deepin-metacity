@@ -328,8 +328,10 @@ meta_ui_tab_popup_free (MetaTabPopup *popup)
 {
   meta_verbose ("Destroying tab popup window\n");
 
-  if (popup->outline_window != NULL)
+  if (popup->outline_window != NULL) {
+    gtk_widget_destroy (GTK_WIDGET(popup->previewer));
     gtk_widget_destroy (popup->outline_window);
+  }
   gtk_widget_destroy (popup->window);
 
   g_list_foreach (popup->entries, free_tab_entry, NULL);

@@ -125,8 +125,7 @@ void stack_blur_surface(cairo_surface_t* surface, int radius)
 
     uint8_t * pixels = (uint8_t *)cairo_image_surface_get_data(surface);
     unsigned width = cairo_image_surface_get_width(surface),
-        height = cairo_image_surface_get_height(surface),
-        stride = cairo_image_surface_get_stride(surface);
+        height = cairo_image_surface_get_height(surface);
 
     int x, y, i, p, yp, yi, yw, r_sum, g_sum, b_sum, a_sum,
             r_out_sum, g_out_sum, b_out_sum, a_out_sum,
@@ -204,7 +203,7 @@ void stack_blur_surface(cairo_surface_t* surface, int radius)
             pixels[yi]   = (r_sum * mul_sum) >> shg_sum;
             pixels[yi+1] = (g_sum * mul_sum) >> shg_sum;
             pixels[yi+2] = (b_sum * mul_sum) >> shg_sum;
-            pixels[yi+3] = (a_sum * mul_sum) >> shg_sum;
+            /*pixels[yi+3] = (a_sum * mul_sum) >> shg_sum;*/
 
             r_sum -= r_out_sum;
             g_sum -= g_out_sum;
@@ -304,15 +303,15 @@ void stack_blur_surface(cairo_surface_t* surface, int radius)
         stackOut = stackEnd;
         for ( y = 0; y < height; y++ ) {
             p = yi << 2;
-            pixels[p+3] = pa = (a_sum * mul_sum) >> shg_sum;
+            /*pixels[p+3] = pa = (a_sum * mul_sum) >> shg_sum;*/
             if ( pa > 0 ) {
                 pa = 255 / pa;
                 pixels[p]   = ((r_sum * mul_sum) >> shg_sum ) * pa;
                 pixels[p+1] = ((g_sum * mul_sum) >> shg_sum ) * pa;
                 pixels[p+2] = ((b_sum * mul_sum) >> shg_sum ) * pa;
             } else {
-                pixels[p] = pixels[p+1] = pixels[p+2] = 0;
-                pixels[p+3] = 0;
+                /*pixels[p] = pixels[p+1] = pixels[p+2] = 0;*/
+                /*pixels[p+3] = 0;*/
             }
 
             r_sum -= r_out_sum;

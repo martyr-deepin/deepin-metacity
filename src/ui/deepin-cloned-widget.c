@@ -64,7 +64,7 @@ typedef struct _MetaDeepinClonedWidgetPrivate
     int render_frame: 1;
 
     MetaWindow* meta_window;
-    GdkPixbuf* snapshot;
+    cairo_surface_t* snapshot;
 
     GtkRequisition real_size;
 } MetaDeepinClonedWidgetPrivate;
@@ -147,7 +147,7 @@ static void meta_deepin_cloned_widget_dispose(GObject *object)
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
 
     if (priv->snapshot) {
-        g_clear_pointer(&priv->snapshot, g_object_unref);
+        g_clear_pointer(&priv->snapshot, cairo_surface_destroy);
     }
 
     G_OBJECT_CLASS(meta_deepin_cloned_widget_parent_class)->dispose(object);
@@ -211,10 +211,10 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
 #ifdef META_UI_DEBUG
     cairo_set_source_rgb(cr, 1, 0, 0);
     cairo_rectangle(cr, -(cw-w)/2, -(ch-h)/2, cw, ch);
-    cairo_stroke(cr);
+    cairo_fill(cr);
     cairo_set_source_rgb(cr, 0, 1, 0);
     cairo_rectangle(cr, 0, 0, w, h);
-    cairo_stroke(cr);
+    cairo_fill(cr);
 #endif
 
     gdouble w2 = w * priv->pivot_x, h2 = h * priv->pivot_y;
@@ -242,20 +242,28 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
     gdouble d = priv->ai.blur_radius * pos + priv->blur_radius * (1.0 - pos);
     if (!priv->animation) d = priv->blur_radius;
     if (d > 0.0) {
-        cairo_surface_t* dest = gdk_cairo_surface_create_from_pixbuf(
-                priv->snapshot, 0.0, NULL);
-        stack_blur_surface(dest, d);
-        cairo_surface_flush(dest);
+        x = cairo_image_surface_get_width(priv->snapshot) / 2.0,
+          y = cairo_image_surface_get_height(priv->snapshot) / 2.0;
 
-        x = cairo_image_surface_get_width(dest) / 2.0,
-          y = cairo_image_surface_get_height(dest) / 2.0;
+        cairo_surface_t* dest = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
+                cairo_image_surface_get_width(priv->snapshot),
+                cairo_image_surface_get_height(priv->snapshot));
+
+        cairo_t* cr2 = cairo_create(dest);
+        cairo_set_source_surface(cr2, priv->snapshot, 0, 0);
+        cairo_paint(cr2);
+        cairo_destroy(cr2);
+
+        stack_blur_surface(dest, d);
+
         cairo_set_source_surface(cr, dest, -x, -y);
         cairo_paint(cr);
         cairo_surface_destroy(dest);
+
     } else {
-        x = gdk_pixbuf_get_width(priv->snapshot) / 2.0,
-          y = gdk_pixbuf_get_height(priv->snapshot) / 2.0;
-        gdk_cairo_set_source_pixbuf(cr, priv->snapshot, -x, -y);
+        x = cairo_image_surface_get_width(priv->snapshot) / 2.0,
+          y = cairo_image_surface_get_height(priv->snapshot) / 2.0;
+        cairo_set_source_surface(cr, priv->snapshot, -x, -y);
         cairo_paint(cr);
     }
 
@@ -397,7 +405,12 @@ static void meta_deepin_cloned_widget_size_allocate(GtkWidget* widget,
 
     /* FIXME: calculate expaned according to scale, translate, and rotate */
     GtkAllocation expanded;
-    gdouble sx = MAX(priv->scale_x, 1.0), sy = MAX(priv->scale_y, 1.0);
+
+    gdouble sx, sy;
+    if (priv->animation) {
+        sx = MAX(priv->ai.scale_x, 1.0), sy = MAX(priv->ai.scale_y, 1.0);
+    } else sx = MAX(priv->scale_x, 1.0), sy = MAX(priv->scale_y, 1.0);
+
     expanded.width = fast_round(allocation->width * sx);
     expanded.height = fast_round(allocation->height * sy);
     expanded.x = allocation->x - allocation->width * (sx - 1.0) / 2.0;
@@ -525,6 +538,9 @@ static void meta_deepin_cloned_widget_prepare_animation(MetaDeepinClonedWidget* 
 
 void meta_deepin_cloned_widget_select (MetaDeepinClonedWidget *self)
 {
+    if (self->priv->animation) {
+        meta_deepin_cloned_widget_end_animation(self);
+    }
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
     priv->selected = TRUE;
     meta_deepin_cloned_widget_pop_state(self);
@@ -532,6 +548,9 @@ void meta_deepin_cloned_widget_select (MetaDeepinClonedWidget *self)
 
 void meta_deepin_cloned_widget_unselect (MetaDeepinClonedWidget *self)
 {
+    if (self->priv->animation) {
+        meta_deepin_cloned_widget_end_animation(self);
+    }
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
     priv->selected = FALSE;
     meta_deepin_cloned_widget_pop_state(self);
@@ -655,16 +674,23 @@ void meta_deepin_cloned_widget_set_size(MetaDeepinClonedWidget* self,
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
 
     if (priv->snapshot) {
-        g_clear_pointer(&priv->snapshot, g_object_unref);
+        g_clear_pointer(&priv->snapshot, cairo_surface_destroy);
     }
-    /*gdouble scale = MIN(width / priv->meta_window->rect.width,*/
-            /*height / priv->meta_window->rect.height);*/
-    /*width = priv->meta_window->rect.width * scale;*/
-    /*height = priv->meta_window->rect.height * scale;*/
 
-    GdkPixbuf* pixbuf = get_window_pixbuf(priv->meta_window);
-    priv->snapshot = gdk_pixbuf_scale_simple(pixbuf, width, height,
+    priv->snapshot = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
+            width, height);
+
+    GdkPixbuf* orig = get_window_pixbuf(priv->meta_window);
+    GdkPixbuf* pixbuf = gdk_pixbuf_scale_simple(orig, width, height,
             GDK_INTERP_BILINEAR);
+    g_object_unref(orig);
+
+    cairo_t* cr = cairo_create(priv->snapshot);
+    gdk_cairo_set_source_pixbuf(cr, pixbuf, 0, 0);
+    cairo_paint(cr);
+    cairo_destroy(cr);
+
+    g_object_unref(pixbuf);
 
     priv->real_size.width = width;
     priv->real_size.height = height;
@@ -697,5 +723,10 @@ void meta_deepin_cloned_widget_pop_state(MetaDeepinClonedWidget* self)
     if (self->priv->animation_stack == 0) {
         meta_deepin_cloned_widget_prepare_animation(self);
     }
+}
+
+cairo_surface_t* meta_deepin_cloned_widget_get_snapshot(MetaDeepinClonedWidget* self)
+{
+    return self->priv->snapshot;
 }
 

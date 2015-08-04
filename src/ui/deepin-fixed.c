@@ -73,6 +73,13 @@ static void deepin_fixed_get_child_property (GtkContainer *container,
 
 G_DEFINE_TYPE_WITH_PRIVATE (DeepinFixed, deepin_fixed, GTK_TYPE_CONTAINER)
 
+static void deepin_fixed_dispose(GObject *object)
+{
+    /*DeepinFixed *self = DEEPIN_FIXED(object);*/
+
+    G_OBJECT_CLASS(deepin_fixed_parent_class)->dispose(object);
+}
+
 static void
 deepin_fixed_class_init (DeepinFixedClass *class)
 {
@@ -81,6 +88,9 @@ deepin_fixed_class_init (DeepinFixedClass *class)
 
   widget_class = (GtkWidgetClass*) class;
   container_class = (GtkContainerClass*) class;
+  GObjectClass *gobject_class = G_OBJECT_CLASS(class);
+
+  gobject_class->dispose = deepin_fixed_dispose;
 
   widget_class->realize = deepin_fixed_realize;
   widget_class->get_preferred_width = deepin_fixed_get_preferred_width;
@@ -441,6 +451,7 @@ static void
 deepin_fixed_remove (GtkContainer *container,
                   GtkWidget    *widget)
 {
+    g_message("%s: %p", __func__, widget);
   DeepinFixed *fixed = DEEPIN_FIXED (container);
   DeepinFixedPrivate *priv = fixed->priv;
   DeepinFixedChild *child;

@@ -157,6 +157,17 @@ AC_ARG_ENABLE(render,
                  [disable metacity's use of the RENDER extension]),,
   enable_render=auto)
 
+AC_ARG_ENABLE(gprof,
+              AS_HELP_STRING([--enable-gprof=@<:@no/yes@:>@],
+                             [build with support for gprof]),,
+                             [enable_gprof=no])
+if test "x$enable_gprof" != "xno" ; then
+    CFLAGS="$CFLAGS -pg"
+    LDFLAGS="$LDFLAGS -pg"
+fi
+
+AC_SUBST(LDFLAGS)
+
 ## try definining HAVE_BACKTRACE
 AC_CHECK_HEADERS(execinfo.h, [AC_CHECK_FUNCS(backtrace)])
 
