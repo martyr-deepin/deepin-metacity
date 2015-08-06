@@ -23,6 +23,7 @@
 #include <gdk/gdk.h>
 #include "deepin-tab-widget.h"
 #include "deepin-design.h"
+#include "deepin-ease.h"
 
 typedef struct _MetaDeepinTabWidgetPrivate
 {
@@ -36,6 +37,7 @@ typedef struct _MetaDeepinTabWidgetPrivate
   gdouble target_pos;
 
   gint64 start_time;
+  gint64 last_time;
   gint64 end_time;
 
   guint tick_id;
@@ -180,33 +182,16 @@ static void meta_deepin_tab_widget_end_animation(MetaDeepinTabWidget* self)
     gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
-/* From clutter-easing.c, based on Robert Penner's
- *  * infamous easing equations, MIT license.
- *   */
-static double ease_out_cubic (double t)
-{
-  double p = t - 1;
-  return p * p * p + 1;
-}
-
-static double ease_in_out_quad (double t)
-{
-    double p = t * 2.0;
-
-    if (p < 1)
-        return 0.5 * p * p;
-
-    p -= 1;
-
-    return -0.5 * (p * (p - 2) - 1);
-}
-
 static gboolean on_tick_callback(MetaDeepinTabWidget* self, GdkFrameClock* clock, 
         gpointer data)
 {
     MetaDeepinTabWidgetPrivate* priv = self->priv;
 
     gint64 now = gdk_frame_clock_get_frame_time(clock);
+    gdouble duration = (now - priv->last_time) / 1000000.0;
+    if (priv->last_time != priv->start_time && duration < 0.03) return G_SOURCE_CONTINUE;
+    priv->last_time = now;
+
     gdouble t = 1.0;
     if (now < priv->end_time) {
         t = (now - priv->start_time) / (gdouble)(priv->end_time - priv->start_time);
@@ -372,6 +357,7 @@ static void meta_deepin_tab_widget_prepare_animation(MetaDeepinTabWidget* self,
 
     priv->start_time = gdk_frame_clock_get_frame_time(
             gtk_widget_get_frame_clock(GTK_WIDGET(self)));
+    priv->last_time = priv->start_time;
     priv->end_time = priv->start_time + (priv->animation_duration * 1000);
 
     priv->tick_id = gtk_widget_add_tick_callback(GTK_WIDGET(self),

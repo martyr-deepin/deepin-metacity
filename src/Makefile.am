@@ -102,6 +102,8 @@ libdeepin_metacity_private_la_SOURCES=			\
 	include/tabpopup.h			\
 	ui/select-image.c			\
 	ui/select-image.h			\
+	ui/deepin-ease.c			\
+	ui/deepin-ease.h			\
 	ui/deepin-tab-widget.c		\
 	ui/deepin-tab-widget.h		\
 	ui/deepin-fixed.c			\

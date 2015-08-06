@@ -31,7 +31,7 @@
 #include "deepin-cloned-widget.h"
 #include "deepin-stackblur.h"
 
-#define SCALE_FACTOR 1.033
+#define SCALE_FACTOR 0.7
 #define BLUR_RADIUS 10.0
 
 struct _MetaDeepinSwitchPreviewerChild
@@ -49,6 +49,10 @@ struct _MetaDeepinSwitchPreviewerPrivate
     GList *children;
     MetaTabPopup* popup;
     MetaDeepinClonedWidget* current_preview;
+    MetaDeepinClonedWidget* prev_preview;
+
+    MetaWindow* mw_desktop;
+    cairo_surface_t* desktop_surface;
 
     cairo_surface_t* cap_surface;
     GHashTable* bg_list; /* pre-rendered backgrounds for all active window */
@@ -104,42 +108,28 @@ static cairo_surface_t* get_window_surface(MetaWindow* window)
     return surface;
 }
 
-static void meta_deepin_switch_previewer_mix_background2(MetaDeepinSwitchPreviewer* self)
+static void _setup_clip(MetaDeepinSwitchPreviewerPrivate* priv, cairo_t* cr)
 {
-    MetaDeepinSwitchPreviewerPrivate* priv = self->priv;
-    GtkRequisition req;
-    gtk_widget_get_preferred_size(GTK_WIDGET(self), &req, NULL);
+    cairo_rectangle_int_t rect, sub_rect;
+    rect.x = 0;
+    rect.y = 0;
+    rect.width = priv->screen->rect.width;
+    rect.height = priv->screen->rect.height;
+    cairo_region_t* reg = cairo_region_create_rectangle(&rect);
 
-    if (!priv->cap_surface) {
-        priv->cap_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
-                req.width, req.height);
-    }
+    GtkAllocation clip;
+    gtk_widget_get_clip(GTK_WIDGET(priv->current_preview), &clip);
+    /*gtk_widget_get_allocation(GTK_WIDGET(priv->current_preview), &clip);*/
+    sub_rect.x = MAX(clip.x, 0);
+    sub_rect.y = MAX(clip.y, 0);
+    sub_rect.width = MIN(clip.width, priv->screen->rect.width);
+    sub_rect.height = MIN(clip.height, priv->screen->rect.height);
 
-    cairo_t* cr = cairo_create(priv->cap_surface);
-    GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(self));
-    gtk_render_background(context, cr, 0, 0, req.width, req.height);
-
-    MetaDeepinSwitchPreviewerChild *child;
-    GList *list;
-    for (list = priv->children; list; list = list->next) {
-        child = (MetaDeepinSwitchPreviewerChild*)list->data;
-        if (child->widget != (GtkWidget*)priv->current_preview) {
-            Window key = (Window)cloned_widget_get_key(child->widget);
-            MetaWindow* win = meta_display_lookup_x_window(meta_get_display(), key);
-
-            MetaRectangle r;
-            meta_window_get_outer_rect(win, &r);
-
-            cairo_surface_t* ws = get_window_surface(win);
-            cairo_set_source_surface(cr, ws, r.x, r.y);
-            cairo_paint(cr);
-        }
-    }
-
-    cairo_surface_flush(priv->cap_surface);
-    cairo_destroy(cr);
-
-    stack_blur_surface(priv->cap_surface, BLUR_RADIUS);
+    cairo_region_subtract_rectangle(reg, &sub_rect);
+    gdk_cairo_region(cr, reg);
+    
+    cairo_clip(cr);
+    cairo_region_destroy(reg);
 }
 
 static void meta_deepin_switch_previewer_mix_background(MetaDeepinSwitchPreviewer* self)
@@ -153,18 +143,21 @@ static void meta_deepin_switch_previewer_mix_background(MetaDeepinSwitchPreviewe
                 req.width, req.height);
     }
 
-    cairo_t* cr = cairo_create(priv->cap_surface);
-
     gpointer key = cloned_widget_get_key(GTK_WIDGET(priv->current_preview));
     cairo_surface_t* bg = (cairo_surface_t*)g_hash_table_lookup(priv->bg_list, key);
-    if (bg) {
-        cairo_set_source_surface(cr, bg, 0, 0);
-        cairo_paint(cr);
+    if (!bg) {
+        bg = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, req.width, req.height);
+        cairo_t* cr = cairo_create(bg);
 
-    } else {
         GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(self));
         gtk_render_background(context, cr, 0, 0, req.width, req.height);
 
+        if (priv->desktop_surface) {
+            cairo_set_source_surface(cr, priv->desktop_surface, 0, 0);
+            cairo_paint(cr);
+        }
+
+        /*_setup_clip(priv, cr);*/
         MetaDeepinSwitchPreviewerChild *child;
         GList *list;
         for (list = priv->children; list; list = list->next) {
@@ -174,19 +167,11 @@ static void meta_deepin_switch_previewer_mix_background(MetaDeepinSwitchPreviewe
             }
         }
 
-        stack_blur_surface(priv->cap_surface, BLUR_RADIUS);
+        /*stack_blur_surface(priv->cap_surface, BLUR_RADIUS);*/
 
-        bg = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, req.width, req.height);
-
-        cairo_t* cr2 = cairo_create(bg);
-        cairo_set_source_surface(cr2, priv->cap_surface, 0, 0);
-        cairo_paint(cr2);
-        cairo_destroy(cr2);
-
+        cairo_destroy(cr);
         g_hash_table_insert(priv->bg_list, key, bg);
     }
-
-    cairo_destroy(cr);
 }
 
 static void meta_deepin_switch_previewer_realize       (GtkWidget        *widget);
@@ -249,6 +234,10 @@ static void meta_deepin_switch_previewer_dispose(GObject *object)
 {
     MetaDeepinSwitchPreviewer *self = META_DEEPIN_SWITCH_PREVIEWER(object);
     MetaDeepinSwitchPreviewerPrivate* priv = self->priv;
+
+    if (priv->desktop_surface) {
+        g_clear_pointer(&priv->desktop_surface, cairo_surface_destroy);
+    }
 
     if (priv->cap_surface) {
         g_clear_pointer(&priv->cap_surface, cairo_surface_destroy);
@@ -342,6 +331,7 @@ void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self)
         if (win) {
             if (!priv->screen) {
                 priv->screen = meta_window_get_screen(win);
+                priv->active_workspace = priv->screen->active_workspace;
             }
             GtkWidget* widget = meta_deepin_cloned_widget_new(win);
                     
@@ -357,6 +347,20 @@ void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self)
             cloned_widget_set_key(widget, GINT_TO_POINTER(te->key));
         }
         l = l->next;
+    }
+
+    if (!priv->mw_desktop) {
+        GList* windows = priv->active_workspace->mru_list;
+        while (windows != NULL) {
+            MetaWindow *w = (MetaWindow*)windows->data;
+            if (w->screen == priv->screen  && w->type == META_WINDOW_DESKTOP) {
+                priv->mw_desktop = w;
+                priv->desktop_surface = get_window_surface(priv->mw_desktop);
+                break;
+            }
+
+            windows = windows->next;
+        }
     }
 
     gtk_widget_queue_resize(GTK_WIDGET(self));
@@ -490,40 +494,8 @@ static void meta_deepin_switch_previewer_get_child_property (GtkContainer *conta
 
 static void meta_deepin_switch_previewer_realize (GtkWidget *widget) 
 {
-    GtkAllocation allocation;
-    GdkWindow *window;
-    GdkWindowAttr attributes;
-    gint attributes_mask;
-
     if (!gtk_widget_get_has_window (widget))
         GTK_WIDGET_CLASS (meta_deepin_switch_previewer_parent_class)->realize (widget);
-    else
-    {
-        g_assert(0);
-        gtk_widget_set_realized (widget, TRUE);
-
-        gtk_widget_get_allocation (widget, &allocation);
-
-        attributes.window_type = GDK_WINDOW_CHILD;
-        attributes.x = allocation.x;
-        attributes.y = allocation.y;
-        attributes.width = allocation.width;
-        attributes.height = allocation.height;
-        attributes.wclass = GDK_INPUT_OUTPUT;
-        attributes.visual = gtk_widget_get_visual (widget);
-        attributes.event_mask = gtk_widget_get_events (widget);
-        attributes.event_mask |= GDK_EXPOSURE_MASK | GDK_BUTTON_PRESS_MASK;
-
-        attributes_mask = GDK_WA_X | GDK_WA_Y | GDK_WA_VISUAL;
-
-        window = gdk_window_new (gtk_widget_get_parent_window (widget),
-                &attributes, attributes_mask);
-        gtk_widget_set_window (widget, window);
-        gtk_widget_register_window (widget, window);
-
-        gtk_style_context_set_background (gtk_widget_get_style_context (widget),
-                window);
-    }
 }
 
 static void meta_deepin_switch_previewer_get_preferred_width (GtkWidget *widget,
@@ -639,18 +611,33 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
 {
     MetaDeepinSwitchPreviewer *self = META_DEEPIN_SWITCH_PREVIEWER (widget);
     MetaDeepinSwitchPreviewerPrivate *priv = self->priv;
-    /*GtkStyleContext* context = gtk_widget_get_style_context (widget);*/
 
     GtkRequisition req;
     gtk_widget_get_preferred_size(widget, &req, NULL);
 
     /*g_message("%s, w %d, h %d", __func__, req.width,req.height);*/
-    /*gtk_render_background(context, cr, 0, 0, req.width, req.height);*/
 
-    if (priv->cap_surface) {
-        cairo_set_source_surface(cr, priv->cap_surface, 0, 0);
+    GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(self));
+    gtk_render_background(context, cr, 0, 0, req.width, req.height);
+
+    if (priv->desktop_surface) {
+        cairo_set_source_surface(cr, priv->desktop_surface, 0, 0);
         cairo_paint(cr);
     }
+
+    /*GdkRectangle r;*/
+    /*gdk_cairo_get_clip_rectangle(cr, &r);*/
+    /*g_message("%s: (%d, %d, %d, %d)", __func__, r.x, r.y, r.width, r.height);*/
+
+    /*gpointer key = cloned_widget_get_key(GTK_WIDGET(priv->current_preview));*/
+    /*cairo_surface_t* bg = (cairo_surface_t*)g_hash_table_lookup(priv->bg_list, key);*/
+    /*if (bg) {*/
+        /*cairo_set_source_surface(cr, bg, 0, 0);*/
+        /*cairo_paint(cr);*/
+    /*}*/
+
+    if (priv->prev_preview)
+        gtk_container_propagate_draw(GTK_CONTAINER(self), GTK_WIDGET(priv->prev_preview), cr);
 
     gtk_container_propagate_draw(GTK_CONTAINER(self), GTK_WIDGET(priv->current_preview), cr);
     return TRUE;
@@ -675,22 +662,25 @@ void meta_deepin_switch_previewer_select(MetaDeepinSwitchPreviewer* self,
 
     if (w) {
         if (priv->current_preview) {
-            /*meta_deepin_cloned_widget_push_state(w);*/
-            meta_deepin_cloned_widget_set_scale(w, 1.0, 1.0);
-            /*meta_deepin_cloned_widget_set_blur_radius(priv->current_preview, BLUR_RADIUS);*/
+            priv->prev_preview = priv->current_preview;
+            meta_deepin_cloned_widget_set_scale(priv->current_preview, 1.0, 1.0);
+            meta_deepin_cloned_widget_set_alpha(priv->current_preview, 1.0);
+
+            meta_deepin_cloned_widget_push_state(priv->current_preview);
+            meta_deepin_cloned_widget_set_scale(priv->current_preview, SCALE_FACTOR, SCALE_FACTOR);
+            meta_deepin_cloned_widget_set_alpha(priv->current_preview, 0.0);
             meta_deepin_cloned_widget_unselect(priv->current_preview);
         } 
 
         priv->current_preview = w;
-        GTimer* t = g_timer_new();
-        meta_deepin_switch_previewer_mix_background(self);
-        g_message("blur time: %f", g_timer_elapsed(t, NULL));
-        g_timer_destroy(t);
+        /*meta_deepin_switch_previewer_mix_background(self);*/
         
-        meta_deepin_cloned_widget_set_blur_radius(priv->current_preview, BLUR_RADIUS);
-        meta_deepin_cloned_widget_push_state(w);
         meta_deepin_cloned_widget_set_scale(w, SCALE_FACTOR, SCALE_FACTOR);
-        meta_deepin_cloned_widget_set_blur_radius(w, 0.0);
+        meta_deepin_cloned_widget_set_alpha(w, 0.0);
+
+        meta_deepin_cloned_widget_push_state(w);
+        meta_deepin_cloned_widget_set_scale(w, 1.0, 1.0);
+        meta_deepin_cloned_widget_set_alpha(w, 1.0);
         meta_deepin_cloned_widget_select(w);
     }
 }

@@ -451,7 +451,6 @@ static void
 deepin_fixed_remove (GtkContainer *container,
                   GtkWidget    *widget)
 {
-    g_message("%s: %p", __func__, widget);
   DeepinFixed *fixed = DEEPIN_FIXED (container);
   DeepinFixedPrivate *priv = fixed->priv;
   DeepinFixedChild *child;

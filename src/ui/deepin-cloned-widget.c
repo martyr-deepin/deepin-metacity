@@ -27,6 +27,7 @@
 #include "deepin-cloned-widget.h"
 #include "deepin-design.h"
 #include "deepin-stackblur.h"
+#include "deepin-ease.h"
 
 /* target values for animation */
 typedef struct _AnimationInfo 
@@ -35,6 +36,7 @@ typedef struct _AnimationInfo
     gdouble scale_x, scale_y;   /* scale */
     gdouble angle;   /* rotation, clockwise is negative */
     gdouble blur_radius;
+    gdouble alpha; 
 } AnimationInfo;
 
 typedef struct _MetaDeepinClonedWidgetPrivate
@@ -50,6 +52,7 @@ typedef struct _MetaDeepinClonedWidgetPrivate
     gdouble scale_x, scale_y;   /* scale */
     gdouble angle;   /* rotation, clockwise is negative */
     gdouble blur_radius;
+    gdouble alpha;
 
     gboolean animation; /* in animation */
 
@@ -57,6 +60,7 @@ typedef struct _MetaDeepinClonedWidgetPrivate
     gdouble target_pos;
 
     gint64 start_time;
+    gint64 last_time;
     gint64 end_time;
 
     guint tick_id;
@@ -73,6 +77,7 @@ typedef struct _MetaDeepinClonedWidgetPrivate
 
 enum {
     PROP_0,
+    PROP_ALPHA,
     PROP_SCALE_X,
     PROP_SCALE_Y,
     PROP_ROTATE,
@@ -91,6 +96,10 @@ static void meta_deepin_cloned_widget_set_property(GObject *object, guint proper
 
     switch (property_id)
     {
+        case PROP_ALPHA:
+            meta_deepin_cloned_widget_set_alpha(self, g_value_get_double(value));
+            break;
+
         case PROP_SCALE_X:
             meta_deepin_cloned_widget_set_scale_x(self, g_value_get_double(value));
             break;
@@ -123,6 +132,9 @@ static void meta_deepin_cloned_widget_get_property(GObject *object, guint proper
 
     switch (property_id)
     {
+        case PROP_ALPHA:
+            g_value_set_double(value, priv->alpha); break;
+
         case PROP_SCALE_X:
             g_value_set_double(value, priv->scale_x); break;
 
@@ -219,6 +231,7 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
     cairo_fill(cr);
 #endif
 
+
     gdouble w2 = w * priv->pivot_x, h2 = h * priv->pivot_y;
     cairo_translate(cr, w2, h2);
 
@@ -229,6 +242,8 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
         sx = priv->scale_x, sy = priv->scale_y;
     }
     cairo_scale(cr, sx, sy);
+
+    gdouble alpha = priv->ai.alpha * pos + priv->alpha * (1.0 - pos);
 
     x = w/2, y = h/2;
     if (priv->render_background) {
@@ -259,14 +274,14 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
         stack_blur_surface(dest, d);
 
         cairo_set_source_surface(cr, dest, -x, -y);
-        cairo_paint(cr);
+        cairo_paint_with_alpha(cr, alpha);
         cairo_surface_destroy(dest);
 
     } else {
         x = cairo_image_surface_get_width(priv->snapshot) / 2.0,
           y = cairo_image_surface_get_height(priv->snapshot) / 2.0;
         cairo_set_source_surface(cr, priv->snapshot, -x, -y);
-        cairo_paint(cr);
+        cairo_paint_with_alpha(cr, alpha);
     }
 
     return TRUE;
@@ -293,38 +308,22 @@ static void meta_deepin_cloned_widget_end_animation(MetaDeepinClonedWidget* self
     gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
-/* From clutter-easing.c, based on Robert Penner's
- *  * infamous easing equations, MIT license.
- *   */
-static double ease_out_cubic (double t)
-{
-    double p = t - 1;
-    return p * p * p + 1;
-}
-
-static double ease_in_out_quad (double t)
-{
-    double p = t * 2.0;
-
-    if (p < 1)
-        return 0.5 * p * p;
-
-    p -= 1;
-
-    return -0.5 * (p * (p - 2) - 1);
-}
-
 static gboolean on_tick_callback(MetaDeepinClonedWidget* self, GdkFrameClock* clock, 
         gpointer data)
 {
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
 
     gint64 now = gdk_frame_clock_get_frame_time(clock);
+
+    gdouble duration = (now - priv->last_time) / 1000000.0;
+    if (priv->last_time != priv->start_time && duration < 0.03) return G_SOURCE_CONTINUE;
+    priv->last_time = now;
+
     gdouble t = 1.0;
     if (now < priv->end_time) {
         t = (now - priv->start_time) / (gdouble)(priv->end_time - priv->start_time);
     }
-    t = ease_in_out_quad(t);
+    t = ease_out_quad(t);
     priv->current_pos = t * priv->target_pos;
     if (priv->current_pos > priv->target_pos) priv->current_pos = priv->target_pos;
     gtk_widget_queue_draw(GTK_WIDGET(self));
@@ -433,7 +432,7 @@ static void meta_deepin_cloned_widget_init (MetaDeepinClonedWidget *self)
 {
     MetaDeepinClonedWidgetPrivate* priv = self->priv =
         (MetaDeepinClonedWidgetPrivate*) meta_deepin_cloned_widget_get_instance_private (self);
-    priv->animation_duration = 280;
+    priv->animation_duration = 250;
     priv->scale_x = 1.0;
     priv->scale_y = 1.0;
     priv->pivot_x = 0.5;
@@ -461,6 +460,11 @@ static void meta_deepin_cloned_widget_class_init (MetaDeepinClonedWidgetClass *k
     gobject_class->get_property = meta_deepin_cloned_widget_get_property;
     gobject_class->dispose = meta_deepin_cloned_widget_dispose;
     gobject_class->finalize = meta_deepin_cloned_widget_finalize;
+
+    property_specs[PROP_ALPHA] = g_param_spec_double(
+            "alpha", "alpha", "alpha", 
+            0.0, 1.0, 1.0,
+            G_PARAM_READWRITE);
 
     property_specs[PROP_SCALE_X] = g_param_spec_double(
             "scale-x", "scale of x", "scale of x",
@@ -539,6 +543,7 @@ static void meta_deepin_cloned_widget_prepare_animation(MetaDeepinClonedWidget* 
 
     priv->start_time = gdk_frame_clock_get_frame_time(
             gtk_widget_get_frame_clock(GTK_WIDGET(self)));
+    priv->last_time = priv->start_time;
     priv->end_time = priv->start_time + (priv->animation_duration * 1000);
 
     priv->tick_id = gtk_widget_add_tick_callback(GTK_WIDGET(self),
@@ -737,5 +742,26 @@ void meta_deepin_cloned_widget_pop_state(MetaDeepinClonedWidget* self)
 cairo_surface_t* meta_deepin_cloned_widget_get_snapshot(MetaDeepinClonedWidget* self)
 {
     return self->priv->snapshot;
+}
+
+void meta_deepin_cloned_widget_set_alpha(MetaDeepinClonedWidget* self, gdouble val)
+{
+    MetaDeepinClonedWidgetPrivate* priv = self->priv;
+    if (priv->animation) {
+        meta_deepin_cloned_widget_end_animation(self);
+    }
+
+    val = MIN(MAX(val, 0.0), 1.0);
+    if (priv->animation_stack) {
+        priv->ai.alpha = val;
+    } else {
+        priv->alpha = val;
+        gtk_widget_queue_draw(GTK_WIDGET(self));
+    }
+}
+
+gdouble meta_deepin_cloned_widget_get_alpha(MetaDeepinClonedWidget* self)
+{
+    return self->priv->alpha;
 }
 

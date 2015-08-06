@@ -55,7 +55,11 @@ void meta_deepin_cloned_widget_set_scale(MetaDeepinClonedWidget*, gdouble, gdoub
 void meta_deepin_cloned_widget_get_scale(MetaDeepinClonedWidget*, gdouble*, gdouble*);
 void meta_deepin_cloned_widget_set_scale_x(MetaDeepinClonedWidget*, gdouble);
 void meta_deepin_cloned_widget_set_scale_y(MetaDeepinClonedWidget*, gdouble);
+
 void meta_deepin_cloned_widget_set_blur_radius(MetaDeepinClonedWidget*, gdouble);
+
+void meta_deepin_cloned_widget_set_alpha(MetaDeepinClonedWidget*, gdouble);
+gdouble meta_deepin_cloned_widget_get_alpha(MetaDeepinClonedWidget*);
 
 void meta_deepin_cloned_widget_set_rotate(MetaDeepinClonedWidget*, gdouble);
 gdouble meta_deepin_cloned_widget_get_rotate(MetaDeepinClonedWidget*);
