@@ -1,7 +1,5 @@
 /* -*- mode: C; c-file-style: "gnu"; indent-tabs-mode: nil; -*- */
 
-/* deepin custom keybindings */
-
 /*
  * Copyright (C) 2015 Sian Cao <yinshuiboy@gmail.com>
  *
@@ -19,10 +17,12 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef DEEPIN_META_KEYBINDINGS_H
-#define DEEPIN_META_KEYBINDINGS_H
+#ifndef DEEPIN_EASE_H
+#define DEEPIN_EASE_H
 
-void deepin_init_custom_handlers();
+double ease_out_cubic (double t);
+double ease_in_out_quad (double t);
+double ease_out_quad (double t);
 
 #endif
 

@@ -27,11 +27,11 @@
 #include "compositor.h"
 #include "deepin-design.h"
 #include "deepin-switch-previewer.h"
-#include "tabpopup-private.h"
+#include "deepin-tabpopup.h"
 #include "deepin-cloned-widget.h"
 #include "deepin-stackblur.h"
 
-#define SCALE_FACTOR 0.7
+#define SCALE_FACTOR 0.9
 #define BLUR_RADIUS 10.0
 
 struct _MetaDeepinSwitchPreviewerChild
@@ -47,7 +47,7 @@ struct _MetaDeepinSwitchPreviewerPrivate
     MetaScreen* screen;
     MetaWorkspace* active_workspace;
     GList *children;
-    MetaTabPopup* popup;
+    DeepinTabPopup* popup;
     MetaDeepinClonedWidget* current_preview;
     MetaDeepinClonedWidget* prev_preview;
 
@@ -307,7 +307,7 @@ static void meta_deepin_switch_previewer_init (MetaDeepinSwitchPreviewer *self)
             NULL, (GDestroyNotify)cairo_surface_destroy);
 }
 
-GtkWidget* meta_deepin_switch_previewer_new (MetaTabPopup* popup)
+GtkWidget* meta_deepin_switch_previewer_new (DeepinTabPopup* popup)
 {
     MetaDeepinSwitchPreviewer* self =
         (MetaDeepinSwitchPreviewer*)g_object_new(META_TYPE_DEEPIN_SWITCH_PREVIEWER, NULL);
@@ -325,7 +325,7 @@ void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self)
 
     GList* l = priv->popup->entries;
     while (l) {
-        TabEntry* te = (TabEntry*)l->data;
+        DeepinTabEntry* te = (DeepinTabEntry*)l->data;
         MetaWindow* win = meta_display_lookup_x_window(disp, (Window)te->key);    
 
         if (win) {
@@ -644,7 +644,7 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
 }
 
 void meta_deepin_switch_previewer_select(MetaDeepinSwitchPreviewer* self,
-        TabEntry* te)
+        DeepinTabEntry* te)
 {
     MetaDeepinSwitchPreviewerPrivate* priv = self->priv;
     MetaDeepinSwitchPreviewerChild* child;

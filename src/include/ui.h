@@ -180,7 +180,9 @@ MetaUIDirection meta_ui_get_direction (void);
 
 GdkPixbuf *meta_ui_get_pixbuf_from_pixmap (Pixmap   pmap);
 
+#include "../ui/deepin-design.h"
 #include "tabpopup.h"
+#include "deepin-tabpopup.h"
 #include "tile-preview.h"
 
 #endif

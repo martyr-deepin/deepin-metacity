@@ -589,6 +589,7 @@ meta_screen_new (MetaDisplay *display,
                             screen->xscreen);
 
   screen->tab_popup = NULL;
+  screen->ws_popup = NULL;
   screen->tile_preview = NULL;
 
   screen->tile_preview_timeout_id = 0;
@@ -1365,11 +1366,7 @@ meta_screen_ensure_tab_popup (MetaScreen      *screen,
       tmp = tmp->next;
     }
 
-  screen->tab_popup = meta_ui_tab_popup_new (entries,
-                                             screen->number,
-                                             len,
-                                             5, /* FIXME */
-                                             TRUE);
+  screen->tab_popup = deepin_tab_popup_new (entries, screen->number, len);
 
   for (i = 0; i < len; i++)
     g_object_unref (entries[i].icon);
@@ -1391,7 +1388,7 @@ meta_screen_ensure_workspace_popup (MetaScreen *screen)
   int n_workspaces;
   int current_workspace;
 
-  if (screen->tab_popup)
+  if (screen->ws_popup)
     return;
 
   current_workspace = meta_workspace_index (screen->active_workspace);
@@ -1437,7 +1434,7 @@ meta_screen_ensure_workspace_popup (MetaScreen *screen)
       ++i;
     }
 
-  screen->tab_popup = meta_ui_tab_popup_new (entries,
+  screen->ws_popup = meta_ui_tab_popup_new (entries,
                                              screen->number,
                                              len,
                                              layout.cols,

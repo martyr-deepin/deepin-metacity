@@ -35,7 +35,6 @@
 #include "screen.h"
 #include <X11/Xutil.h>
 #include "ui.h"
-#include "../ui/deepin-design.h"
 
 typedef struct _MetaXineramaScreenInfo MetaXineramaScreenInfo;
 
@@ -77,7 +76,8 @@ struct _MetaScreen
   Visual *default_xvisual;
   MetaRectangle rect;  /* Size of screen; rect.x & rect.y are always 0 */
   MetaUI *ui;
-  MetaTabPopup *tab_popup;
+  DeepinTabPopup *tab_popup;
+  MetaTabPopup *ws_popup;
   MetaTilePreview *tile_preview;
 
   guint tile_preview_timeout_id;

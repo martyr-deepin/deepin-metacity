@@ -6,7 +6,6 @@ AM_CPPFLAGS=-I$(srcdir)/include -DMETACITY_LIBEXECDIR=\"$(libexecdir)\" -DHOST_A
 
 deepin_metacity_SOURCES= 				\
 	core/main.c				\
-	deepin-keybindings.c \
 	include/main.h
 
 # by setting libdeepin_metacity_private_la_CFLAGS, the files shared with
@@ -57,6 +56,8 @@ libdeepin_metacity_private_la_SOURCES=			\
 	core/iconcache.h			\
 	core/keybindings.c			\
 	core/keybindings.h			\
+	core/deepin-keybindings.c   \
+	core/deepin-keybindings.h   \
 	core/main.c				\
 	include/main.h				\
 	core/metacity-Xatomtype.h		\
@@ -94,14 +95,16 @@ libdeepin_metacity_private_la_SOURCES=			\
 	ui/menu.h				\
 	ui/metaaccellabel.c			\
 	ui/metaaccellabel.h			\
-	ui/preview-widget.c                     \
-	ui/preview-widget.h                     \
+	ui/preview-widget.c         \
+	ui/preview-widget.h         \
 	ui/resizepopup.c			\
-	include/resizepopup.h			\
+	include/resizepopup.h		\
 	ui/tabpopup.c				\
 	include/tabpopup.h			\
 	ui/select-image.c			\
 	ui/select-image.h			\
+	ui/deepin-tabpopup.c		\
+	include/deepin-tabpopup.h	\
 	ui/deepin-ease.c			\
 	ui/deepin-ease.h			\
 	ui/deepin-tab-widget.c		\

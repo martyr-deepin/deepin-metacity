@@ -1,5 +1,7 @@
 /* -*- mode: C; c-file-style: "gnu"; indent-tabs-mode: nil; -*- */
 
+/* deepin custom keybindings */
+
 /*
  * Copyright (C) 2015 Sian Cao <yinshuiboy@gmail.com>
  *
@@ -17,36 +19,12 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TAP_POPUP_PRIVATE_H
-#define TAP_POPUP_PRIVATE_H
+#ifndef DEEPIN_META_KEYBINDINGS_H
+#define DEEPIN_META_KEYBINDINGS_H
 
-#include "tabpopup.h"
+#include <display.h>
 
-typedef struct _TabEntry TabEntry;
-typedef struct _MetaDeepinSwitchPreviewer        MetaDeepinSwitchPreviewer;
-
-struct _TabEntry
-{
-  MetaTabEntryKey  key;
-  char            *title;
-  GdkPixbuf       *icon, *dimmed_icon;
-  GtkWidget       *widget;
-  GdkRectangle     rect;
-  GdkRectangle     inner_rect;
-  guint blank : 1;
-};
-
-struct _MetaTabPopup
-{
-  GtkWidget *window;
-  GList *current;
-  GList *entries;
-  TabEntry *current_selected_entry;
-  GtkWidget *outline_window;
-  MetaDeepinSwitchPreviewer* previewer;
-  gboolean outline;
-};
+void deepin_init_custom_handlers(MetaDisplay* display);
 
 #endif
-
 

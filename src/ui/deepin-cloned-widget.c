@@ -323,7 +323,7 @@ static gboolean on_tick_callback(MetaDeepinClonedWidget* self, GdkFrameClock* cl
     if (now < priv->end_time) {
         t = (now - priv->start_time) / (gdouble)(priv->end_time - priv->start_time);
     }
-    t = ease_out_quad(t);
+    t = ease_in_out_quad(t);
     priv->current_pos = t * priv->target_pos;
     if (priv->current_pos > priv->target_pos) priv->current_pos = priv->target_pos;
     gtk_widget_queue_draw(GTK_WIDGET(self));
@@ -432,7 +432,7 @@ static void meta_deepin_cloned_widget_init (MetaDeepinClonedWidget *self)
 {
     MetaDeepinClonedWidgetPrivate* priv = self->priv =
         (MetaDeepinClonedWidgetPrivate*) meta_deepin_cloned_widget_get_instance_private (self);
-    priv->animation_duration = 250;
+    priv->animation_duration = SWITCHER_PREVIEW_DURATION;
     priv->scale_x = 1.0;
     priv->scale_y = 1.0;
     priv->pivot_x = 0.5;

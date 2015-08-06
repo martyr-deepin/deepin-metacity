@@ -25,8 +25,9 @@
 #include <tabpopup.h>
 #include <ui.h>
 #include <screen.h>
-#include "core/keybindings.h"
-#include "core/window-private.h"
+#include "workspace.h"
+#include "keybindings.h"
+#include "window-private.h"
 
 static unsigned int get_primary_modifier (MetaDisplay *display,
         unsigned int entire_binding_mask)
@@ -191,11 +192,11 @@ static void do_choose_window (MetaDisplay    *display,
                 display->mouse_mode = FALSE;
                 meta_window_activate (initial_selection, event->xkey.time);
             } else {
-                meta_ui_tab_popup_select (screen->tab_popup,
+                deepin_tab_popup_select (screen->tab_popup,
                         (MetaTabEntryKey) initial_selection->xwindow);
 
                 if (show_popup)
-                    meta_ui_tab_popup_set_showing (screen->tab_popup,
+                    deepin_tab_popup_set_showing (screen->tab_popup,
                             TRUE);
                 else
                 {
@@ -214,12 +215,59 @@ static void handle_switch(MetaDisplay *display, MetaScreen *screen,
         MetaKeyBinding *binding, gpointer user_data)
 {
     gint backwards = (binding->handler->flags & META_KEY_BINDING_IS_REVERSED) != 0;
-
     do_choose_window (display, screen, window, event, binding, backwards, TRUE);
 }
 
-void deepin_init_custom_handlers()
+static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
+        MetaWindow *window, XEvent *event,
+        MetaKeyBinding *binding, gpointer user_data)
+{
+    g_message("%s", __func__);
+}
+
+static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
+        MetaWindow *window, XEvent *event,
+        MetaKeyBinding *binding, gpointer user_data)
+{
+    g_message("%s", __func__);
+}
+
+static void handle_workspace_switch(MetaDisplay *display, MetaScreen *screen,
+        MetaWindow *window, XEvent *event,
+        MetaKeyBinding *binding, gpointer user_data)
+{
+    MetaWorkspace* workspace = NULL;
+
+    MetaKeyBindingAction action = meta_prefs_get_keybinding_action(binding->name);
+    if (action == META_KEYBINDING_ACTION_WORKSPACE_RIGHT) {
+        g_message("%s: to right", __func__);
+        workspace = meta_workspace_get_neighbor (screen->active_workspace, 
+                META_MOTION_RIGHT);
+    } else if (action == META_KEYBINDING_ACTION_WORKSPACE_LEFT) {
+        workspace = meta_workspace_get_neighbor (screen->active_workspace, 
+                META_MOTION_LEFT);
+        g_message("%s: to left", __func__);
+    }
+
+    if (workspace) {
+        meta_workspace_activate(workspace, event->xkey.time);
+    }
+}
+
+void deepin_init_custom_handlers(MetaDisplay* display)
 {
     deepin_meta_override_keybinding_handler("switch-applications",
             handle_switch, NULL, NULL);
+    deepin_meta_override_keybinding_handler("switch-to-workspace-right",
+            handle_workspace_switch, NULL, NULL);
+    deepin_meta_override_keybinding_handler("switch-to-workspace-left",
+            handle_workspace_switch, NULL, NULL);
+
+    deepin_meta_display_add_keybinding(display, "expose-all-windows",
+            META_KEY_BINDING_NONE, handle_expose_windows, 1);
+    deepin_meta_display_add_keybinding(display, "expose-windows",
+            META_KEY_BINDING_NONE, handle_expose_windows, 2);
+    deepin_meta_display_add_keybinding(display, "preview-workspace",
+            META_KEY_BINDING_NONE, handle_preview_workspace, 2);
 }
+

@@ -21,7 +21,7 @@
 #define DEEPIN_SWITCH_PREVIEWER_H
 
 #include <gtk/gtk.h>
-#include "tabpopup-private.h"
+#include "deepin-tabpopup.h"
 
 #define META_TYPE_DEEPIN_SWITCH_PREVIEWER         (meta_deepin_switch_previewer_get_type ())
 #define META_DEEPIN_SWITCH_PREVIEWER(o)           (G_TYPE_CHECK_INSTANCE_CAST ((o), META_TYPE_DEEPIN_SWITCH_PREVIEWER, MetaDeepinSwitchPreviewer))
@@ -47,11 +47,11 @@ struct _MetaDeepinSwitchPreviewerClass
 };
 
 GType      meta_deepin_switch_previewer_get_type (void) G_GNUC_CONST;
-GtkWidget* meta_deepin_switch_previewer_new (MetaTabPopup* popup);
+GtkWidget* meta_deepin_switch_previewer_new (DeepinTabPopup* popup);
 void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self);
 void meta_deepin_switch_previewer_put (MetaDeepinSwitchPreviewer  *self, 
         GtkWidget *widget, gint x, gint y);
 void meta_deepin_switch_previewer_select(MetaDeepinSwitchPreviewer* self,
-        TabEntry*);
+        DeepinTabEntry*);
 
 #endif

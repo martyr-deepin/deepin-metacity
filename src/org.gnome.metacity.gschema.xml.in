@@ -79,6 +79,15 @@
     <key name="toggle-tiled-right" type="as">
       <default><![CDATA[['<Super>Right']]]></default>
     </key>
+    <key type="as" name="expose-all-windows">
+      <default><![CDATA[['<Super>a']]]></default>
+    </key>
+    <key type="as" name="expose-windows">
+      <default><![CDATA[['<Super>w']]]></default>
+    </key>
+    <key type="as" name="preview-workspace">
+      <default><![CDATA[['<Super>s']]]></default>
+    </key>
   </schema>
 
 </schemalist>

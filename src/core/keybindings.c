@@ -35,6 +35,7 @@
 #include "prefs.h"
 #include "effects.h"
 #include "util.h"
+#include "deepin-keybindings.h"
 
 #include <X11/keysym.h>
 #include <string.h>
@@ -488,6 +489,12 @@ regrab_key_bindings (MetaDisplay *display)
   meta_error_trap_pop (display, FALSE);
 
   g_slist_free (windows);
+}
+
+static guint
+next_dynamic_keybinding_action () {
+  static guint num_dynamic_bindings = 0;
+  return META_KEYBINDING_ACTION_LAST + (++num_dynamic_bindings);
 }
 
 static gboolean
@@ -2031,7 +2038,7 @@ process_tab_grab (MetaDisplay *display,
       MetaWindow *target_window;
 
       target_xwindow =
-        (Window) meta_ui_tab_popup_get_selected (screen->tab_popup);
+        (Window) deepin_tab_popup_get_selected (screen->tab_popup);
       target_window =
         meta_display_lookup_x_window (display, target_xwindow);
 
@@ -2069,7 +2076,7 @@ process_tab_grab (MetaDisplay *display,
   if (is_modifier (display, event->xkey.keycode))
     return TRUE;
 
-  prev_xwindow = (Window) meta_ui_tab_popup_get_selected (screen->tab_popup);
+  prev_xwindow = (Window) deepin_tab_popup_get_selected (screen->tab_popup);
   prev_window  = meta_display_lookup_x_window (display, prev_xwindow);
   action = display_get_keybinding_action (display,
                                           keysym,
@@ -2198,9 +2205,9 @@ process_tab_grab (MetaDisplay *display,
         backward = !backward;
 
       if (backward)
-        meta_ui_tab_popup_backward (screen->tab_popup);
+        deepin_tab_popup_backward (screen->tab_popup);
       else
-        meta_ui_tab_popup_forward (screen->tab_popup);
+        deepin_tab_popup_forward (screen->tab_popup);
 
       if (popup_not_showing)
         {
@@ -2214,7 +2221,7 @@ process_tab_grab (MetaDisplay *display,
                                     display->grab_old_window_stacking);
 
           target_xwindow =
-            (Window) meta_ui_tab_popup_get_selected (screen->tab_popup);
+            (Window) deepin_tab_popup_get_selected (screen->tab_popup);
           target_window =
             meta_display_lookup_x_window (display, target_xwindow);
 
@@ -3852,6 +3859,7 @@ meta_display_init_keys (MetaDisplay *display)
   key_handlers = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
                                         (GDestroyNotify) key_handler_free);
   init_builtin_key_bindings (display);
+  deepin_init_custom_handlers(display);
 
   rebuild_key_binding_table (display);
 
@@ -3882,9 +3890,24 @@ deepin_meta_override_keybinding_handler(const char* name, MetaKeyHandlerFunc fun
     }
 
     handler->func = func;
-    handler->data = data;
+    handler->user_data = data;
     handler->user_data_free_func = data_free_func;
     return TRUE;
   } 
   return FALSE;
+}
+
+guint deepin_meta_display_add_keybinding (MetaDisplay *display,
+                             const char          *name,
+                             MetaKeyBindingFlags  flags,
+                             MetaKeyHandlerFunc   handler,
+                             gint                 data)
+{
+  guint new_action = next_dynamic_keybinding_action ();
+
+  if (!add_builtin_keybinding(display, name, SCHEMA_METACITY_KEYBINDINGS, 
+              flags, new_action, handler, data))
+    return META_KEYBINDING_ACTION_NONE;
+
+  return new_action;
 }
