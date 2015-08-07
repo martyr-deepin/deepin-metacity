@@ -63,7 +63,8 @@ static GParamSpec* property_specs[N_PROPERTIES] = {NULL, };
 
 G_DEFINE_TYPE_WITH_PRIVATE (MetaDeepinTabWidget, meta_deepin_tab_widget, GTK_TYPE_WIDGET);
 
-static void meta_deepin_tab_widget_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec)
+static void meta_deepin_tab_widget_set_property(GObject *object, guint property_id,
+        const GValue *value, GParamSpec *pspec)
 {
     MetaDeepinTabWidget* self = META_DEEPIN_TAB_WIDGET(object);
 

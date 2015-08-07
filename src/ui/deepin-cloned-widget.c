@@ -388,6 +388,8 @@ static cairo_surface_t* get_window_surface(MetaWindow* window)
     pixmap = meta_compositor_get_window_pixmap (window->display->compositor,
             window);
 
+    if (pixmap == None) return NULL;
+
     Display *display;
     Window root;
     int x, y;
