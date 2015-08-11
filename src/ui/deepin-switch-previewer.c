@@ -209,28 +209,6 @@ static void meta_deepin_switch_previewer_get_child_property (GtkContainer *conta
 
 G_DEFINE_TYPE_WITH_PRIVATE (MetaDeepinSwitchPreviewer, meta_deepin_switch_previewer, GTK_TYPE_CONTAINER)
 
-static void _setup_style(MetaDeepinSwitchPreviewer* self)
-{
-  GtkStyleContext* style_ctx = gtk_widget_get_style_context(GTK_WIDGET(self));
-
-  GtkCssProvider* css_style = gtk_css_provider_new();
-
-  GFile* f = g_file_new_for_path(METACITY_PKGDATADIR "/deepin-wm.css");
-  GError* error = NULL;
-  if (!gtk_css_provider_load_from_file(css_style, f, &error)) {
-      meta_topic(META_DEBUG_UI, "load css failed: %s", error->message);
-      g_error_free(error);
-      return;
-  }
-
-  gtk_style_context_add_provider(style_ctx,
-          GTK_STYLE_PROVIDER(css_style), GTK_STYLE_PROVIDER_PRIORITY_USER);
-  gtk_style_context_add_class(style_ctx, "deepin-window-manager");
-
-  g_object_unref(f);
-  g_object_unref(css_style);
-}
-
 static void meta_deepin_switch_previewer_dispose(GObject *object)
 {
     MetaDeepinSwitchPreviewer *self = META_DEEPIN_SWITCH_PREVIEWER(object);
@@ -315,7 +293,7 @@ GtkWidget* meta_deepin_switch_previewer_new (DeepinTabPopup* popup)
     MetaDeepinSwitchPreviewerPrivate* priv = self->priv;
     priv->popup = popup;
 
-    _setup_style(self);
+    deepin_setup_style_class(GTK_WIDGET(self), "deepin-window-manager");
     return (GtkWidget*)self;
 }
 

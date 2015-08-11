@@ -128,36 +128,16 @@ static DeepinTabEntry* deepin_tab_entry_new (const MetaTabEntry *entry, gint    
 
 static void deepin_tab_popup_setup_style(DeepinTabPopup* popup)
 {
-    GtkStyleContext* style_ctx = gtk_widget_get_style_context(popup->window);
-
-    GtkCssProvider* css_style = gtk_css_provider_new();
-
-    GFile* f = g_file_new_for_path(METACITY_PKGDATADIR "/deepin-wm.css");
-    GError* error = NULL;
-    if (!gtk_css_provider_load_from_file(css_style, f, &error)) {
-        meta_topic(META_DEBUG_UI, "load css failed: %s", error->message);
-        g_error_free(error);
-        return;
-    }
-
-    gtk_style_context_add_provider(style_ctx,
-            GTK_STYLE_PROVIDER(css_style), GTK_STYLE_PROVIDER_PRIORITY_USER);
-    gtk_style_context_add_class(style_ctx, "deepin-window-switcher");
+    deepin_setup_style_class(popup->window, "deepin-window-switcher");
 
     GList* tmp = popup->entries;
     while (tmp) {
         DeepinTabEntry* te = (DeepinTabEntry*)tmp->data;
         if (te->widget && META_IS_DEEPIN_TAB_WIDGET(te->widget)) {
-            style_ctx = gtk_widget_get_style_context(te->widget);
-            gtk_style_context_add_provider(style_ctx,
-                    GTK_STYLE_PROVIDER(css_style), GTK_STYLE_PROVIDER_PRIORITY_USER);
-            gtk_style_context_add_class(style_ctx, "deepin-window-switcher-item");
+            deepin_setup_style_class(te->widget, "deepin-window-switcher-item");
         }
         tmp = tmp->next;
     }
-
-    g_object_unref(f);
-    g_object_unref(css_style);
 }
 
 DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,

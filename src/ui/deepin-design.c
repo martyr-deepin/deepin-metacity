@@ -17,8 +17,12 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "deepin-design.h"
+#include <config.h>
+#include <util.h>
 #include <math.h>
+#include "deepin-design.h"
+
+static GtkCssProvider* _deepin_css_provider = NULL;
 
 static struct {
     int entry_count, max_width;
@@ -99,4 +103,34 @@ void calculate_preferred_size(gint entry_count, gint max_width,
     if (item_width) *item_width = cached.item_width;
     if (item_height) *item_height = cached.item_height;
     if (max_items_each_row) *max_items_each_row = cached.items_each_row;
+}
+
+GtkCssProvider* deepin_get_default_css_provider()
+{
+    if (_deepin_css_provider) return _deepin_css_provider;
+    GtkCssProvider* css_style = gtk_css_provider_new();
+
+    GFile* f = g_file_new_for_path(METACITY_PKGDATADIR "/deepin-wm.css");
+    GError* error = NULL;
+    if (!gtk_css_provider_load_from_file(css_style, f, &error)) {
+        meta_topic(META_DEBUG_UI, "load css failed: %s", error->message);
+        g_error_free(error);
+        return NULL;
+    }
+
+    _deepin_css_provider = css_style;
+
+    g_object_unref(f);
+    return _deepin_css_provider;
+}
+
+void deepin_setup_style_class(GtkWidget* widget, const char* class_name)
+{
+    GtkStyleContext* style_ctx = gtk_widget_get_style_context(widget);
+
+    GtkCssProvider* css_style = deepin_get_default_css_provider();
+
+    gtk_style_context_add_provider(style_ctx,
+            GTK_STYLE_PROVIDER(css_style), GTK_STYLE_PROVIDER_PRIORITY_USER);
+    gtk_style_context_add_class(style_ctx, class_name);
 }

@@ -20,7 +20,7 @@
 #ifndef DEEPIN_DESIGN_H
 #define DEEPIN_DESIGN_H
 
-#include <glib.h>
+#include <gtk/gtk.h>
 
 /*
  * this file contains some design constants by deepin
@@ -50,7 +50,12 @@
 #define SWITCHER_MAX_ROWS  2
 
 void calculate_preferred_size(gint entry_count, gint max_width,
-        float* box_width, float* box_height, float* item_width, float* item_height,
-        int* max_items_each_row);
+        float* box_width, float* box_height, float* item_width,
+        float* item_height, int* max_items_each_row);
+
+GtkCssProvider* deepin_get_default_css_provider();
+
+void deepin_setup_style_class(GtkWidget* widget, const char* class_name);
+
 #endif
 

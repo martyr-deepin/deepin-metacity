@@ -98,6 +98,14 @@ static gboolean process_workspace_switch_grab (MetaDisplay *display,
                                                XEvent      *event,
                                                KeySym       keysym);
 
+static gboolean process_previewing_workspace (MetaDisplay *display,
+                                               MetaScreen  *screen,
+                                               XEvent      *event,
+                                               KeySym       keysym);
+static gboolean process_exposing_windows (MetaDisplay *display,
+                                               MetaScreen  *screen,
+                                               XEvent      *event,
+                                               KeySym       keysym);
 static void regrab_key_bindings         (MetaDisplay *display);
 
 static GHashTable *key_handlers;
@@ -1378,6 +1386,18 @@ meta_display_process_key_event (MetaDisplay *display,
               keep_grab = process_workspace_switch_grab (display, screen, event, keysym);
               break;
 
+            case META_GRAB_OP_KEYBOARD_PREVIEWING_WORKSPACE:
+              meta_topic (META_DEBUG_KEYBINDINGS,
+                          "Processing event for keyboard workspace previewing\n");
+              keep_grab = process_previewing_workspace (display, screen, event, keysym);
+              break;
+
+            case META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS:
+              meta_topic (META_DEBUG_KEYBINDINGS,
+                          "Processing event for keyboard workspace exposing\n");
+              keep_grab = process_exposing_windows (display, screen, event, keysym);
+              break;
+
             default:
               break;
             }
@@ -2610,6 +2630,60 @@ process_workspace_switch_grab (MetaDisplay *display,
   return FALSE;
 }
 
+static gboolean
+process_previewing_workspace (MetaDisplay *display,
+                               MetaScreen  *screen,
+                               XEvent      *event,
+                               KeySym       keysym)
+{
+  if (screen != display->grab_screen)
+    return FALSE;
+
+  if (event->type == KeyPress && keysym == XK_Escape)
+    {
+      g_message("%s: Escaping previewer", __func__);
+      return FALSE; /* end grab */
+    }
+
+  /* don't care about other releases, but eat them, don't end grab */
+  if (event->type == KeyRelease)
+    return TRUE;
+
+  /* don't end grab on modifier key presses */
+  if (is_modifier (display, event->xkey.keycode))
+    return TRUE;
+
+  g_message("%s: after release handling", __func__);
+
+  return FALSE;
+}
+
+static gboolean
+process_exposing_windows (MetaDisplay *display,
+                               MetaScreen  *screen,
+                               XEvent      *event,
+                               KeySym       keysym)
+{
+  if (screen != display->grab_screen)
+    return FALSE;
+
+  if (event->type == KeyRelease &&
+      end_keyboard_grab (display, event->xkey.keycode))
+    {
+      return FALSE; /* end grab */
+    }
+
+  /* don't care about other releases, but eat them, don't end grab */
+  if (event->type == KeyRelease)
+    return TRUE;
+
+  /* don't end grab on modifier key presses */
+  if (is_modifier (display, event->xkey.keycode))
+    return TRUE;
+
+  return FALSE;
+}
+
 static void
 handle_show_desktop (MetaDisplay    *display,
                        MetaScreen     *screen,
@@ -3234,10 +3308,10 @@ handle_workspace_switch  (MetaDisplay    *display,
 
       if (grabbed_before_release)
         {
-          meta_ui_tab_popup_select (screen->tab_popup, (MetaTabEntryKey) next);
+          meta_ui_tab_popup_select (screen->ws_popup, (MetaTabEntryKey) next);
 
           /* only after selecting proper space */
-          meta_ui_tab_popup_set_showing (screen->tab_popup, TRUE);
+          meta_ui_tab_popup_set_showing (screen->ws_popup, TRUE);
         }
     }
 }

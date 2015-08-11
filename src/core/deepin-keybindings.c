@@ -39,8 +39,7 @@ static unsigned int get_primary_modifier (MetaDisplay *display,
      * these.
      */
     unsigned int masks[] = { Mod5Mask, Mod4Mask, Mod3Mask,
-        Mod2Mask, Mod1Mask, ControlMask,
-        ShiftMask, LockMask };
+        Mod2Mask, Mod1Mask, ControlMask, ShiftMask, LockMask };
 
     int i;
 
@@ -102,47 +101,22 @@ static MetaGrabOp tab_op_from_tab_type (MetaTabList type)
     return 0;
 }
 
-static MetaGrabOp cycle_op_from_tab_type (MetaTabList type)
-{
-    switch (type)
-    {
-        case META_TAB_LIST_NORMAL:
-            return META_GRAB_OP_KEYBOARD_ESCAPING_NORMAL;
-        case META_TAB_LIST_DOCKS:
-            return META_GRAB_OP_KEYBOARD_ESCAPING_DOCK;
-        case META_TAB_LIST_GROUP:
-            return META_GRAB_OP_KEYBOARD_ESCAPING_GROUP;
-    }
-
-    g_assert_not_reached ();
-
-    return 0;
-}
-
 static void do_choose_window (MetaDisplay    *display,
         MetaScreen     *screen,
         MetaWindow     *event_window,
         XEvent         *event,
         MetaKeyBinding *binding,
-        gboolean        backward,
-        gboolean        show_popup)
+        gboolean        backward)
 {
     MetaTabList type = binding->handler->data;
     MetaWindow *initial_selection;
-
-    meta_topic (META_DEBUG_KEYBINDINGS,
-            "Tab list = %u show_popup = %d\n", type, show_popup);
 
     /* reverse direction if shift is down */
     if (event->xkey.state & ShiftMask)
         backward = !backward;
 
-    initial_selection = meta_display_get_tab_next (display,
-            type,
-            screen,
-            screen->active_workspace,
-            NULL,
-            backward);
+    initial_selection = meta_display_get_tab_next (display, type,
+            screen, screen->active_workspace, NULL, backward);
 
     /* Note that focus_window may not be in the tab chain, but it's OK */
     if (initial_selection == NULL)
@@ -168,9 +142,7 @@ static void do_choose_window (MetaDisplay    *display,
         } else if (meta_display_begin_grab_op (display,
                     screen,
                     NULL,
-                    show_popup ?
-                    tab_op_from_tab_type (type) :
-                    cycle_op_from_tab_type (type),
+                    tab_op_from_tab_type (type),
                     FALSE,
                     FALSE,
                     0,
@@ -194,17 +166,7 @@ static void do_choose_window (MetaDisplay    *display,
             } else {
                 deepin_tab_popup_select (screen->tab_popup,
                         (MetaTabEntryKey) initial_selection->xwindow);
-
-                if (show_popup)
-                    deepin_tab_popup_set_showing (screen->tab_popup,
-                            TRUE);
-                else
-                {
-                    meta_window_raise (initial_selection);
-                    initial_selection->tab_unminimized =
-                        initial_selection->minimized;
-                    meta_window_unminimize (initial_selection);
-                }
+                deepin_tab_popup_set_showing (screen->tab_popup, TRUE);
             }
         }
     }
@@ -215,7 +177,7 @@ static void handle_switch(MetaDisplay *display, MetaScreen *screen,
         MetaKeyBinding *binding, gpointer user_data)
 {
     gint backwards = (binding->handler->flags & META_KEY_BINDING_IS_REVERSED) != 0;
-    do_choose_window (display, screen, window, event, binding, backwards, TRUE);
+    do_choose_window (display, screen, window, event, binding, backwards);
 }
 
 static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
@@ -223,6 +185,37 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
         MetaKeyBinding *binding, gpointer user_data)
 {
     g_message("%s", __func__);
+    unsigned int grab_mask = binding->mask;
+    if (meta_display_begin_grab_op (display,
+                screen,
+                NULL,
+                META_GRAB_OP_KEYBOARD_PREVIEWING_WORKSPACE,
+                FALSE,
+                FALSE,
+                0,
+                grab_mask,
+                event->xkey.time,
+                0, 0))
+    {
+        gboolean grabbed_before_release = 
+            primary_modifier_still_pressed (display, grab_mask);
+
+        meta_topic (META_DEBUG_KEYBINDINGS, "Activating workspace preview\n");
+
+        if (!grabbed_before_release) {
+            /* end the grab right away, modifier possibly released
+             * before we could establish the grab and receive the
+             * release event. Must end grab before we can switch
+             * spaces.
+             */
+            meta_display_end_grab_op (display, event->xkey.time);
+            return;
+        }
+
+        if (grabbed_before_release) {
+            gtk_widget_show_all(screen->ws_previewer);
+        }
+    }
 }
 
 static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,

@@ -496,35 +496,13 @@ static void meta_deepin_cloned_widget_class_init (MetaDeepinClonedWidgetClass *k
     g_object_class_install_properties(gobject_class, N_PROPERTIES, property_specs);
 }
 
-static void _setup_style(MetaDeepinClonedWidget* self)
-{
-    GtkStyleContext* style_ctx = gtk_widget_get_style_context(GTK_WIDGET(self));
-
-    GtkCssProvider* css_style = gtk_css_provider_new();
-
-    GFile* f = g_file_new_for_path(METACITY_PKGDATADIR "/deepin-wm.css");
-    GError* error = NULL;
-    if (!gtk_css_provider_load_from_file(css_style, f, &error)) {
-        meta_topic(META_DEBUG_UI, "load css failed: %s", error->message);
-        g_error_free(error);
-        return;
-    }
-
-    gtk_style_context_add_provider(style_ctx,
-            GTK_STYLE_PROVIDER(css_style), GTK_STYLE_PROVIDER_PRIORITY_USER);
-    gtk_style_context_add_class(style_ctx, "deepin-window-clone");
-
-    g_object_unref(f);
-    g_object_unref(css_style);
-}
-
 GtkWidget * meta_deepin_cloned_widget_new (MetaWindow* meta)
 {
     MetaDeepinClonedWidget* widget;
 
     widget = (MetaDeepinClonedWidget*)g_object_new (META_TYPE_DEEPIN_CLONED_WIDGET, NULL);
     widget->priv->meta_window = meta;
-    _setup_style(widget);
+    deepin_setup_style_class(GTK_WIDGET(widget), "deepin-window-clone");
 
     return (GtkWidget*)widget;
 }

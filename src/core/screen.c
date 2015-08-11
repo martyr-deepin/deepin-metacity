@@ -590,6 +590,7 @@ meta_screen_new (MetaDisplay *display,
 
   screen->tab_popup = NULL;
   screen->ws_popup = NULL;
+  screen->ws_previewer = NULL;
   screen->tile_preview = NULL;
 
   screen->tile_preview_timeout_id = 0;
@@ -1376,6 +1377,18 @@ meta_screen_ensure_tab_popup (MetaScreen      *screen,
   g_list_free (tab_list);
 
   /* don't show tab popup, since proper window isn't selected yet */
+}
+
+void 
+meta_screen_ensure_previewing_workspace (MetaScreen* screen)
+{
+    g_message("%s", __func__);
+    screen->ws_previewer = deepin_wm_background_new();
+}
+
+void meta_screen_ensure_exposing_windows (MetaScreen* screen)
+{
+    g_message("%s", __func__);
 }
 
 void

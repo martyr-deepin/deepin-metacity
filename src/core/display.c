@@ -1120,6 +1120,8 @@ grab_op_is_keyboard (MetaGrabOp op)
     case META_GRAB_OP_KEYBOARD_ESCAPING_DOCK:
     case META_GRAB_OP_KEYBOARD_ESCAPING_GROUP:
     case META_GRAB_OP_KEYBOARD_WORKSPACE_SWITCHING:
+    case META_GRAB_OP_KEYBOARD_PREVIEWING_WORKSPACE:
+    case META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS:
       return TRUE;
 
     default:
@@ -1552,6 +1554,12 @@ event_callback (XEvent   *event,
                 meta_stack_set_positions (screen->stack,
                                           display->grab_old_window_stacking);
             }
+
+          if (display->grab_op == META_GRAB_OP_KEYBOARD_PREVIEWING_WORKSPACE 
+                  || display->grab_op == META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS) {
+            /* do not end grab on this */
+            break;
+          }
           meta_display_end_grab_op (display,
                                     event->xbutton.time);
         }
@@ -3422,6 +3430,13 @@ meta_display_begin_grab_op (MetaDisplay *display,
       meta_screen_ensure_workspace_popup (screen);
       break;
 
+    case META_GRAB_OP_KEYBOARD_PREVIEWING_WORKSPACE:
+      meta_screen_ensure_previewing_workspace (screen);
+      break;
+
+    case META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS:
+      break;
+
     default:
       break;
     }
@@ -3483,6 +3498,16 @@ meta_display_end_grab_op (MetaDisplay *display,
        * sloppy focus
        */
       display->ungrab_should_not_cause_focus_window = display->grab_xwindow;
+    }
+  else if (display->grab_op == META_GRAB_OP_KEYBOARD_PREVIEWING_WORKSPACE) 
+    {
+      if (display->grab_screen->ws_previewer) {
+        gtk_widget_destroy(GTK_WIDGET(display->grab_screen->ws_previewer));
+        display->grab_screen->ws_previewer = NULL;
+      }
+    }
+  else if (display->grab_op == META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS) 
+    {
     }
 
   /* If this was a move or resize clear out the edge cache */

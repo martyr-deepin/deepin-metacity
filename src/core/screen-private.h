@@ -78,6 +78,8 @@ struct _MetaScreen
   MetaUI *ui;
   DeepinTabPopup *tab_popup;
   MetaTabPopup *ws_popup;
+  DeepinWMBackground* ws_previewer;
+
   MetaTilePreview *tile_preview;
 
   guint tile_preview_timeout_id;
@@ -162,6 +164,10 @@ void          meta_screen_ensure_tab_popup    (MetaScreen                 *scree
                                                MetaTabList                 list_type,
                                                MetaTabShowType             show_type);
 void          meta_screen_ensure_workspace_popup (MetaScreen *screen);
+
+void          meta_screen_ensure_previewing_workspace (MetaScreen* screen);
+
+void          meta_screen_ensure_exposing_windows (MetaScreen* screen);
 
 void          meta_screen_tile_preview_update          (MetaScreen    *screen,
                                                         gboolean       delay);

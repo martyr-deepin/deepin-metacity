@@ -119,6 +119,8 @@ libdeepin_metacity_private_la_SOURCES=			\
 	ui/deepin-switch-previewer.h	\
 	ui/deepin-cloned-widget.c		\
 	ui/deepin-cloned-widget.h		\
+	ui/deepin-wm-background.c		\
+	ui/deepin-wm-background.h		\
 	ui/select-workspace.c			\
 	ui/select-workspace.h			\
 	ui/tile-preview.c			\
