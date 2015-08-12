@@ -526,8 +526,6 @@ static void meta_deepin_switch_previewer_size_allocate (GtkWidget* widget,
         child_allocation.width = child_requisition.width;
         child_allocation.height = child_requisition.height;
         gtk_widget_size_allocate (child->widget, &child_allocation);
-        /*g_message("%s: (%d, %d, %d, %d)", __func__, child_allocation.x, */
-                /*child_allocation.y, child_allocation.width, child_allocation.height);*/
     }
 }
 

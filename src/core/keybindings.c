@@ -2645,17 +2645,7 @@ process_previewing_workspace (MetaDisplay *display,
       return FALSE; /* end grab */
     }
 
-  /* don't care about other releases, but eat them, don't end grab */
-  if (event->type == KeyRelease)
-    return TRUE;
-
-  /* don't end grab on modifier key presses */
-  if (is_modifier (display, event->xkey.keycode))
-    return TRUE;
-
-  g_message("%s: after release handling", __func__);
-
-  return FALSE;
+  return TRUE;
 }
 
 static gboolean
@@ -2667,21 +2657,12 @@ process_exposing_windows (MetaDisplay *display,
   if (screen != display->grab_screen)
     return FALSE;
 
-  if (event->type == KeyRelease &&
-      end_keyboard_grab (display, event->xkey.keycode))
+  if (event->type == KeyPress && keysym == XK_Escape)
     {
       return FALSE; /* end grab */
     }
 
-  /* don't care about other releases, but eat them, don't end grab */
-  if (event->type == KeyRelease)
-    return TRUE;
-
-  /* don't end grab on modifier key presses */
-  if (is_modifier (display, event->xkey.keycode))
-    return TRUE;
-
-  return FALSE;
+  return TRUE;
 }
 
 static void

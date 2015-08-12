@@ -591,6 +591,7 @@ meta_screen_new (MetaDisplay *display,
   screen->tab_popup = NULL;
   screen->ws_popup = NULL;
   screen->ws_previewer = NULL;
+  screen->exposing_windows_popup = NULL;
   screen->tile_preview = NULL;
 
   screen->tile_preview_timeout_id = 0;
@@ -1382,13 +1383,22 @@ meta_screen_ensure_tab_popup (MetaScreen      *screen,
 void 
 meta_screen_ensure_previewing_workspace (MetaScreen* screen)
 {
-    g_message("%s", __func__);
-    screen->ws_previewer = deepin_wm_background_new();
+  g_message("%s", __func__);
+  if (screen->ws_previewer) 
+    return;
+
+  screen->ws_previewer = deepin_wm_background_new();
 }
 
 void meta_screen_ensure_exposing_windows (MetaScreen* screen)
 {
-    g_message("%s", __func__);
+  g_message("%s", __func__);
+  if (screen->exposing_windows_popup)
+    return;
+
+  screen->exposing_windows_popup = gtk_window_new(GTK_WINDOW_POPUP);
+  gtk_window_set_default_size(GTK_WINDOW(screen->exposing_windows_popup), 
+          screen->rect.width, screen->rect.height);
 }
 
 void

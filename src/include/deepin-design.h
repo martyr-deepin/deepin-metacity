@@ -48,6 +48,23 @@
 #define SWITCHER_ROW_SPACING  20
 #define SWITCHER_MIN_ITEMS_EACH_ROW  7
 #define SWITCHER_MAX_ROWS  2
+ 
+static const int ANIMATION_DURATION = 250;
+
+/**
+ * The percent value between workspace clones' horizontal offset and monitor's height.
+ */
+static const float HORIZONTAL_OFFSET_PERCENT = 0.03f;
+
+/**
+ * The percent value between flow workspace's top offset and monitor's height.
+ */
+static const float FLOW_CLONE_TOP_OFFSET_PERCENT = 0.24f;
+
+/**
+ * The percent value between distance of flow workspaces and its width.
+ */
+static const float FLOW_CLONE_DISTANCE_PERCENT = 0.10f;
 
 void calculate_preferred_size(gint entry_count, gint max_width,
         float* box_width, float* box_height, float* item_width,

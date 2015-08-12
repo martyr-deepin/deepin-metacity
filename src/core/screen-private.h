@@ -79,6 +79,7 @@ struct _MetaScreen
   DeepinTabPopup *tab_popup;
   MetaTabPopup *ws_popup;
   DeepinWMBackground* ws_previewer;
+  GtkWidget* exposing_windows_popup;
 
   MetaTilePreview *tile_preview;
 

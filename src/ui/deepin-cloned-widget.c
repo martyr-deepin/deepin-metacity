@@ -439,9 +439,11 @@ static void meta_deepin_cloned_widget_init (MetaDeepinClonedWidget *self)
     priv->scale_y = 1.0;
     priv->pivot_x = 0.5;
     priv->pivot_y = 0.5;
+    priv->alpha = 1.0;
 
     priv->ai.scale_x = priv->scale_x;
     priv->ai.scale_y = priv->scale_y;
+    priv->ai.alpha = priv->alpha;
 
     gtk_widget_set_has_window(GTK_WIDGET(self), FALSE);
 }
@@ -743,5 +745,10 @@ void meta_deepin_cloned_widget_set_alpha(MetaDeepinClonedWidget* self, gdouble v
 gdouble meta_deepin_cloned_widget_get_alpha(MetaDeepinClonedWidget* self)
 {
     return self->priv->alpha;
+}
+
+MetaWindow* meta_deepin_cloned_widget_get_window(MetaDeepinClonedWidget* self)
+{
+    return self->priv->meta_window;
 }
 

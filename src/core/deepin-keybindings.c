@@ -28,6 +28,7 @@
 #include "workspace.h"
 #include "keybindings.h"
 #include "window-private.h"
+#include "deepin-shadow-workspace.h"
 
 static unsigned int get_primary_modifier (MetaDisplay *display,
         unsigned int entire_binding_mask)
@@ -208,13 +209,13 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
              * release event. Must end grab before we can switch
              * spaces.
              */
+            g_message("not grabbed_before_release");
             meta_display_end_grab_op (display, event->xkey.time);
             return;
         }
 
-        if (grabbed_before_release) {
-            gtk_widget_show_all(screen->ws_previewer);
-        }
+        gtk_widget_show_all(GTK_WIDGET(screen->ws_previewer));
+        gtk_window_move(GTK_WINDOW(screen->ws_previewer), 0, 0);
     }
 }
 
@@ -223,6 +224,45 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
         MetaKeyBinding *binding, gpointer user_data)
 {
     g_message("%s", __func__);
+    unsigned int grab_mask = binding->mask;
+    if (meta_display_begin_grab_op (display,
+                screen,
+                NULL,
+                META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS,
+                FALSE,
+                FALSE,
+                0,
+                grab_mask,
+                event->xkey.time,
+                0, 0))
+    {
+        gboolean grabbed_before_release = 
+            primary_modifier_still_pressed (display, grab_mask);
+
+        meta_topic (META_DEBUG_KEYBINDINGS, "Activating workspace preview\n");
+
+        if (!grabbed_before_release) {
+            /* end the grab right away, modifier possibly released
+             * before we could establish the grab and receive the
+             * release event. Must end grab before we can switch
+             * spaces.
+             */
+            g_message("not grabbed_before_release");
+            meta_display_end_grab_op (display, event->xkey.time);
+            return;
+        }
+
+        GtkWidget* top = screen->exposing_windows_popup;
+        GtkWidget* fixed = gtk_fixed_new();
+        gtk_container_add(GTK_CONTAINER(top), fixed);
+
+        DeepinShadowWorkspace* active_workspace = 
+            (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
+        deepin_shadow_workspace_populate(active_workspace, screen->active_workspace);
+        gtk_fixed_put(GTK_FIXED(fixed), (GtkWidget*)active_workspace, 0, 0);
+
+        gtk_widget_show_all(top);
+    }
 }
 
 static void handle_workspace_switch(MetaDisplay *display, MetaScreen *screen,

@@ -77,5 +77,6 @@ void meta_deepin_cloned_widget_push_state(MetaDeepinClonedWidget*);
 void meta_deepin_cloned_widget_pop_state(MetaDeepinClonedWidget*);
 
 cairo_surface_t* meta_deepin_cloned_widget_get_snapshot(MetaDeepinClonedWidget*);
+MetaWindow* meta_deepin_cloned_widget_get_window(MetaDeepinClonedWidget*);
 
 #endif

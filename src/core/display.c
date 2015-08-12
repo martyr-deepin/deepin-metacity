@@ -3435,6 +3435,7 @@ meta_display_begin_grab_op (MetaDisplay *display,
       break;
 
     case META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS:
+      meta_screen_ensure_exposing_windows (screen);
       break;
 
     default:
@@ -3508,6 +3509,10 @@ meta_display_end_grab_op (MetaDisplay *display,
     }
   else if (display->grab_op == META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS) 
     {
+      if (display->grab_screen->exposing_windows_popup) {
+        gtk_widget_destroy(GTK_WIDGET(display->grab_screen->exposing_windows_popup));
+        display->grab_screen->exposing_windows_popup = NULL;
+      }
     }
 
   /* If this was a move or resize clear out the edge cache */

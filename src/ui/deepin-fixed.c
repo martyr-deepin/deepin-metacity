@@ -411,13 +411,6 @@ deepin_fixed_size_allocate (GtkWidget     *widget,
                                 allocation->height);
     }
 
-  float box_width, box_height, item_width, item_height;
-  int max_items_each_row;
-  gint screen_width = gdk_screen_get_width (gtk_widget_get_screen(widget));
-  gint max_width = screen_width - POPUP_SCREEN_PADDING * 2 - POPUP_PADDING * 2;
-  calculate_preferred_size(g_list_length(priv->children), max_width,
-          &box_width, &box_height, &item_width, &item_height, &max_items_each_row);
-
   for (children = priv->children; children; children = children->next) {
       child = children->data;
 
