@@ -28,20 +28,21 @@
 struct _DeepinWMBackgroundPrivate
 {
     gint disposed: 1;
-    DeepinShadowWorkspace* active_workspace;
     GtkWidget* fixed;
+
+    DeepinShadowWorkspace* active_workspace;
+    GList* worskpaces;
 };
-
-
 
 
 G_DEFINE_TYPE (DeepinWMBackground, deepin_wm_background, GTK_TYPE_WINDOW);
 
-static void deepin_wm_background_init (DeepinWMBackground *deepin_wm_background)
+static void deepin_wm_background_init (DeepinWMBackground *self)
 {
-    deepin_wm_background->priv = G_TYPE_INSTANCE_GET_PRIVATE (deepin_wm_background, DEEPIN_TYPE_WM_BACKGROUND, DeepinWMBackgroundPrivate);
+    self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, DEEPIN_TYPE_WM_BACKGROUND, DeepinWMBackgroundPrivate);
 
-    /* TODO: Add initialization code here */
+    DeepinWMBackgroundPrivate* priv = self->priv;
+    priv->worskpaces = NULL;
 }
 
 static void deepin_wm_background_finalize (GObject *object)
@@ -53,10 +54,6 @@ static void deepin_wm_background_finalize (GObject *object)
 
 static gboolean deepin_wm_background_real_draw(GtkWidget *widget, cairo_t* cr)
 {
-    cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
-    cairo_rectangle(cr, 100, 100, 100, 100);
-    cairo_fill(cr);
-
     return GTK_WIDGET_CLASS(deepin_wm_background_parent_class)->draw(widget, cr);
 }
 
@@ -71,34 +68,85 @@ static void deepin_wm_background_class_init (DeepinWMBackgroundClass *klass)
     object_class->finalize = deepin_wm_background_finalize;
 }
 
+static void deepin_wm_background_setup(DeepinWMBackground* self)
+{
+    DeepinWMBackgroundPrivate* priv = self->priv;
+
+    GdkRectangle geom;
+    GdkScreen* screen = gdk_screen_get_default();
+    gint monitor_index = gdk_screen_get_monitor_at_window(screen,
+            gtk_widget_get_window(GTK_WIDGET(self)));
+    gdk_screen_get_monitor_geometry(screen, monitor_index, &geom);
+            
+    priv->fixed = gtk_fixed_new();
+    gtk_container_add(GTK_CONTAINER(self), priv->fixed);
+
+    MetaDisplay* display = meta_get_display();
+
+    int top_offset = (int)(geom.height * FLOW_CLONE_TOP_OFFSET_PERCENT);
+    int bottom_offset = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);
+    float scale = (float)(geom.height - top_offset - bottom_offset) / geom.height;
+
+    g_object_set(G_OBJECT(self), "margin-top", top_offset, 
+            "margin-left", (int)(geom.width - geom.width * scale) / 2,
+            "margin-right", (int)(geom.width - geom.width * scale) / 2,
+            "margin-bottom", bottom_offset, NULL);
+
+    gint width = geom.width * scale, height = geom.height * scale;
+    g_message("%s: top_offset %d, scale %f", __func__, top_offset, scale);
+
+    GList *l = display->active_screen->workspaces;
+    gint current = 0;
+
+    while (l) {
+        MetaWorkspace* ws = (MetaWorkspace*)l->data;
+        DeepinShadowWorkspace* dsw = (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
+        deepin_shadow_workspace_set_scale(dsw, scale);
+
+        deepin_shadow_workspace_populate(dsw, ws);
+
+        if (ws == display->active_screen->active_workspace) {
+            current = g_list_index(display->active_screen->workspaces, l->data);
+            priv->active_workspace = dsw;
+        }
+        
+        priv->worskpaces = g_list_append(priv->worskpaces, dsw);
+
+        l = l->next;
+    }
+
+    gint i = 0, pad = FLOW_CLONE_DISTANCE_PERCENT * geom.width;
+    l = priv->worskpaces;
+    while (l) {
+        gint x = (geom.width - width) / 2 +  (i - current) * (width + pad);
+        /*g_message("%s: current %d, x %d, y %d", __func__, current, x, y);*/
+
+        gtk_fixed_put(GTK_FIXED(priv->fixed), (GtkWidget*)l->data,
+                x, top_offset);
+
+        i++;
+        l = l->next;
+    }
+
+}
+
 GtkWidget* deepin_wm_background_new(void)
 {
     GtkWidget* widget = (GtkWidget*)g_object_new(DEEPIN_TYPE_WM_BACKGROUND,
             "type", GTK_WINDOW_POPUP, NULL);
     deepin_setup_style_class(widget, "deepin-window-manager"); 
 
-    GdkScreen* screen =gdk_screen_get_default();
+    GdkScreen* screen = gdk_screen_get_default();
     gint w = gdk_screen_get_width(screen), h = gdk_screen_get_height(screen);
+
     GdkVisual* visual = gdk_screen_get_rgba_visual (screen);
     if (visual) gtk_widget_set_visual (widget, visual);
-    /*gtk_window_set_position(GTK_WINDOW(widget), GTK_WIN_POS_CENTER_ALWAYS);*/
+
+    gtk_window_set_position(GTK_WINDOW(widget), GTK_WIN_POS_CENTER_ALWAYS);
     gtk_window_set_default_size(GTK_WINDOW(widget), w, h);
     gtk_widget_realize (widget);
 
-    DeepinWMBackgroundPrivate* priv = ((DeepinWMBackground*)widget)->priv;
-            
-    priv->fixed = deepin_fixed_new();
-    gtk_container_add(GTK_CONTAINER(widget), priv->fixed);
-
-    priv->active_workspace = (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
-    deepin_shadow_workspace_set_scale(priv->active_workspace, 0.7);
-
-    MetaDisplay* display = meta_get_display();
-    deepin_shadow_workspace_populate(priv->active_workspace, 
-            display->active_screen->active_workspace);
-    deepin_fixed_put(DEEPIN_FIXED(priv->fixed),
-            (GtkWidget*)priv->active_workspace,
-            w /2, h / 2);
+    deepin_wm_background_setup(DEEPIN_WM_BACKGROUND(widget));
     return widget;
 }
 

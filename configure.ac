@@ -442,7 +442,7 @@ fi
 
 # Warnings are there for a reason
 if test "x$GCC" = "xyes"; then
-  CFLAGS="$CFLAGS -Wall -ansi"
+  CFLAGS="$CFLAGS -Wall -std=gnu99"
 fi
 
 AC_ARG_ENABLE(themes-documentation,

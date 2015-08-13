@@ -61,6 +61,26 @@ struct _DeepinFixedClass
   void (*_gtk_reserved4) (void);
 };
 
+typedef struct _ChildAnimationInfo
+{
+    DeepinFixedChild* child;
+    gint old_x;
+    gint old_y;
+    gint target_x;
+    gint target_y;
+
+    gboolean animation; /* in animation */
+
+    gdouble current_pos;
+    gdouble target_pos;
+
+    gint64 start_time;
+    gint64 last_time;
+    gint64 end_time;
+
+    guint tick_id;
+} ChildAnimationInfo;
+
 struct _DeepinFixedChild
 {
   GtkWidget *widget;

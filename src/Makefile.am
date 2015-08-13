@@ -121,6 +121,8 @@ libdeepin_metacity_private_la_SOURCES=			\
 	ui/deepin-cloned-widget.h		\
 	ui/deepin-wm-background.c		\
 	ui/deepin-wm-background.h		\
+	ui/deepin-background-cache.c	\
+	ui/deepin-background-cache.h	\
 	ui/deepin-shadow-workspace.c	\
 	ui/deepin-shadow-workspace.h	\
 	ui/select-workspace.c			\

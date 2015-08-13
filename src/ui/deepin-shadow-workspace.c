@@ -29,6 +29,7 @@
 #include "compositor.h"
 #include "deepin-design.h"
 #include "deepin-shadow-workspace.h"
+#include "deepin-background-cache.h"
 
 static const int SMOOTH_SCROLL_DELAY = 500;
 
@@ -60,15 +61,12 @@ static void place_window(DeepinShadowWorkspace* self,
 
     deepin_fixed_move(DEEPIN_FIXED(self), GTK_WIDGET(clone),
             rect.x + req.width * fscale /2, rect.y + req.height * fscale /2);
-
-    meta_deepin_cloned_widget_set_scale(clone, 1.0, 1.0);
-    meta_deepin_cloned_widget_push_state(clone);
-    /*clutter_actor_set_easing_mode(actor, CLUTTER_EASE_OUT_CUBIC);*/
-    /*clutter_actor_set_easing_duration(actor, PLACEMENT_ANIMATION_DURATION);*/
-
     meta_deepin_cloned_widget_set_scale(clone, fscale, fscale);
 
-    meta_deepin_cloned_widget_pop_state(clone);
+    /*meta_deepin_cloned_widget_set_scale(clone, 1.0, 1.0);*/
+    /*meta_deepin_cloned_widget_push_state(clone);*/
+    /*meta_deepin_cloned_widget_set_scale(clone, fscale, fscale);*/
+    /*meta_deepin_cloned_widget_pop_state(clone);*/
 }
 
 static const int GAPS = 10;
@@ -358,6 +356,7 @@ static void calculate_places(DeepinShadowWorkspace* self)
     }
 }
 
+
 static void deepin_shadow_workspace_init (DeepinShadowWorkspace *self)
 {
 	self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, DEEPIN_TYPE_SHADOW_WORKSPACE, DeepinShadowWorkspacePrivate);
@@ -367,7 +366,10 @@ static void deepin_shadow_workspace_init (DeepinShadowWorkspace *self)
 
 static void deepin_shadow_workspace_finalize (GObject *object)
 {
-	/* TODO: Add deinitalization code here */
+    DeepinShadowWorkspacePrivate* priv = DEEPIN_SHADOW_WORKSPACE(object)->priv;
+    if (priv->clones) {
+        g_ptr_array_free(priv->clones, FALSE);
+    }
 
 	G_OBJECT_CLASS (deepin_shadow_workspace_parent_class)->finalize (object);
 }
@@ -395,12 +397,9 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
   DeepinShadowWorkspace *fixed = DEEPIN_SHADOW_WORKSPACE (widget);
   DeepinShadowWorkspacePrivate *priv = fixed->priv;
 
-  GtkRequisition req;
-  gtk_widget_get_preferred_size(widget, &req, NULL);
-
-  cairo_set_source_rgb(cr, 0.2, 0.2, 0.2);
-  cairo_rectangle(cr, 0, 0, req.width, req.height);
-  cairo_fill(cr);
+  cairo_set_source_surface(cr,
+          deepin_background_cache_get_surface(priv->scale), 0, 0);
+  cairo_paint(cr);
 
   return GTK_WIDGET_CLASS(deepin_shadow_workspace_parent_class)->draw(widget, cr);
 }
@@ -474,7 +473,9 @@ GtkWidget* deepin_shadow_workspace_new(void)
     self->priv->fixed_height = gdk_screen_get_height(screen);
     self->priv->scale = 1.0;
 
-    g_signal_connect(G_OBJECT(self), "show", on_deepin_shadow_workspace_show, NULL);
+    g_signal_connect(G_OBJECT(self), "show",
+            (GCallback)on_deepin_shadow_workspace_show, NULL);
+
     return (GtkWidget*)self;
 }
 
