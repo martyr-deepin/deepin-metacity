@@ -253,13 +253,14 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
         }
 
         GtkWidget* top = screen->exposing_windows_popup;
-        GtkWidget* fixed = gtk_fixed_new();
-        gtk_container_add(GTK_CONTAINER(top), fixed);
 
         DeepinShadowWorkspace* active_workspace = 
             (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
         deepin_shadow_workspace_populate(active_workspace, screen->active_workspace);
-        gtk_fixed_put(GTK_FIXED(fixed), (GtkWidget*)active_workspace, 0, 0);
+        deepin_shadow_workspace_set_presentation(active_workspace, TRUE);
+        deepin_shadow_workspace_set_current(active_workspace, TRUE);
+
+        gtk_container_add(GTK_CONTAINER(top), (GtkWidget*)active_workspace);
 
         gtk_widget_show_all(top);
     }

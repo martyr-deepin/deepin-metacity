@@ -104,7 +104,8 @@ GDK_AVAILABLE_IN_ALL
 void       deepin_fixed_move              (DeepinFixed       *fixed,
                                         GtkWidget      *widget,
                                         gint            x,
-                                        gint            y);
+                                        gint            y, 
+                                        gboolean        animate);
 
 
 G_END_DECLS

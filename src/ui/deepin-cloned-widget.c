@@ -192,32 +192,19 @@ static void _style_get_borders (GtkStyleContext *context, GtkBorder *border_out)
 
 static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
 {
-    if (!gtk_widget_get_visible(widget)) return FALSE;
-
     MetaDeepinClonedWidget *self = META_DEEPIN_CLONED_WIDGET (widget);
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
 
     GtkStyleContext* context = gtk_widget_get_style_context (widget);
-
-    GtkAllocation clip;
-    gtk_widget_get_clip(widget, &clip);
 
     GtkRequisition req;
     gtk_widget_get_preferred_size(widget, &req, NULL);
     /*g_message("----- req(%d, %d), clip(%d, %d, %d, %d)", req.width, req.height, */
     /*clip.x, clip.y, clip.width, clip.height);*/
 
-    gdouble x = 0, y = 0,
-            w = req.width, h = req.height,
-            cw = clip.width, ch = clip.height;
+    gdouble x = 0, y = 0, w = req.width, h = req.height;
 
     GtkBorder borders;
-
-    if (priv->selected) {
-        gtk_style_context_set_state (context, GTK_STATE_FLAG_SELECTED);
-    } else {
-        gtk_style_context_set_state (context, GTK_STATE_FLAG_NORMAL);
-    }
     _style_get_borders(context, &borders);
     /*w += borders.left + borders.right;*/
 
@@ -420,14 +407,20 @@ static void meta_deepin_cloned_widget_size_allocate(GtkWidget* widget,
 
     gdouble sx, sy;
     if (priv->animation) {
-        sx = MAX(priv->ai.scale_x, 1.0), sy = MAX(priv->ai.scale_y, 1.0);
-    } else sx = MAX(priv->scale_x, 1.0), sy = MAX(priv->scale_y, 1.0);
+        sx = MAX(priv->ai.scale_x, 1.0);
+        sy = MAX(priv->ai.scale_y, 1.0);
+    } else {
+        sx = MAX(priv->scale_x, 1.0);
+        sy = MAX(priv->scale_y, 1.0);
+    }
 
-    expanded.width = fast_round(allocation->width * sx);
-    expanded.height = fast_round(allocation->height * sy);
-    expanded.x = allocation->x - allocation->width * (sx - 1.0) / 2.0;
-    expanded.y = allocation->y - allocation->height * (sy - 1.0) / 2.0;
-    gtk_widget_set_clip(widget, &expanded);
+    if (sx > 1.0 || sy > 1.0) {
+        expanded.width = fast_round(allocation->width * sx);
+        expanded.height = fast_round(allocation->height * sy);
+        expanded.x = allocation->x - allocation->width * (sx - 1.0) / 2.0;
+        expanded.y = allocation->y - allocation->height * (sy - 1.0) / 2.0;
+        gtk_widget_set_clip(widget, &expanded);
+    }
 }
 
 static void meta_deepin_cloned_widget_init (MetaDeepinClonedWidget *self)
@@ -444,6 +437,9 @@ static void meta_deepin_cloned_widget_init (MetaDeepinClonedWidget *self)
     priv->ai.scale_x = priv->scale_x;
     priv->ai.scale_y = priv->scale_y;
     priv->ai.alpha = priv->alpha;
+
+    gtk_style_context_set_state (gtk_widget_get_style_context(GTK_WIDGET(self)), 
+            GTK_STATE_FLAG_NORMAL);
 
     gtk_widget_set_has_window(GTK_WIDGET(self), FALSE);
 }
@@ -541,6 +537,8 @@ void meta_deepin_cloned_widget_select (MetaDeepinClonedWidget *self)
     }
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
     priv->selected = TRUE;
+    gtk_style_context_set_state (gtk_widget_get_style_context(GTK_WIDGET(self)), 
+            GTK_STATE_FLAG_SELECTED);
     meta_deepin_cloned_widget_pop_state(self);
 }
 
@@ -551,6 +549,8 @@ void meta_deepin_cloned_widget_unselect (MetaDeepinClonedWidget *self)
     }
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
     priv->selected = FALSE;
+    gtk_style_context_set_state (gtk_widget_get_style_context(GTK_WIDGET(self)), 
+            GTK_STATE_FLAG_NORMAL);
     meta_deepin_cloned_widget_pop_state(self);
 }
 

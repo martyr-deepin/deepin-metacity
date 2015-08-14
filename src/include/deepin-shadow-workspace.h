@@ -56,6 +56,10 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
         MetaWorkspace* ws);
 void deepin_shadow_workspace_set_scale(DeepinShadowWorkspace*, gdouble);
 
+// true to do presentation animation during show up
+void deepin_shadow_workspace_set_presentation(DeepinShadowWorkspace*, gboolean);
+void deepin_shadow_workspace_set_current(DeepinShadowWorkspace*, gboolean);
+
 G_END_DECLS
 
 #endif /* _DEEPIN_SHADOW_WORKSPACE_H_ */

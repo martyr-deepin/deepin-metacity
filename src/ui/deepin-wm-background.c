@@ -87,13 +87,7 @@ static void deepin_wm_background_setup(DeepinWMBackground* self)
     int bottom_offset = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);
     float scale = (float)(geom.height - top_offset - bottom_offset) / geom.height;
 
-    g_object_set(G_OBJECT(self), "margin-top", top_offset, 
-            "margin-left", (int)(geom.width - geom.width * scale) / 2,
-            "margin-right", (int)(geom.width - geom.width * scale) / 2,
-            "margin-bottom", bottom_offset, NULL);
-
     gint width = geom.width * scale, height = geom.height * scale;
-    g_message("%s: top_offset %d, scale %f", __func__, top_offset, scale);
 
     GList *l = display->active_screen->workspaces;
     gint current = 0;
@@ -108,6 +102,8 @@ static void deepin_wm_background_setup(DeepinWMBackground* self)
         if (ws == display->active_screen->active_workspace) {
             current = g_list_index(display->active_screen->workspaces, l->data);
             priv->active_workspace = dsw;
+            deepin_shadow_workspace_set_presentation(dsw, TRUE);
+            deepin_shadow_workspace_set_current(dsw, TRUE);
         }
         
         priv->worskpaces = g_list_append(priv->worskpaces, dsw);
@@ -119,15 +115,12 @@ static void deepin_wm_background_setup(DeepinWMBackground* self)
     l = priv->worskpaces;
     while (l) {
         gint x = (geom.width - width) / 2 +  (i - current) * (width + pad);
-        /*g_message("%s: current %d, x %d, y %d", __func__, current, x, y);*/
-
         gtk_fixed_put(GTK_FIXED(priv->fixed), (GtkWidget*)l->data,
                 x, top_offset);
 
         i++;
         l = l->next;
     }
-
 }
 
 GtkWidget* deepin_wm_background_new(void)

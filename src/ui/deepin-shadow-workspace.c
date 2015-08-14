@@ -28,6 +28,7 @@
 #include "deepin-cloned-widget.h"
 #include "compositor.h"
 #include "deepin-design.h"
+#include "deepin-ease.h"
 #include "deepin-shadow-workspace.h"
 #include "deepin-background-cache.h"
 
@@ -37,10 +38,12 @@ struct _DeepinShadowWorkspacePrivate
 {
     gint disposed: 1;
     gint dynamic: 1; /* if animatable */
+    gint selected: 1; 
+    gint freeze: 1; /* do not liveupdate when freezed */
 
     gint fixed_width, fixed_height;
     gdouble scale; 
-    
+
     GPtrArray* clones;
     MetaWorkspace* workspace;
 };
@@ -53,20 +56,22 @@ static void place_window(DeepinShadowWorkspace* self,
 {
     GtkRequisition req;
     gtk_widget_get_preferred_size(GTK_WIDGET(clone), &req, NULL);
-    
+
     float fscale = (float)rect.width / req.width;
     g_debug("%s: bound: %d,%d,%d,%d, scale %f", __func__,
-            rect.x, rect.y, rect.width, rect.height,
-            fscale);
+            rect.x, rect.y, rect.width, rect.height, fscale);
 
     deepin_fixed_move(DEEPIN_FIXED(self), GTK_WIDGET(clone),
-            rect.x + req.width * fscale /2, rect.y + req.height * fscale /2);
-    meta_deepin_cloned_widget_set_scale(clone, fscale, fscale);
-
-    /*meta_deepin_cloned_widget_set_scale(clone, 1.0, 1.0);*/
-    /*meta_deepin_cloned_widget_push_state(clone);*/
-    /*meta_deepin_cloned_widget_set_scale(clone, fscale, fscale);*/
-    /*meta_deepin_cloned_widget_pop_state(clone);*/
+            rect.x + req.width * fscale /2, rect.y + req.height * fscale /2,
+            self->priv->dynamic);
+    if (self->priv->dynamic) {
+        meta_deepin_cloned_widget_set_scale(clone, 1.0, 1.0);
+        meta_deepin_cloned_widget_push_state(clone);
+        meta_deepin_cloned_widget_set_scale(clone, fscale, fscale);
+        meta_deepin_cloned_widget_pop_state(clone);
+    } else {
+        meta_deepin_cloned_widget_set_scale(clone, fscale, fscale);
+    }
 }
 
 static const int GAPS = 10;
@@ -242,9 +247,9 @@ static void natural_placement (DeepinShadowWorkspace* self, MetaRectangle area)
         MetaRectangle rect = rects[index];
         rects[index] = (MetaRectangle){
             (int)floorf ((rect.x - bounds.x) * scale + area.x),
-            (int)floorf ((rect.y - bounds.y) * scale + area.y),
-            (int)floorf (rect.width * scale),
-            (int)floorf (rect.height * scale)
+                (int)floorf ((rect.y - bounds.y) * scale + area.y),
+                (int)floorf (rect.width * scale),
+                (int)floorf (rect.height * scale)
         };
     }
 
@@ -325,16 +330,6 @@ static void natural_placement (DeepinShadowWorkspace* self, MetaRectangle area)
     g_free(rects);
 }
 
-/*static gint window_compare(gconstpointer a, gconstpointer b)*/
-/*{*/
-    /*MetaDeepinClonedWidget* aa = *(MetaDeepinClonedWidget**)a;*/
-    /*MetaDeepinClonedWidget* bb = *(MetaDeepinClonedWidget**)b;*/
-
-    /*MetaWindow* w1 = meta_deepin_cloned_widget_get_window(aa);*/
-    /*MetaWindow* w2 = meta_deepin_cloned_widget_get_window(bb);*/
-    /*return meta_window_get_stable_sequence(w1) - meta_window_get_stable_sequence(w2);*/
-/*}*/
-
 static int padding_top  = 12;
 static int padding_left  = 12;
 static int padding_right  = 12;
@@ -359,7 +354,7 @@ static void calculate_places(DeepinShadowWorkspace* self)
 
 static void deepin_shadow_workspace_init (DeepinShadowWorkspace *self)
 {
-	self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, DEEPIN_TYPE_SHADOW_WORKSPACE, DeepinShadowWorkspacePrivate);
+    self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, DEEPIN_TYPE_SHADOW_WORKSPACE, DeepinShadowWorkspacePrivate);
 
     self->priv->scale = 1.0;
 }
@@ -371,50 +366,125 @@ static void deepin_shadow_workspace_finalize (GObject *object)
         g_ptr_array_free(priv->clones, FALSE);
     }
 
-	G_OBJECT_CLASS (deepin_shadow_workspace_parent_class)->finalize (object);
+    G_OBJECT_CLASS (deepin_shadow_workspace_parent_class)->finalize (object);
+}
+
+static void _style_get_borders (GtkStyleContext *context, GtkBorder *border_out)
+{
+    GtkBorder padding, border;
+    GtkStateFlags state;
+
+    state = gtk_style_context_get_state (context);
+    gtk_style_context_get_padding (context, state, &padding);
+    gtk_style_context_get_border (context, state, &border);
+
+    border_out->top = padding.top + border.top;
+    border_out->bottom = padding.bottom + border.bottom;
+    border_out->left = padding.left + border.left;
+    border_out->right = padding.right + border.right;
 }
 
 static void deepin_shadow_workspace_get_preferred_width (GtkWidget *widget,
         gint *minimum, gint *natural)
 {
-  DeepinShadowWorkspace *self = DEEPIN_SHADOW_WORKSPACE (widget);
+    DeepinShadowWorkspace *self = DEEPIN_SHADOW_WORKSPACE (widget);
 
-  *minimum = *natural = self->priv->fixed_width;
+    *minimum = *natural = self->priv->fixed_width;
 }
 
 static void deepin_shadow_workspace_get_preferred_height (GtkWidget *widget,
         gint *minimum, gint *natural)
 {
-  DeepinShadowWorkspace *self = DEEPIN_SHADOW_WORKSPACE (widget);
+    DeepinShadowWorkspace *self = DEEPIN_SHADOW_WORKSPACE (widget);
 
-  *minimum = *natural = self->priv->fixed_height;
+    *minimum = *natural = self->priv->fixed_height;
 }
 
 /* FIXME: no need to draw when do moving animation, just a snapshot */
 static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
         cairo_t *cr)
 {
-  DeepinShadowWorkspace *fixed = DEEPIN_SHADOW_WORKSPACE (widget);
-  DeepinShadowWorkspacePrivate *priv = fixed->priv;
+    DeepinShadowWorkspace *fixed = DEEPIN_SHADOW_WORKSPACE (widget);
+    DeepinShadowWorkspacePrivate *priv = fixed->priv;
 
-  cairo_set_source_surface(cr,
-          deepin_background_cache_get_surface(priv->scale), 0, 0);
-  cairo_paint(cr);
+    GtkAllocation req;
+    gtk_widget_get_allocation(widget, &req);
+    /*g_message("%s: (%d, %d, %d, %d)", __func__, req.x, req.y, req.width, req.height);*/
 
-  return GTK_WIDGET_CLASS(deepin_shadow_workspace_parent_class)->draw(widget, cr);
+    GtkStyleContext* context = gtk_widget_get_style_context(widget);
+    gtk_render_background(context, cr, 0, 0, req.width, req.height);
+
+    cairo_set_source_surface(cr,
+            deepin_background_cache_get_surface(priv->scale), 0, 0);
+    cairo_paint(cr);
+
+    return GTK_WIDGET_CLASS(deepin_shadow_workspace_parent_class)->draw(widget, cr);
+}
+
+static void union_with_clip (GtkWidget *widget,
+                 gpointer   clip)
+{
+    GtkAllocation widget_clip;
+
+    if (!gtk_widget_is_visible (widget) ||
+            !gtk_widget_get_child_visible (widget))
+        return;
+
+    gtk_widget_get_clip (widget, &widget_clip);
+
+    gdk_rectangle_union (&widget_clip, clip, clip);
+}
+
+static void _gtk_widget_set_simple_clip (GtkWidget     *widget,
+                             GtkAllocation *content_clip)
+{
+    GtkStyleContext *context;
+    GtkAllocation clip, allocation;
+    GtkBorder extents;
+
+    context = gtk_widget_get_style_context (widget);
+    _style_get_borders(context, &extents);
+
+    gtk_widget_get_allocation (widget, &allocation);
+
+    clip = allocation;
+    clip.x -= extents.left;
+    clip.y -= extents.top;
+    clip.width += extents.left + extents.right;
+    clip.height += extents.top + extents.bottom;
+
+    /*gtk_container_forall (GTK_CONTAINER (widget), union_with_clip, &clip);*/
+
+    // HACK: leave space for shadow 
+    clip.x -= 10;
+    clip.y -= 10;
+    clip.width += 20;
+    clip.height += 20;
+
+    gtk_widget_set_clip (widget, &clip);
+}
+
+static void deepin_shadow_workspace_size_allocate(GtkWidget* widget, 
+        GtkAllocation* allocation)
+{
+    GTK_WIDGET_CLASS(deepin_shadow_workspace_parent_class)->size_allocate(
+            widget, allocation);
+
+    _gtk_widget_set_simple_clip(widget, NULL);
 }
 
 static void deepin_shadow_workspace_class_init (DeepinShadowWorkspaceClass *klass)
 {
-	GObjectClass* object_class = G_OBJECT_CLASS (klass);
+    GObjectClass* object_class = G_OBJECT_CLASS (klass);
     GtkWidgetClass* widget_class = (GtkWidgetClass*) klass;
 
-	g_type_class_add_private (klass, sizeof (DeepinShadowWorkspacePrivate));
+    g_type_class_add_private (klass, sizeof (DeepinShadowWorkspacePrivate));
     widget_class->get_preferred_width = deepin_shadow_workspace_get_preferred_width;
     widget_class->get_preferred_height = deepin_shadow_workspace_get_preferred_height;
+    widget_class->size_allocate = deepin_shadow_workspace_size_allocate;
     widget_class->draw = deepin_shadow_workspace_draw;
 
-	object_class->finalize = deepin_shadow_workspace_finalize;
+    object_class->finalize = deepin_shadow_workspace_finalize;
 }
 
 void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
@@ -460,7 +530,7 @@ static gboolean on_idle(DeepinShadowWorkspace* self)
 
 static void on_deepin_shadow_workspace_show(DeepinShadowWorkspace* self, gpointer data)
 {
-    g_idle_add(on_idle, self);
+    g_idle_add((GSourceFunc)on_idle, self);
 }
 
 GtkWidget* deepin_shadow_workspace_new(void)
@@ -472,6 +542,10 @@ GtkWidget* deepin_shadow_workspace_new(void)
     self->priv->fixed_width = gdk_screen_get_width(screen);
     self->priv->fixed_height = gdk_screen_get_height(screen);
     self->priv->scale = 1.0;
+
+    GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(self));
+    gtk_style_context_set_state (context, GTK_STATE_FLAG_NORMAL);
+    deepin_setup_style_class(GTK_WIDGET(self), "deepin-workspace-clone"); 
 
     g_signal_connect(G_OBJECT(self), "show",
             (GCallback)on_deepin_shadow_workspace_show, NULL);
@@ -490,6 +564,28 @@ void deepin_shadow_workspace_set_scale(DeepinShadowWorkspace* self, gdouble s)
     priv->fixed_width = r.width * s;
     priv->fixed_height = r.height * s;
 
+    /* FIXME: need to check if repopulate */
+
     gtk_widget_queue_resize(GTK_WIDGET(self));
+}
+
+void deepin_shadow_workspace_set_presentation(DeepinShadowWorkspace* self,
+        gboolean val)
+{
+    self->priv->dynamic = val;
+}
+
+void deepin_shadow_workspace_set_current(DeepinShadowWorkspace* self,
+        gboolean val)
+{
+    self->priv->selected = val;
+
+    GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(self));
+    if (self->priv->selected) {
+        gtk_style_context_set_state (context, GTK_STATE_FLAG_SELECTED);
+    } else {
+        gtk_style_context_set_state (context, GTK_STATE_FLAG_NORMAL);
+    }
+    gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 

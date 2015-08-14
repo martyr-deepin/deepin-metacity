@@ -134,3 +134,4 @@ void deepin_setup_style_class(GtkWidget* widget, const char* class_name)
             GTK_STYLE_PROVIDER(css_style), GTK_STYLE_PROVIDER_PRIORITY_USER);
     gtk_style_context_add_class(style_ctx, class_name);
 }
+

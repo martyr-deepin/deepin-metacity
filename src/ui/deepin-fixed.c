@@ -311,24 +311,24 @@ static void deepin_fixed_move_internal (DeepinFixed      *fixed,
  *
  * Moves a child of a #DeepinFixed container to the given position.
  */
-    void
-deepin_fixed_move (DeepinFixed  *fixed,
+void deepin_fixed_move (DeepinFixed  *fixed,
         GtkWidget *widget,
         gint       x,
-        gint       y)
+        gint       y,
+        gboolean   animate)
 {
-    /*if (fixed->priv->animation) {*/
-        /*deepin_fixed_end_animation(fixed);*/
-    /*}*/
-    ChildAnimationInfo* ai = g_new0(ChildAnimationInfo, 1);
-    ai->child = get_child(fixed, widget);
-    ai->target_x = x;
-    ai->target_y = y;
-    ai->old_x = ai->child->x;
-    ai->old_y = ai->child->y;
+    if (animate) {
+        ChildAnimationInfo* ai = g_new0(ChildAnimationInfo, 1);
+        ai->child = get_child(fixed, widget);
+        ai->target_x = x;
+        ai->target_y = y;
+        ai->old_x = ai->child->x;
+        ai->old_y = ai->child->y;
 
-    deepin_fixed_prepare_animation(fixed, ai);
-    /*deepin_fixed_move_internal (fixed, get_child (fixed, widget), x, y);*/
+        deepin_fixed_prepare_animation(fixed, ai);
+    } else {
+        deepin_fixed_move_internal (fixed, get_child (fixed, widget), x, y);
+    }
 }
 
     static void
@@ -493,8 +493,8 @@ deepin_fixed_size_allocate (GtkWidget     *widget,
     for (children = priv->children; children; children = children->next) {
         child = children->data;
 
-        if (!gtk_widget_get_visible (child->widget))
-            continue;
+        /*if (!gtk_widget_get_visible (child->widget))*/
+            /*continue;*/
 
         gtk_widget_get_preferred_size (child->widget, &child_requisition, NULL);
         child_allocation.x = child->x - child_requisition.width/2;
