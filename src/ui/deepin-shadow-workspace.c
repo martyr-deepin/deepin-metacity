@@ -40,13 +40,46 @@ struct _DeepinShadowWorkspacePrivate
     gint dynamic: 1; /* if animatable */
     gint selected: 1; 
     gint freeze: 1; /* do not liveupdate when freezed */
+    gint thumb_mode: 1;
 
     gint fixed_width, fixed_height;
     gdouble scale; 
 
     GPtrArray* clones;
     MetaWorkspace* workspace;
+
+    MetaDeepinClonedWidget* window_need_focused;
 };
+
+typedef struct _ClonedPrivateInfo
+{
+    gdouble init_scale; /* init scale when doing placement or in thumb mode */
+} ClonedPrivateInfo;
+
+static GQuark _cloned_widget_key_quark = 0;
+
+static void clone_set_info(MetaDeepinClonedWidget* w, gpointer data)
+{
+    if (!_cloned_widget_key_quark) {
+        _cloned_widget_key_quark = g_quark_from_static_string("cloned-widget-key");
+    }
+    g_object_set_qdata_full(G_OBJECT(w), _cloned_widget_key_quark, data, g_free);
+}
+
+static ClonedPrivateInfo* clone_get_info(MetaDeepinClonedWidget* w)
+{
+    if (!_cloned_widget_key_quark) {
+        _cloned_widget_key_quark = g_quark_from_static_string("cloned-widget-key");
+    }
+    ClonedPrivateInfo* info;
+    info = (ClonedPrivateInfo*)g_object_get_qdata(G_OBJECT(w), _cloned_widget_key_quark);
+    if (!info) {
+        info = (ClonedPrivateInfo*)g_malloc(sizeof(ClonedPrivateInfo));
+        clone_set_info(w, info);
+    }
+    return info;
+}
+
 
 
 G_DEFINE_TYPE (DeepinShadowWorkspace, deepin_shadow_workspace, DEEPIN_TYPE_FIXED);
@@ -60,6 +93,8 @@ static void place_window(DeepinShadowWorkspace* self,
     float fscale = (float)rect.width / req.width;
     g_debug("%s: bound: %d,%d,%d,%d, scale %f", __func__,
             rect.x, rect.y, rect.width, rect.height, fscale);
+    ClonedPrivateInfo* info = clone_get_info(clone);
+    info->init_scale = fscale;
 
     deepin_fixed_move(DEEPIN_FIXED(self), GTK_WIDGET(clone),
             rect.x + req.width * fscale /2, rect.y + req.height * fscale /2,
@@ -400,6 +435,34 @@ static void deepin_shadow_workspace_get_preferred_height (GtkWidget *widget,
     *minimum = *natural = self->priv->fixed_height;
 }
 
+static void _draw_round_box(cairo_t* cr, gint width, gint height, double radius)
+{
+    cairo_set_antialias(cr, CAIRO_ANTIALIAS_BEST);
+
+    double xc = radius, yc = radius;
+    double angle1 = 180.0  * (M_PI/180.0);  /* angles are specified */
+    double angle2 = 270.0 * (M_PI/180.0);  /* in radians           */
+
+    cairo_arc (cr, xc, yc, radius, angle1, angle2);
+
+    xc = width - radius;
+    angle1 = 270.0 * (M_PI/180.0);
+    angle2 = 360.0 * (M_PI/180.0);
+    cairo_arc (cr, xc, yc, radius, angle1, angle2);
+
+    yc = height - radius;
+    angle1 = 0.0 * (M_PI/180.0);
+    angle2 = 90.0 * (M_PI/180.0);
+    cairo_arc (cr, xc, yc, radius, angle1, angle2);
+
+    xc = radius;
+    angle1 = 90.0 * (M_PI/180.0);
+    angle2 = 180.0 * (M_PI/180.0);
+    cairo_arc (cr, xc, yc, radius, angle1, angle2);
+
+    cairo_close_path(cr);
+}
+
 /* FIXME: no need to draw when do moving animation, just a snapshot */
 static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
         cairo_t *cr)
@@ -407,12 +470,31 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
     DeepinShadowWorkspace *fixed = DEEPIN_SHADOW_WORKSPACE (widget);
     DeepinShadowWorkspacePrivate *priv = fixed->priv;
 
+    /*GdkRectangle r;*/
+    /*gdk_cairo_get_clip_rectangle(cr, &r);*/
+    /*g_message("%s: clip %d, %d, %d, %d", __func__, r.x, r.y, r.width, r.height);*/
+
     GtkAllocation req;
     gtk_widget_get_allocation(widget, &req);
     /*g_message("%s: (%d, %d, %d, %d)", __func__, req.x, req.y, req.width, req.height);*/
 
     GtkStyleContext* context = gtk_widget_get_style_context(widget);
-    gtk_render_background(context, cr, 0, 0, req.width, req.height);
+
+    if (priv->thumb_mode) {
+
+        /* FIXME: why can not get borders */
+        /*GtkBorder borders;*/
+        /*_style_get_borders(context, &borders);*/
+
+        int b = 2;
+        gtk_render_background(context, cr, -b, -b, req.width+2*b, req.height+2*b);
+
+        _draw_round_box(cr, req.width, req.height, 4.0);
+        cairo_clip(cr);
+
+    } else {
+        gtk_render_background(context, cr, 0, 0, req.width, req.height);
+    }
 
     cairo_set_source_surface(cr,
             deepin_background_cache_get_surface(priv->scale), 0, 0);
@@ -524,7 +606,7 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
 
 static gboolean on_idle(DeepinShadowWorkspace* self)
 {
-    calculate_places(self);
+    if (!self->priv->thumb_mode) calculate_places(self);
     return G_SOURCE_REMOVE;
 }
 
@@ -587,5 +669,88 @@ void deepin_shadow_workspace_set_current(DeepinShadowWorkspace* self,
         gtk_style_context_set_state (context, GTK_STATE_FLAG_NORMAL);
     }
     gtk_widget_queue_draw(GTK_WIDGET(self));
+}
+
+void deepin_shadow_workspace_set_thumb_mode(DeepinShadowWorkspace* self,
+        gboolean val)
+{
+    self->priv->thumb_mode = val;
+    if (val) {
+        deepin_shadow_workspace_set_presentation(self, FALSE);
+        GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(self));
+        gtk_style_context_remove_class(context, "deepin-workspace-clone"); 
+        deepin_setup_style_class(GTK_WIDGET(self), "deepin-workspace-thumb-clone");
+    }
+}
+
+void deepin_shadow_workspace_focus_next(DeepinShadowWorkspace* self,
+        gboolean backward)
+{
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+    GPtrArray* clones = priv->clones;
+
+    if (!priv->clones || priv->clones->len == 0) return;
+
+    int i = 0;
+    if (priv->window_need_focused) {
+        for (i = 0; i < clones->len; i++) {
+            MetaDeepinClonedWidget* clone = g_ptr_array_index(clones, i);
+            /*MetaWindow* win = meta_deepin_cloned_widget_get_window(clone);*/
+            if (clone == priv->window_need_focused) break;
+        }
+
+        if (i == clones->len) {
+            i = 0;
+        } else {
+            i = backward ? (i - 1 + clones->len) % clones->len 
+                : (i + 1) % clones->len;
+        }
+    } else {
+        i = 0;
+    }
+
+    if (!priv->thumb_mode) {
+#define SCALE_FACTOR 1.03
+        if (priv->window_need_focused) {
+            ClonedPrivateInfo* info = clone_get_info(priv->window_need_focused);
+            double scale = info->init_scale;
+            meta_deepin_cloned_widget_push_state(priv->window_need_focused);
+            meta_deepin_cloned_widget_set_scale(priv->window_need_focused, scale, scale);
+            meta_deepin_cloned_widget_unselect(priv->window_need_focused);
+        }
+
+        MetaDeepinClonedWidget* next = g_ptr_array_index(clones, i);
+        ClonedPrivateInfo* info = clone_get_info(next);
+        double scale = info->init_scale;
+        /*meta_deepin_cloned_widget_set_scale(next, scale, scale);*/
+        meta_deepin_cloned_widget_push_state(next);
+        scale *= SCALE_FACTOR;
+        meta_deepin_cloned_widget_set_scale(next, scale, scale);
+        meta_deepin_cloned_widget_select(next);
+
+        priv->window_need_focused = next;
+    }
+}
+
+MetaDeepinClonedWidget* deepin_shadow_workspace_get_focused(DeepinShadowWorkspace* self)
+{
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+    return priv->window_need_focused;
+}
+
+void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
+        XEvent* event, KeySym keysym, MetaKeyBindingAction action)
+{
+    gboolean backward = FALSE;
+    if (keysym == XK_Tab
+            || action == META_KEYBINDING_ACTION_SWITCH_APPLICATIONS
+            || action == META_KEYBINDING_ACTION_SWITCH_APPLICATIONS_BACKWARD) {
+        g_message("tabbing inside expose windows");
+        if (keysym == XK_Tab)
+            backward = event->xkey.state & ShiftMask;
+        else
+            backward = action == META_KEYBINDING_ACTION_SWITCH_APPLICATIONS_BACKWARD;
+        deepin_shadow_workspace_focus_next(self, backward);
+    }
 }
 

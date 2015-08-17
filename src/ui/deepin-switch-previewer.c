@@ -64,7 +64,7 @@ enum {
     CHILD_PROP_Y
 };
 
-GQuark _cloned_widget_key_quark = 0;
+static GQuark _cloned_widget_key_quark = 0;
 
 static void cloned_widget_set_key(GtkWidget* w, gpointer data)
 {

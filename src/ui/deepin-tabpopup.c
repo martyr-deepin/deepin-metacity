@@ -26,7 +26,6 @@
 #include "util.h"
 #include "core.h"
 #include "deepin-tabpopup.h"
-#include "deepin-cloned-widget.h"
 #include "deepin-tab-widget.h"
 #include "deepin-fixed.h"
 #include "select-workspace.h"

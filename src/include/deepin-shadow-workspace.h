@@ -23,6 +23,7 @@
 #include <gtk/gtk.h>
 #include "../ui/deepin-fixed.h"
 #include "../core/workspace.h"
+#include "../ui/deepin-cloned-widget.h"
 
 G_BEGIN_DECLS
 
@@ -59,6 +60,13 @@ void deepin_shadow_workspace_set_scale(DeepinShadowWorkspace*, gdouble);
 // true to do presentation animation during show up
 void deepin_shadow_workspace_set_presentation(DeepinShadowWorkspace*, gboolean);
 void deepin_shadow_workspace_set_current(DeepinShadowWorkspace*, gboolean);
+void deepin_shadow_workspace_set_thumb_mode(DeepinShadowWorkspace*, gboolean);
+
+/* initially, no window is focused on previewing */
+void deepin_shadow_workspace_focus_next(DeepinShadowWorkspace*, gboolean);
+MetaDeepinClonedWidget* deepin_shadow_workspace_get_focused(DeepinShadowWorkspace*);
+void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
+        XEvent* event, KeySym keysym, MetaKeyBindingAction action);
 
 G_END_DECLS
 

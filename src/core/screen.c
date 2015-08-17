@@ -1387,7 +1387,7 @@ meta_screen_ensure_previewing_workspace (MetaScreen* screen)
   if (screen->ws_previewer) 
     return;
 
-  screen->ws_previewer = deepin_wm_background_new();
+  screen->ws_previewer = deepin_wm_background_new(screen);
 }
 
 void meta_screen_ensure_exposing_windows (MetaScreen* screen)

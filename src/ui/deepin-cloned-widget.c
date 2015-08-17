@@ -199,8 +199,6 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
 
     GtkRequisition req;
     gtk_widget_get_preferred_size(widget, &req, NULL);
-    /*g_message("----- req(%d, %d), clip(%d, %d, %d, %d)", req.width, req.height, */
-    /*clip.x, clip.y, clip.width, clip.height);*/
 
     gdouble x = 0, y = 0, w = req.width, h = req.height;
 
@@ -218,9 +216,10 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
     cairo_fill(cr);
 #endif
 
-
     gdouble w2 = w * priv->pivot_x, h2 = h * priv->pivot_y;
     cairo_translate(cr, w2, h2);
+
+    cairo_save(cr);
 
     gdouble pos = priv->animation ? priv->current_pos : 1.0;
     gdouble sx = priv->ai.scale_x * pos + priv->scale_x * (1.0 - pos),
@@ -270,6 +269,7 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
         cairo_set_source_surface(cr, priv->snapshot, -x, -y);
         cairo_paint_with_alpha(cr, alpha);
     }
+    cairo_restore(cr);
 
     return TRUE;
 }
@@ -340,15 +340,6 @@ static void meta_deepin_cloned_widget_get_preferred_width (GtkWidget *widget,
     *natural_width = priv->real_size.width;
 }
 
-static void meta_deepin_cloned_widget_get_preferred_height_for_width(GtkWidget *widget,
-        gint width, gint* minimum_height_out, gint* natural_height_out)
-{
-    MetaDeepinClonedWidgetPrivate* priv = META_DEEPIN_CLONED_WIDGET(widget)->priv;
-
-    GTK_WIDGET_CLASS(meta_deepin_cloned_widget_parent_class)->get_preferred_height_for_width(
-            widget, width, minimum_height_out, natural_height_out);
-}
-
 static void meta_deepin_cloned_widget_get_preferred_height (GtkWidget *widget,
         gint      *minimum_height,
         gint      *natural_height)
@@ -359,13 +350,6 @@ static void meta_deepin_cloned_widget_get_preferred_height (GtkWidget *widget,
     MetaDeepinClonedWidgetPrivate* priv = META_DEEPIN_CLONED_WIDGET(widget)->priv;
     *minimum_height = priv->real_size.height;
     *natural_height = priv->real_size.height;
-}
-
-static void meta_deepin_cloned_widget_get_preferred_width_for_height(GtkWidget *widget,
-        gint height, gint* minimum_width_out, gint* natural_width_out)
-{
-    GTK_WIDGET_CLASS(meta_deepin_cloned_widget_parent_class)->get_preferred_width_for_height(
-            widget, height, minimum_width_out, natural_width_out);
 }
 
 static cairo_surface_t* get_window_surface(MetaWindow* window)
@@ -451,9 +435,7 @@ static void meta_deepin_cloned_widget_class_init (MetaDeepinClonedWidgetClass *k
 
     widget_class->draw = meta_deepin_cloned_widget_draw;
     widget_class->get_preferred_width = meta_deepin_cloned_widget_get_preferred_width;
-    widget_class->get_preferred_height_for_width = meta_deepin_cloned_widget_get_preferred_height_for_width;
     widget_class->get_preferred_height = meta_deepin_cloned_widget_get_preferred_height;
-    widget_class->get_preferred_width_for_height = meta_deepin_cloned_widget_get_preferred_width_for_height;
     widget_class->size_allocate = meta_deepin_cloned_widget_size_allocate;
 
     gobject_class->set_property = meta_deepin_cloned_widget_set_property;

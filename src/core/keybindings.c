@@ -2636,14 +2636,33 @@ process_previewing_workspace (MetaDisplay *display,
                                XEvent      *event,
                                KeySym       keysym)
 {
+  MetaKeyBindingAction action;
+
   if (screen != display->grab_screen)
     return FALSE;
 
-  if (event->type == KeyPress && keysym == XK_Escape)
+  /* don't care about other releases, but eat them, don't end grab */
+  if (event->type == KeyRelease)
+    return TRUE;
+
+  unsigned long grab_mask = event->xkey.state & ~(display->ignored_modifier_mask);
+  action = display_get_keybinding_action (display,
+                                          keysym,
+                                          event->xkey.keycode,
+                                          grab_mask);
+
+
+  if (keysym == XK_Escape
+    || action == meta_prefs_get_keybinding_action("preview-workspace")) 
     {
       g_message("%s: Escaping previewer", __func__);
+      meta_workspace_focus_default_window (screen->active_workspace,
+                                           NULL,
+                                           event->xkey.time);
       return FALSE; /* end grab */
     }
+
+  deepin_wm_background_handle_event(screen->ws_previewer, event, keysym, action);
 
   return TRUE;
 }
@@ -2654,13 +2673,33 @@ process_exposing_windows (MetaDisplay *display,
                                XEvent      *event,
                                KeySym       keysym)
 {
+  MetaKeyBindingAction action;
+
   if (screen != display->grab_screen)
     return FALSE;
 
-  if (event->type == KeyPress && keysym == XK_Escape)
+  /* don't care about other releases, but eat them, don't end grab */
+  if (event->type == KeyRelease)
+    return TRUE;
+
+  unsigned long grab_mask = event->xkey.state & ~(display->ignored_modifier_mask);
+  action = display_get_keybinding_action (display,
+                                          keysym,
+                                          event->xkey.keycode,
+                                          grab_mask);
+
+  if (keysym == XK_Escape
+    || action == meta_prefs_get_keybinding_action("expose-windows") 
+    || action == meta_prefs_get_keybinding_action("expose-all-windows")) 
     {
+      meta_workspace_focus_default_window (screen->active_workspace,
+                                           NULL,
+                                           event->xkey.time);
       return FALSE; /* end grab */
     }
+
+  GtkWidget* ws = gtk_bin_get_child(screen->exposing_windows_popup);
+  deepin_shadow_workspace_handle_event(ws, event, keysym, action);
 
   return TRUE;
 }

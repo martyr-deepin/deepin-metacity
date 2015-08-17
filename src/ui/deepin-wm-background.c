@@ -18,6 +18,8 @@
  */
 
 #include <config.h>
+#include <gdk/gdkx.h>
+#include <prefs.h>
 #include "../core/screen-private.h"
 #include "../core/display-private.h"
 #include "deepin-wm-background.h"
@@ -27,11 +29,16 @@
 
 struct _DeepinWMBackgroundPrivate
 {
+    MetaScreen* screen;
+    GdkScreen* gscreen;
+
     gint disposed: 1;
     GtkWidget* fixed;
 
     DeepinShadowWorkspace* active_workspace;
     GList* worskpaces;
+    GList* worskpace_thumbs;
+    /*DeepinShadowWorkspaceAdder* adder;*/
 };
 
 
@@ -73,15 +80,13 @@ static void deepin_wm_background_setup(DeepinWMBackground* self)
     DeepinWMBackgroundPrivate* priv = self->priv;
 
     GdkRectangle geom;
-    GdkScreen* screen = gdk_screen_get_default();
-    gint monitor_index = gdk_screen_get_monitor_at_window(screen,
+
+    gint monitor_index = gdk_screen_get_monitor_at_window(priv->gscreen,
             gtk_widget_get_window(GTK_WIDGET(self)));
-    gdk_screen_get_monitor_geometry(screen, monitor_index, &geom);
+    gdk_screen_get_monitor_geometry(priv->gscreen, monitor_index, &geom);
             
     priv->fixed = gtk_fixed_new();
     gtk_container_add(GTK_CONTAINER(self), priv->fixed);
-
-    MetaDisplay* display = meta_get_display();
 
     int top_offset = (int)(geom.height * FLOW_CLONE_TOP_OFFSET_PERCENT);
     int bottom_offset = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);
@@ -89,24 +94,45 @@ static void deepin_wm_background_setup(DeepinWMBackground* self)
 
     gint width = geom.width * scale, height = geom.height * scale;
 
-    GList *l = display->active_screen->workspaces;
+    // calculate monitor width height ratio
+    float monitor_whr = (float)geom.height / geom.width;
+    gint thumb_width = geom.width * WORKSPACE_WIDTH_PERCENT;
+    gint thumb_height = width * monitor_whr;
+
+    GList *l = priv->screen->workspaces;
     gint current = 0;
 
     while (l) {
         MetaWorkspace* ws = (MetaWorkspace*)l->data;
-        DeepinShadowWorkspace* dsw = (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
-        deepin_shadow_workspace_set_scale(dsw, scale);
+        {
+            DeepinShadowWorkspace* dsw = 
+                (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
+            deepin_shadow_workspace_set_scale(dsw, scale);
+            deepin_shadow_workspace_populate(dsw, ws);
 
-        deepin_shadow_workspace_populate(dsw, ws);
+            if (ws == priv->screen->active_workspace) {
+                current = g_list_index(priv->screen->workspaces, l->data);
+                priv->active_workspace = dsw;
+                deepin_shadow_workspace_set_presentation(dsw, TRUE);
+                deepin_shadow_workspace_set_current(dsw, TRUE);
+            }
 
-        if (ws == display->active_screen->active_workspace) {
-            current = g_list_index(display->active_screen->workspaces, l->data);
-            priv->active_workspace = dsw;
-            deepin_shadow_workspace_set_presentation(dsw, TRUE);
-            deepin_shadow_workspace_set_current(dsw, TRUE);
+            priv->worskpaces = g_list_append(priv->worskpaces, dsw);
         }
-        
-        priv->worskpaces = g_list_append(priv->worskpaces, dsw);
+
+        {
+            DeepinShadowWorkspace* dsw = 
+                (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
+            deepin_shadow_workspace_set_thumb_mode(dsw, TRUE);
+            deepin_shadow_workspace_set_scale(dsw, WORKSPACE_WIDTH_PERCENT);
+            deepin_shadow_workspace_populate(dsw, ws);
+
+            if (ws == priv->screen->active_workspace) {
+                deepin_shadow_workspace_set_current(dsw, TRUE);
+            }
+
+            priv->worskpace_thumbs = g_list_append(priv->worskpace_thumbs, dsw);
+        }
 
         l = l->next;
     }
@@ -121,25 +147,64 @@ static void deepin_wm_background_setup(DeepinWMBackground* self)
         i++;
         l = l->next;
     }
+
+    i = 0;
+    l = priv->worskpace_thumbs;
+    int thumb_spacing = geom.width * SPACING_PERCENT;
+    
+    gint count = g_list_length(priv->worskpace_thumbs);
+    int thumb_y = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);
+    int thumb_x = (geom.width - count * (thumb_width + thumb_spacing))/2;
+
+    while (l) {
+        int x = thumb_x + i * (thumb_width + thumb_spacing);
+        gtk_fixed_put(GTK_FIXED(priv->fixed), (GtkWidget*)l->data,
+                x, thumb_y);
+
+        i++;
+        l = l->next;
+    }
 }
 
-GtkWidget* deepin_wm_background_new(void)
+GtkWidget* deepin_wm_background_new(MetaScreen* screen)
 {
     GtkWidget* widget = (GtkWidget*)g_object_new(DEEPIN_TYPE_WM_BACKGROUND,
             "type", GTK_WINDOW_POPUP, NULL);
     deepin_setup_style_class(widget, "deepin-window-manager"); 
 
-    GdkScreen* screen = gdk_screen_get_default();
-    gint w = gdk_screen_get_width(screen), h = gdk_screen_get_height(screen);
+    DeepinWMBackground* self = DEEPIN_WM_BACKGROUND(widget);
 
-    GdkVisual* visual = gdk_screen_get_rgba_visual (screen);
+    MetaDisplay* display = meta_get_display();
+    GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(display->xdisplay);
+    self->priv->gscreen = gdk_display_get_default_screen(gdisplay);
+
+    GdkVisual* visual = gdk_screen_get_rgba_visual (self->priv->gscreen);
     if (visual) gtk_widget_set_visual (widget, visual);
 
+    gint w = screen->rect.width, h = screen->rect.height;
     gtk_window_set_position(GTK_WINDOW(widget), GTK_WIN_POS_CENTER_ALWAYS);
     gtk_window_set_default_size(GTK_WINDOW(widget), w, h);
     gtk_widget_realize (widget);
 
-    deepin_wm_background_setup(DEEPIN_WM_BACKGROUND(widget));
+    self->priv->screen = screen;
+    deepin_wm_background_setup(self);
     return widget;
+}
+
+void deepin_wm_background_handle_event(DeepinWMBackground* self, XEvent* event, 
+        KeySym keysym, MetaKeyBindingAction action)
+{
+    DeepinWMBackgroundPrivate* priv = self->priv;
+    gboolean backward = FALSE;
+    if (keysym == XK_Tab
+            || action == META_KEYBINDING_ACTION_SWITCH_APPLICATIONS
+            || action == META_KEYBINDING_ACTION_SWITCH_APPLICATIONS_BACKWARD) {
+        g_message("tabbing inside preview workspace");
+        if (keysym == XK_Tab)
+            backward = event->xkey.state & ShiftMask;
+        else
+            backward = action == META_KEYBINDING_ACTION_SWITCH_APPLICATIONS_BACKWARD;
+        deepin_shadow_workspace_focus_next(priv->active_workspace, backward);
+    }
 }
 

@@ -66,6 +66,34 @@ static const float FLOW_CLONE_TOP_OFFSET_PERCENT = 0.24f;
  */
 static const float FLOW_CLONE_DISTANCE_PERCENT = 0.10f;
 
+
+/* WorkspaceThumbClone */
+static const int WORKSPACE_NAME_WIDTH = 70;
+static const int WORKSPACE_NAME_HEIGHT = 8;  // will pluse NAME_SHAPE_PADDING * 2 when using
+static const int WORKSPACE_NAME_MAX_LENGTH = 32;
+
+// distance between thumbnail workspace clone and workspace name field
+static const int WORKSPACE_NAME_DISTANCE = 16;
+
+// layout spacing for workspace name field
+static const int WORKSPACE_NAME_SPACING = 5;
+
+static const int THUMB_SHAPE_PADDING = 2;
+static const int NAME_SHAPE_PADDING = 8;
+
+
+/* WorkspaceThumbCloneContainer */
+static const float WORKSPACE_WIDTH_PERCENT = 0.12f;
+
+/**
+ * The percent value between distance of thumbnail workspace clones and monitor's width.
+ */
+static const float SPACING_PERCENT = 0.02f;
+
+//const int ANIMATION_DURATION = 500;
+//const AnimationMode ANIMATION_MODE = AnimationMode.EASE_OUT_QUAD;
+
+
 void calculate_preferred_size(gint entry_count, gint max_width,
         float* box_width, float* box_height, float* item_width,
         float* item_height, int* max_items_each_row);

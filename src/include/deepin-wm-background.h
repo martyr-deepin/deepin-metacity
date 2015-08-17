@@ -20,7 +20,11 @@
 #ifndef _DEEPIN_WM_BACKGROUND_H_
 #define _DEEPIN_WM_BACKGROUND_H_
 
+#include <X11/Xlib.h>
+#include <X11/keysym.h>
 #include <gtk/gtk.h>
+#include "types.h"
+#include <prefs.h>
 
 G_BEGIN_DECLS
 
@@ -49,7 +53,9 @@ struct _DeepinWMBackground
 };
 
 GType deepin_wm_background_get_type (void) G_GNUC_CONST;
-GtkWidget* deepin_wm_background_new(void);
+GtkWidget* deepin_wm_background_new(MetaScreen* screen);
+void deepin_wm_background_handle_event(DeepinWMBackground* self, XEvent* event,
+        KeySym keysym, MetaKeyBindingAction action);
 
 G_END_DECLS
 
