@@ -86,6 +86,14 @@ enum {
     N_PROPERTIES
 };
 
+enum
+{
+    SIGNAL_TRANSITION_FINISHED,
+    N_SIGNALS
+};
+
+static guint signals[N_SIGNALS];
+
 static GParamSpec* property_specs[N_PROPERTIES] = {NULL, };
 
 G_DEFINE_TYPE_WITH_PRIVATE (MetaDeepinClonedWidget, meta_deepin_cloned_widget, GTK_TYPE_WIDGET);
@@ -293,6 +301,8 @@ static void meta_deepin_cloned_widget_end_animation(MetaDeepinClonedWidget* self
     priv->blur_radius = priv->ai.blur_radius;
 
     gtk_widget_queue_draw(GTK_WIDGET(self));
+
+    g_signal_emit(self, signals[SIGNAL_TRANSITION_FINISHED], 0);
 }
 
 static gboolean on_tick_callback(MetaDeepinClonedWidget* self, GdkFrameClock* clock, 
@@ -398,6 +408,10 @@ static void meta_deepin_cloned_widget_size_allocate(GtkWidget* widget,
         sy = MAX(priv->scale_y, 1.0);
     }
 
+    /* FIXME: dirty: need to dynamically adjust best clipping */
+    sx = MAX(1.033, sx);
+    sy = MAX(1.033, sy);
+
     if (sx > 1.0 || sy > 1.0) {
         expanded.width = fast_round(allocation->width * sx);
         expanded.height = fast_round(allocation->height * sy);
@@ -474,6 +488,14 @@ static void meta_deepin_cloned_widget_class_init (MetaDeepinClonedWidgetClass *k
             G_PARAM_READWRITE);
 
     g_object_class_install_properties(gobject_class, N_PROPERTIES, property_specs);
+
+
+    signals[SIGNAL_TRANSITION_FINISHED] = g_signal_new ("transition-finished",
+            META_TYPE_DEEPIN_CLONED_WIDGET,
+            G_SIGNAL_RUN_LAST,
+            0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 0, NULL);
 }
 
 GtkWidget * meta_deepin_cloned_widget_new (MetaWindow* meta)
@@ -672,6 +694,12 @@ void meta_deepin_cloned_widget_set_size(MetaDeepinClonedWidget* self,
 
     priv->real_size.width = width;
     priv->real_size.height = height;
+
+    /* reset */
+    priv->scale_x = 1.0;
+    priv->scale_y = 1.0;
+
+    gtk_widget_queue_resize(GTK_WIDGET(self));
 }
 
 void meta_deepin_cloned_widget_push_state(MetaDeepinClonedWidget* self)

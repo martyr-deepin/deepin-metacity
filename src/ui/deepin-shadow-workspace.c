@@ -81,6 +81,21 @@ static ClonedPrivateInfo* clone_get_info(MetaDeepinClonedWidget* w)
 }
 
 
+static void on_window_placed(MetaDeepinClonedWidget* clone, gpointer data)
+{
+    ClonedPrivateInfo* info = clone_get_info(clone);
+
+    GtkRequisition req;
+    gtk_widget_get_preferred_size(GTK_WIDGET(clone), &req, NULL);
+    req.width *= info->init_scale;
+    req.height *= info->init_scale;
+
+    g_message("%s: scale down to %f, %d, %d", __func__, info->init_scale,
+            req.width, req.height);
+
+    meta_deepin_cloned_widget_set_size(clone, req.width, req.height);
+    g_signal_handlers_disconnect_by_func(clone, on_window_placed, data); 
+}
 
 G_DEFINE_TYPE (DeepinShadowWorkspace, deepin_shadow_workspace, DEEPIN_TYPE_FIXED);
 
@@ -99,6 +114,10 @@ static void place_window(DeepinShadowWorkspace* self,
     deepin_fixed_move(DEEPIN_FIXED(self), GTK_WIDGET(clone),
             rect.x + req.width * fscale /2, rect.y + req.height * fscale /2,
             self->priv->dynamic);
+
+    g_signal_connect(G_OBJECT(clone), "transition-finished", 
+            (GCallback)on_window_placed, info);
+
     if (self->priv->dynamic) {
         meta_deepin_cloned_widget_set_scale(clone, 1.0, 1.0);
         meta_deepin_cloned_widget_push_state(clone);
@@ -106,6 +125,7 @@ static void place_window(DeepinShadowWorkspace* self,
         meta_deepin_cloned_widget_pop_state(clone);
     } else {
         meta_deepin_cloned_widget_set_scale(clone, fscale, fscale);
+        on_window_placed(clone, info);
     }
 }
 
@@ -712,17 +732,17 @@ void deepin_shadow_workspace_focus_next(DeepinShadowWorkspace* self,
     if (!priv->thumb_mode) {
 #define SCALE_FACTOR 1.03
         if (priv->window_need_focused) {
-            ClonedPrivateInfo* info = clone_get_info(priv->window_need_focused);
-            double scale = info->init_scale;
+            double scale = SCALE_FACTOR;
+            meta_deepin_cloned_widget_set_scale(priv->window_need_focused, scale, scale);
             meta_deepin_cloned_widget_push_state(priv->window_need_focused);
+            scale = 1.0;
             meta_deepin_cloned_widget_set_scale(priv->window_need_focused, scale, scale);
             meta_deepin_cloned_widget_unselect(priv->window_need_focused);
         }
 
         MetaDeepinClonedWidget* next = g_ptr_array_index(clones, i);
-        ClonedPrivateInfo* info = clone_get_info(next);
-        double scale = info->init_scale;
-        /*meta_deepin_cloned_widget_set_scale(next, scale, scale);*/
+        double scale = 1.0;
+        meta_deepin_cloned_widget_set_scale(next, scale, scale);
         meta_deepin_cloned_widget_push_state(next);
         scale *= SCALE_FACTOR;
         meta_deepin_cloned_widget_set_scale(next, scale, scale);
