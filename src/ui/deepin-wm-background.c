@@ -195,16 +195,14 @@ void deepin_wm_background_handle_event(DeepinWMBackground* self, XEvent* event,
         KeySym keysym, MetaKeyBindingAction action)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
-    gboolean backward = FALSE;
-    if (keysym == XK_Tab
-            || action == META_KEYBINDING_ACTION_SWITCH_APPLICATIONS
-            || action == META_KEYBINDING_ACTION_SWITCH_APPLICATIONS_BACKWARD) {
-        g_message("tabbing inside preview workspace");
-        if (keysym == XK_Tab)
-            backward = event->xkey.state & ShiftMask;
-        else
-            backward = action == META_KEYBINDING_ACTION_SWITCH_APPLICATIONS_BACKWARD;
-        deepin_shadow_workspace_focus_next(priv->active_workspace, backward);
+
+    if (keysym == XK_Left || keysym == XK_Right) {
+        g_message("switch workspace");
+
+    } else { 
+        /* pass through to active workspace */
+        deepin_shadow_workspace_handle_event(priv->active_workspace,
+                event, keysym, action);
     }
 }
 

@@ -762,6 +762,8 @@ MetaDeepinClonedWidget* deepin_shadow_workspace_get_focused(DeepinShadowWorkspac
 void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
         XEvent* event, KeySym keysym, MetaKeyBindingAction action)
 {
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+
     gboolean backward = FALSE;
     if (keysym == XK_Tab
             || action == META_KEYBINDING_ACTION_SWITCH_APPLICATIONS
@@ -772,6 +774,19 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
         else
             backward = action == META_KEYBINDING_ACTION_SWITCH_APPLICATIONS_BACKWARD;
         deepin_shadow_workspace_focus_next(self, backward);
+
+    } if (keysym == XK_Return) {
+        meta_display_end_grab_op(priv->workspace->screen->display, event->xkey.time);
+
+        MetaDeepinClonedWidget* clone = deepin_shadow_workspace_get_focused(self);
+        if (!clone) {
+            meta_workspace_focus_default_window(priv->workspace, NULL, event->xkey.time);
+        } else {
+            MetaWindow* mw = meta_deepin_cloned_widget_get_window(clone);
+            if (mw) {
+                meta_window_activate(mw, event->xkey.time);
+            }
+        }
     }
 }
 
