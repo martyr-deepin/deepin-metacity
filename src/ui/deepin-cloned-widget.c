@@ -22,8 +22,7 @@
 #include <util.h>
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
-#include <cairo-xlib.h>
-#include "compositor.h"
+#include "deepin-window-surface-manager.h"
 #include "deepin-cloned-widget.h"
 #include "deepin-design.h"
 #include "deepin-stackblur.h"
@@ -167,10 +166,6 @@ static void meta_deepin_cloned_widget_dispose(GObject *object)
 {
     MetaDeepinClonedWidget *self = META_DEEPIN_CLONED_WIDGET(object);
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
-
-    if (priv->snapshot) {
-        g_clear_pointer(&priv->snapshot, cairo_surface_destroy);
-    }
 
     G_OBJECT_CLASS(meta_deepin_cloned_widget_parent_class)->dispose(object);
 }
@@ -361,34 +356,6 @@ static void meta_deepin_cloned_widget_get_preferred_height (GtkWidget *widget,
     *natural_height = priv->real_size.height;
 }
 
-static cairo_surface_t* get_window_surface(MetaWindow* window)
-{
-    Pixmap pixmap;
-
-    pixmap = meta_compositor_get_window_pixmap (window->display->compositor,
-            window);
-
-    if (pixmap == None) return NULL;
-
-    Display *display;
-    Window root;
-    int x, y;
-    unsigned int width, height, border, depth;
-    GdkVisual *visual;
-    cairo_surface_t *surface;
-
-    display = GDK_DISPLAY_XDISPLAY (gdk_display_get_default ());
-
-    if (!XGetGeometry(display, pixmap, &root, &x, &y, &width, &height, &border, &depth))
-        return NULL;
-
-    visual = gdk_screen_get_rgba_visual (gdk_screen_get_default());
-    surface = cairo_xlib_surface_create (display, pixmap,
-            GDK_VISUAL_XVISUAL (visual), width, height);
-
-    return surface;
-}
-
 static void meta_deepin_cloned_widget_size_allocate(GtkWidget* widget, 
         GtkAllocation* allocation)
 {
@@ -415,13 +382,11 @@ static void meta_deepin_cloned_widget_size_allocate(GtkWidget* widget,
     sx = MAX(1.033, sx);
     sy = MAX(1.033, sy);
 
-    if (sx > 1.0 || sy > 1.0) {
-        expanded.width = fast_round(allocation->width * sx) + box.left + box.right;
-        expanded.height = fast_round(allocation->height * sy) + box.top + box.bottom;
-        expanded.x = allocation->x - allocation->width * (sx - 1.0) / 2.0 - box.left;
-        expanded.y = allocation->y - allocation->height * (sy - 1.0) / 2.0 - box.top;
-        gtk_widget_set_clip(widget, &expanded);
-    }
+    expanded.width = fast_round(allocation->width * sx) + box.left + box.right;
+    expanded.height = fast_round(allocation->height * sy) + box.top + box.bottom;
+    expanded.x = allocation->x - allocation->width * (sx - 1.0) / 2.0 - box.left;
+    expanded.y = allocation->y - allocation->height * (sy - 1.0) / 2.0 - box.top;
+    gtk_widget_set_clip(widget, &expanded);
 }
 
 static void meta_deepin_cloned_widget_init (MetaDeepinClonedWidget *self)
@@ -678,25 +643,11 @@ void meta_deepin_cloned_widget_set_size(MetaDeepinClonedWidget* self,
 {
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
 
-    if (priv->snapshot) {
-        g_clear_pointer(&priv->snapshot, cairo_surface_destroy);
-    }
+    MetaRectangle r;
+    meta_window_get_outer_rect(priv->meta_window, &r);
 
-    cairo_surface_t* ws = get_window_surface(priv->meta_window);
-    MetaRectangle r, r2;
-    /* input rect is real size of surface */
-    meta_window_get_input_rect(priv->meta_window, &r);
-    /* outer is visible rect */
-    meta_window_get_outer_rect(priv->meta_window, &r2);
-
-    priv->snapshot = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
-            width, height);
-    cairo_t* cr = cairo_create(priv->snapshot);
-    cairo_scale(cr, (double)width/r2.width, (double)height/r2.height);
-    cairo_set_source_surface(cr, ws, r.x - r2.x, r.y - r2.y);
-    cairo_paint(cr);
-    cairo_destroy(cr);
-    cairo_surface_destroy(ws);
+    priv->snapshot = deepin_window_surface_manager_get_surface(
+            priv->meta_window, (double)width/r.width);
 
     priv->real_size.width = width;
     priv->real_size.height = height;

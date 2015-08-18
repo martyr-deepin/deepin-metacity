@@ -1295,6 +1295,8 @@ meta_screen_ensure_tab_popup (MetaScreen      *screen,
       entries[i].key = (MetaTabEntryKey) window->xwindow;
       entries[i].title = window->title;
 
+      /* disable this for performance */
+#if 0
       win_pixbuf = NULL;
       if (meta_prefs_get_alt_tab_thumbnails ())
         win_pixbuf = get_window_pixbuf (window, &width, &height);
@@ -1333,6 +1335,7 @@ meta_screen_ensure_tab_popup (MetaScreen      *screen,
 
           g_object_unref (scaled);
         }
+#endif
                                 
       entries[i].blank = FALSE;
       entries[i].hidden = !meta_window_showing_on_its_workspace (window);
@@ -1370,8 +1373,8 @@ meta_screen_ensure_tab_popup (MetaScreen      *screen,
 
   screen->tab_popup = deepin_tab_popup_new (entries, screen->number, len);
 
-  for (i = 0; i < len; i++)
-    g_object_unref (entries[i].icon);
+  /*for (i = 0; i < len; i++)*/
+    /*g_object_unref (entries[i].icon);*/
 
   g_free (entries);
 

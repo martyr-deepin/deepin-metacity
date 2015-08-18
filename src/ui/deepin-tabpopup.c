@@ -31,38 +31,7 @@
 #include "select-workspace.h"
 #include "deepin-design.h"
 #include "deepin-switch-previewer.h"
-
-static GdkPixbuf* dimm_icon (GdkPixbuf *pixbuf)
-{
-    int x, y, pixel_stride, row_stride;
-    guchar *row, *pixels;
-    int w, h;
-    GdkPixbuf *dimmed_pixbuf;
-
-    if (gdk_pixbuf_get_has_alpha (pixbuf)) {
-        dimmed_pixbuf = gdk_pixbuf_copy (pixbuf);
-    } else {
-        dimmed_pixbuf = gdk_pixbuf_add_alpha (pixbuf, FALSE, 0, 0, 0);
-    }
-
-    w = gdk_pixbuf_get_width (dimmed_pixbuf);
-    h = gdk_pixbuf_get_height (dimmed_pixbuf);
-
-    pixel_stride = 4;
-
-    row = gdk_pixbuf_get_pixels (dimmed_pixbuf);
-    row_stride = gdk_pixbuf_get_rowstride (dimmed_pixbuf);
-
-    for (y = 0; y < h; y++) {
-        pixels = row;
-        for (x = 0; x < w; x++) {
-            pixels[3] /= 2;
-            pixels += pixel_stride;
-        }
-        row += row_stride;
-    }
-    return dimmed_pixbuf;
-}
+#include "deepin-window-surface-manager.h"
 
 static DeepinTabEntry* deepin_tab_entry_new (const MetaTabEntry *entry, gint                screen_width)
 {
@@ -71,16 +40,14 @@ static DeepinTabEntry* deepin_tab_entry_new (const MetaTabEntry *entry, gint    
     te = g_new (DeepinTabEntry, 1);
     te->key = entry->key;
     te->title = NULL;
-    if (entry->title)
-    {
+    if (entry->title) {
         gchar *str;
         gchar *tmp;
         gchar *formatter = "%s";
 
         str = meta_g_utf8_strndup (entry->title, 4096);
 
-        if (entry->hidden)
-        {
+        if (entry->hidden) {
             formatter = "[%s]";
         }
 
@@ -88,8 +55,7 @@ static DeepinTabEntry* deepin_tab_entry_new (const MetaTabEntry *entry, gint    
         g_free (str);
         str = tmp;
 
-        if (entry->demands_attention)
-        {
+        if (entry->demands_attention) {
             /* Escape the whole line of text then markup the text and
              * copy it back into the original buffer.
              */
@@ -102,16 +68,10 @@ static DeepinTabEntry* deepin_tab_entry_new (const MetaTabEntry *entry, gint    
 
         g_free (str);
     }
+
     te->widget = NULL;
-    te->icon = entry->icon;
+    te->icon = NULL;
     te->blank = entry->blank;
-    te->dimmed_icon = NULL;
-    if (te->icon)
-    {
-        g_object_ref (G_OBJECT (te->icon));
-        if (entry->hidden)
-            te->dimmed_icon = dimm_icon (entry->icon);
-    }
 
     te->rect.x = entry->rect.x;
     te->rect.y = entry->rect.y;
@@ -122,6 +82,40 @@ static DeepinTabEntry* deepin_tab_entry_new (const MetaTabEntry *entry, gint    
     te->inner_rect.y = entry->inner_rect.y;
     te->inner_rect.width = entry->inner_rect.width;
     te->inner_rect.height = entry->inner_rect.height;
+
+    MetaDisplay* display = meta_get_display();
+    MetaWindow* window = meta_display_lookup_x_window(display, (Window)te->key);
+
+    cairo_surface_t* ref = deepin_window_surface_manager_get_surface(window, 1.0);
+
+    double sx = RECT_PREFER_WIDTH / (double)te->rect.width;
+    double sy = RECT_PREFER_HEIGHT / (double)te->rect.height;
+
+    cairo_surface_t* surface = cairo_image_surface_create(
+            CAIRO_FORMAT_ARGB32, RECT_PREFER_WIDTH, RECT_PREFER_HEIGHT);
+    cairo_t* cr = cairo_create(surface);
+    cairo_save(cr);
+    cairo_scale(cr, sx, sy);
+    cairo_set_source_surface(cr, ref, 0, 0);
+    cairo_paint(cr);
+    cairo_restore(cr);
+
+#define ICON_SIZE 48
+    GdkPixbuf* scaled = gdk_pixbuf_scale_simple (window->icon,
+            ICON_SIZE, ICON_SIZE, GDK_INTERP_BILINEAR);
+    double icon_width = gdk_pixbuf_get_width (scaled);
+    double icon_height = gdk_pixbuf_get_height (scaled);
+
+    gdk_cairo_set_source_pixbuf(cr, scaled,
+            (RECT_PREFER_WIDTH - icon_width)/2.0,
+            (RECT_PREFER_HEIGHT - icon_height));
+    cairo_paint(cr);
+
+    g_object_unref(scaled);
+    cairo_destroy(cr);
+
+    te->icon = surface;
+    cairo_surface_reference(te->icon);
     return te;
 }
 
@@ -232,7 +226,7 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
         DeepinTabEntry *te = (DeepinTabEntry*)tmp->data;
 
         if (!te->blank) {
-            w = meta_deepin_tab_widget_new(te->dimmed_icon? te->dimmed_icon: te->icon);
+            w = meta_deepin_tab_widget_new(te->icon);
             meta_deepin_tab_widget_set_scale(META_DEEPIN_TAB_WIDGET(w), item_scale);
         }
 
@@ -267,10 +261,7 @@ static void free_deepin_tab_entry (gpointer data, gpointer user_data)
     te = (DeepinTabEntry*)data;
 
     g_free (te->title);
-    if (te->icon)
-        g_object_unref (G_OBJECT (te->icon));
-    if (te->dimmed_icon)
-        g_object_unref (G_OBJECT (te->dimmed_icon));
+    if (te->icon) cairo_surface_destroy (te->icon);
 
     g_free (te);
 }

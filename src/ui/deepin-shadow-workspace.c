@@ -32,6 +32,8 @@
 #include "deepin-shadow-workspace.h"
 #include "deepin-background-cache.h"
 
+/* TODO: handle live window add/remove events */
+
 static const int SMOOTH_SCROLL_DELAY = 500;
 
 struct _DeepinShadowWorkspacePrivate
@@ -606,7 +608,7 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
             g_ptr_array_add(priv->clones, widget);
 
             MetaRectangle r;
-            meta_window_get_input_rect(win, &r);
+            meta_window_get_outer_rect(win, &r);
             gint w = r.width * priv->scale, h = r.height * priv->scale;
             meta_deepin_cloned_widget_set_size(
                     META_DEEPIN_CLONED_WIDGET(widget), w, h);

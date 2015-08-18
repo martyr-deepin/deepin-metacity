@@ -24,12 +24,12 @@
 #include <gdk/gdkx.h>
 #include <cairo-xlib.h>
 #include "../core/workspace.h"
-#include "compositor.h"
 #include "deepin-design.h"
 #include "deepin-switch-previewer.h"
 #include "deepin-tabpopup.h"
 #include "deepin-cloned-widget.h"
 #include "deepin-stackblur.h"
+#include "deepin-window-surface-manager.h"
 
 #define SCALE_FACTOR 0.9
 #define BLUR_RADIUS 10.0
@@ -80,33 +80,6 @@ static gpointer cloned_widget_get_key(GtkWidget* w)
         _cloned_widget_key_quark = g_quark_from_static_string("cloned-widget-key");
     }
     return g_object_get_qdata(G_OBJECT(w), _cloned_widget_key_quark);
-}
-
-static cairo_surface_t* get_window_surface(MetaWindow* window)
-{
-    Pixmap pixmap;
-
-    pixmap = meta_compositor_get_window_pixmap (window->display->compositor,
-            window);
-    if (pixmap == None) return NULL;
-
-    Display *display;
-    Window root;
-    int x, y;
-    unsigned int width, height, border, depth;
-    GdkVisual *visual;
-    cairo_surface_t *surface;
-
-    display = GDK_DISPLAY_XDISPLAY (gdk_display_get_default ());
-
-    if (!XGetGeometry(display, pixmap, &root, &x, &y, &width, &height, &border, &depth))
-        return NULL;
-
-    visual = gdk_screen_get_rgba_visual (gdk_screen_get_default());
-    surface = cairo_xlib_surface_create (display, pixmap,
-            GDK_VISUAL_XVISUAL (visual), width, height);
-
-    return surface;
 }
 
 static void _setup_clip(MetaDeepinSwitchPreviewerPrivate* priv, cairo_t* cr)
@@ -215,7 +188,7 @@ static void meta_deepin_switch_previewer_dispose(GObject *object)
     MetaDeepinSwitchPreviewerPrivate* priv = self->priv;
 
     if (priv->desktop_surface) {
-        g_clear_pointer(&priv->desktop_surface, cairo_surface_destroy);
+        priv->desktop_surface = NULL;
     }
 
     if (priv->cap_surface) {
@@ -321,8 +294,7 @@ void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self)
                 w, h);
             /* put around center */
             meta_deepin_switch_previewer_put(self, widget,
-                    te->rect.x + (te->rect.width - w)/2 + w/2,
-                    te->rect.y + (te->rect.height - h)/2 + h/2);
+                    r.x + w/2, r.y + h/2);
             cloned_widget_set_key(widget, GINT_TO_POINTER(te->key));
         }
         l = l->next;
@@ -334,7 +306,7 @@ void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self)
             MetaWindow *w = (MetaWindow*)windows->data;
             if (w->screen == priv->screen  && w->type == META_WINDOW_DESKTOP) {
                 priv->mw_desktop = w;
-                priv->desktop_surface = get_window_surface(priv->mw_desktop);
+                priv->desktop_surface = deepin_window_surface_manager_get_surface(w, 1.0);
                 break;
             }
 

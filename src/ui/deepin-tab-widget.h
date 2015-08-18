@@ -21,6 +21,7 @@
 #define DEEPIN_TAB_WIDGET_H
 
 #include <gtk/gtk.h>
+#include <cairo.h>
 
 #define META_TYPE_DEEPIN_TAB_WIDGET         (meta_deepin_tab_widget_get_type ())
 #define META_DEEPIN_TAB_WIDGET(o)           (G_TYPE_CHECK_INSTANCE_CAST ((o), META_TYPE_DEEPIN_TAB_WIDGET, MetaDeepinTabWidget))
@@ -45,7 +46,7 @@ struct _MetaDeepinTabWidgetClass
 };
 
 GType      meta_deepin_tab_widget_get_type (void) G_GNUC_CONST;
-GtkWidget *meta_deepin_tab_widget_new      (GdkPixbuf       *pixbuf);
+GtkWidget *meta_deepin_tab_widget_new      (cairo_surface_t*);
 void       meta_deepin_tab_widget_select   (MetaDeepinTabWidget *);
 void       meta_deepin_tab_widget_unselect (MetaDeepinTabWidget *);
 void       meta_deepin_tab_widget_set_scale(MetaDeepinTabWidget*, gdouble);

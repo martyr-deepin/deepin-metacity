@@ -43,9 +43,8 @@ typedef struct _MetaDeepinTabWidgetPrivate
   guint tick_id;
   int  animation_duration;
 
-  GdkPixbuf* orig_thumb;
+  cairo_surface_t* orig_thumb;
   cairo_surface_t* scaled;
-
 
   int disposed;
 
@@ -104,7 +103,7 @@ static void meta_deepin_tab_widget_dispose(GObject *object)
 
     if (priv->scaled) {
         g_clear_pointer(&priv->scaled, cairo_surface_destroy);
-        g_clear_pointer(&priv->orig_thumb, g_object_unref);
+        g_clear_pointer(&priv->orig_thumb, cairo_surface_destroy);
     }
 
     G_OBJECT_CLASS(meta_deepin_tab_widget_parent_class)->dispose(object);
@@ -125,23 +124,12 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
 
   GtkStyleContext* context = gtk_widget_get_style_context (widget);
 
-  GtkAllocation clip;
-  gtk_widget_get_clip(widget, &clip);
-
   GtkRequisition req;
   gtk_widget_get_preferred_size(widget, &req, NULL);
-  /*g_message("----- req(%d, %d), clip(%d, %d, %d, %d)", req.width, req.height, */
-          /*clip.x, clip.y, clip.width, clip.height);*/
 
-  gdouble x, y, w = req.width, h = req.height, cw = clip.width, ch = clip.height;
+  gdouble x, y, w = req.width, h = req.height;
 
-#ifdef META_UI_DEBUG
-  cairo_set_source_rgb(cr, 1, 0, 0);
-  cairo_rectangle(cr, 0, 0, cw, ch);
-  cairo_stroke(cr);
-#endif
-
-  gdouble w2 = cw / 2.0, h2 = ch / 2.0;
+  gdouble w2 = w / 2.0, h2 = h / 2.0;
   if (priv->selected) {
       gtk_style_context_set_state (context, GTK_STATE_FLAG_SELECTED);
   } else {
@@ -161,8 +149,8 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
   cairo_restore(cr);
 
   cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
-  x = (cw - cairo_image_surface_get_width(priv->scaled)) / 2.0,
-  y = (ch - cairo_image_surface_get_height(priv->scaled)) / 2.0;
+  x = (w - cairo_image_surface_get_width(priv->scaled)) / 2.0,
+  y = (h - cairo_image_surface_get_height(priv->scaled)) / 2.0;
   cairo_set_source_surface(cr, priv->scaled, x, y);
   cairo_paint(cr);
 
@@ -272,7 +260,7 @@ static void meta_deepin_tab_widget_update_image(MetaDeepinTabWidget* self)
                 req.width, req.height);
         cairo_t* cr = cairo_create(priv->scaled);
         cairo_scale(cr, priv->scale, priv->scale);
-        gdk_cairo_set_source_pixbuf(cr, priv->orig_thumb, 0, 0);
+        cairo_set_source_surface(cr, priv->orig_thumb, 0, 0);
         cairo_paint(cr);
         cairo_destroy(cr);
     }
@@ -330,13 +318,12 @@ static void meta_deepin_tab_widget_class_init (MetaDeepinTabWidgetClass *klass)
 }
 
 GtkWidget *
-meta_deepin_tab_widget_new (GdkPixbuf *pixbuf)
+meta_deepin_tab_widget_new (cairo_surface_t* icon)
 {
   MetaDeepinTabWidget* widget;
 
   widget = (MetaDeepinTabWidget*)g_object_new (META_TYPE_DEEPIN_TAB_WIDGET, NULL);
-  widget->priv->orig_thumb = pixbuf;
-  g_object_ref(pixbuf);
+  widget->priv->orig_thumb = icon;
 
   return (GtkWidget*)widget;
 }
