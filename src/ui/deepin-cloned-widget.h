@@ -71,6 +71,8 @@ void meta_deepin_cloned_widget_translate_y(MetaDeepinClonedWidget*, gdouble);
 
 void meta_deepin_cloned_widget_set_size(MetaDeepinClonedWidget*, gdouble, gdouble);
 
+void meta_deepin_cloned_widget_set_render_frame(MetaDeepinClonedWidget*, gboolean);
+
 /* setup animaiton */
 void meta_deepin_cloned_widget_push_state(MetaDeepinClonedWidget*);
 /* start animation up */

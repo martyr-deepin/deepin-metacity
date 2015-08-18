@@ -178,7 +178,7 @@ static void natural_placement (DeepinShadowWorkspace* self, MetaRectangle area)
         MetaDeepinClonedWidget* clone = g_ptr_array_index(clones, i);
         MetaWindow* win = meta_deepin_cloned_widget_get_window(clone);
 
-        meta_window_get_outer_rect(win, &rect);
+        meta_window_get_input_rect(win, &rect);
         rect = rect_adjusted(rect, -GAPS, -GAPS, GAPS, GAPS);
         rects[i] = rect;
         /*g_debug("%s: frame: %d,%d,%d,%d", __func__, rect.x, rect.y, rect.width, rect.height);*/
@@ -364,7 +364,7 @@ static void natural_placement (DeepinShadowWorkspace* self, MetaRectangle area)
         MetaWindow* window = meta_deepin_cloned_widget_get_window(clone);
 
         MetaRectangle window_rect;
-        meta_window_get_outer_rect(window, &window_rect);
+        meta_window_get_input_rect(window, &window_rect);
 
 
         rect = rect_adjusted(rect, GAPS, GAPS, -GAPS, -GAPS);
@@ -606,10 +606,12 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
             g_ptr_array_add(priv->clones, widget);
 
             MetaRectangle r;
-            meta_window_get_outer_rect(win, &r);
+            meta_window_get_input_rect(win, &r);
             gint w = r.width * priv->scale, h = r.height * priv->scale;
-            meta_deepin_cloned_widget_set_size(META_DEEPIN_CLONED_WIDGET(widget),
-                    w, h);
+            meta_deepin_cloned_widget_set_size(
+                    META_DEEPIN_CLONED_WIDGET(widget), w, h);
+            meta_deepin_cloned_widget_set_render_frame(
+                    META_DEEPIN_CLONED_WIDGET(widget), TRUE);
 
             deepin_fixed_put(DEEPIN_FIXED(self), widget,
                     r.x * priv->scale + w/2,
@@ -715,7 +717,6 @@ void deepin_shadow_workspace_focus_next(DeepinShadowWorkspace* self,
     if (priv->window_need_focused) {
         for (i = 0; i < clones->len; i++) {
             MetaDeepinClonedWidget* clone = g_ptr_array_index(clones, i);
-            /*MetaWindow* win = meta_deepin_cloned_widget_get_window(clone);*/
             if (clone == priv->window_need_focused) break;
         }
 

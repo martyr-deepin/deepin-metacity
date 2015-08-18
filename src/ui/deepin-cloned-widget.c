@@ -227,8 +227,6 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
     gdouble w2 = w * priv->pivot_x, h2 = h * priv->pivot_y;
     cairo_translate(cr, w2, h2);
 
-    cairo_save(cr);
-
     gdouble pos = priv->animation ? priv->current_pos : 1.0;
     gdouble sx = priv->ai.scale_x * pos + priv->scale_x * (1.0 - pos),
             sy = priv->ai.scale_y * pos + priv->scale_y * (1.0 - pos);
@@ -247,7 +245,9 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
     if (priv->render_frame) {
         x += borders.left;
         y += borders.top;
-        gtk_render_frame(context, cr, -x, -y, w, h);
+        gdouble fw = w + borders.left + borders.right;
+        gdouble fh = h + borders.top + borders.bottom;
+        gtk_render_frame(context, cr, -x, -y, fw, fh);
     }
 
     gdouble d = priv->ai.blur_radius * pos + priv->blur_radius * (1.0 - pos);
@@ -277,7 +277,6 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
         cairo_set_source_surface(cr, priv->snapshot, -x, -y);
         cairo_paint_with_alpha(cr, alpha);
     }
-    cairo_restore(cr);
 
     return TRUE;
 }
@@ -409,14 +408,18 @@ static void meta_deepin_cloned_widget_size_allocate(GtkWidget* widget,
     }
 
     /* FIXME: dirty: need to dynamically adjust best clipping */
+    GtkStyleContext* context = gtk_widget_get_style_context (widget);
+    GtkBorder box;
+    _style_get_borders(context, &box);
+
     sx = MAX(1.033, sx);
     sy = MAX(1.033, sy);
 
     if (sx > 1.0 || sy > 1.0) {
-        expanded.width = fast_round(allocation->width * sx);
-        expanded.height = fast_round(allocation->height * sy);
-        expanded.x = allocation->x - allocation->width * (sx - 1.0) / 2.0;
-        expanded.y = allocation->y - allocation->height * (sy - 1.0) / 2.0;
+        expanded.width = fast_round(allocation->width * sx) + box.left + box.right;
+        expanded.height = fast_round(allocation->height * sy) + box.top + box.bottom;
+        expanded.x = allocation->x - allocation->width * (sx - 1.0) / 2.0 - box.left;
+        expanded.y = allocation->y - allocation->height * (sy - 1.0) / 2.0 - box.top;
         gtk_widget_set_clip(widget, &expanded);
     }
 }
@@ -680,14 +683,17 @@ void meta_deepin_cloned_widget_set_size(MetaDeepinClonedWidget* self,
     }
 
     cairo_surface_t* ws = get_window_surface(priv->meta_window);
-    MetaRectangle r;
-    meta_window_get_outer_rect(priv->meta_window, &r);
+    MetaRectangle r, r2;
+    /* input rect is real size of surface */
+    meta_window_get_input_rect(priv->meta_window, &r);
+    /* outer is visible rect */
+    meta_window_get_outer_rect(priv->meta_window, &r2);
 
     priv->snapshot = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
             width, height);
     cairo_t* cr = cairo_create(priv->snapshot);
-    cairo_scale(cr, (double)width/r.width, (double)height/r.height);
-    cairo_set_source_surface(cr, ws, 0, 0);
+    cairo_scale(cr, (double)width/r2.width, (double)height/r2.height);
+    cairo_set_source_surface(cr, ws, r.x - r2.x, r.y - r2.y);
     cairo_paint(cr);
     cairo_destroy(cr);
     cairo_surface_destroy(ws);
@@ -760,5 +766,13 @@ gdouble meta_deepin_cloned_widget_get_alpha(MetaDeepinClonedWidget* self)
 MetaWindow* meta_deepin_cloned_widget_get_window(MetaDeepinClonedWidget* self)
 {
     return self->priv->meta_window;
+}
+
+void meta_deepin_cloned_widget_set_render_frame(MetaDeepinClonedWidget* self,
+        gboolean val)
+{
+    gboolean old = self->priv->render_frame;
+    self->priv->render_frame = val;
+    if (old != val) gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
