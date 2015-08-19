@@ -183,7 +183,6 @@ GdkPixbuf *meta_ui_get_pixbuf_from_pixmap (Pixmap   pmap);
 #include "deepin-design.h"
 #include "tabpopup.h"
 #include "deepin-tabpopup.h"
-#include "deepin-wm-background.h"
 #include "tile-preview.h"
 
 #endif

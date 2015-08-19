@@ -21,6 +21,8 @@
 #define _DEEPIN_SHADOW_WORKSPACE_H_
 
 #include <gtk/gtk.h>
+#include <prefs.h>
+
 #include "../ui/deepin-fixed.h"
 #include "../core/workspace.h"
 #include "../ui/deepin-cloned-widget.h"
@@ -67,6 +69,7 @@ void deepin_shadow_workspace_focus_next(DeepinShadowWorkspace*, gboolean);
 MetaDeepinClonedWidget* deepin_shadow_workspace_get_focused(DeepinShadowWorkspace*);
 void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
         XEvent* event, KeySym keysym, MetaKeyBindingAction action);
+MetaWorkspace* deepin_shadow_workspace_get_workspace(DeepinShadowWorkspace*);
 
 G_END_DECLS
 

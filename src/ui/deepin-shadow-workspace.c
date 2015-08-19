@@ -792,3 +792,9 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
     }
 }
 
+MetaWorkspace* deepin_shadow_workspace_get_workspace(DeepinShadowWorkspace* self)
+{
+    return self->priv->workspace;
+}
+
+

@@ -37,6 +37,7 @@
 #include "ui.h"
 
 typedef struct _MetaXineramaScreenInfo MetaXineramaScreenInfo;
+typedef struct _DeepinWMBackground DeepinWMBackground;
 
 struct _MetaXineramaScreenInfo
 {

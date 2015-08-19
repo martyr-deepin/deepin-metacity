@@ -120,7 +120,6 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
 {
     DeepinWindowSurfaceManager* self = deepin_window_surface_manager_get();
 
-    g_message("%s: %s scale %f", __func__, window->title, scale);
 
     GTree* t = (GTree*)g_hash_table_lookup(self->priv->windows, window);
     if (!t) {
@@ -146,7 +145,7 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
         cairo_destroy(cr);
         cairo_surface_destroy(ref);
         ref = ret;
-        g_message("%s: clip rect", window->title);
+        g_message("%s: clip visible rect", window->title);
 
         g_tree_insert(t, s, ref);
     }
@@ -168,6 +167,7 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
         s = g_new(double, 1);
         *s = scale;
         g_tree_insert(t, s, surface);
+        g_message("%s: (%s) new scale %f", __func__, window->title, scale);
     }
     
     return surface;
@@ -181,6 +181,19 @@ void deepin_window_surface_manager_remove_window(MetaWindow* window)
         g_hash_table_remove(self->priv->windows, window);
         g_signal_emit(self, signals[SIGNAL_SURFACE_INVALID], 0, window);
     }
+}
+
+/* FIXME: how to find if need flush for any of window (expose event?) */
+void deepin_window_surface_manager_flush()
+{
+    DeepinWindowSurfaceManager* self = deepin_window_surface_manager_get();
+    GList* l = g_hash_table_get_keys(self->priv->windows);
+
+    g_hash_table_remove_all(self->priv->windows);
+    for (GList* t = l; t; t = t->next) {
+        deepin_window_surface_manager_get_surface((MetaWindow*)t->data, 1.0);
+    }
+    g_list_free(l);
 }
 
 DeepinWindowSurfaceManager* deepin_window_surface_manager_get(void)

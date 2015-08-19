@@ -151,6 +151,8 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
     double item_scale = 1.0;
     float item_width, item_height;
 
+    deepin_window_surface_manager_flush();
+
     popup = g_new (DeepinTabPopup, 1);
 
     screen = gdk_display_get_screen (gdk_display_get_default (),
@@ -208,10 +210,6 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
     if (i % width)
         height += 1;
 
-    meta_topic(META_DEBUG_UI, 
-            "%s: box(%f, %f), item (%f, %f), cols %d, rows %d, scale %g",
-            __func__, box_width, box_height, item_width, item_height,
-            width, height, item_scale);
 
     grid = deepin_fixed_new();
     g_object_set(G_OBJECT(grid), "margin", POPUP_PADDING, NULL);

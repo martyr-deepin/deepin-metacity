@@ -20,11 +20,12 @@
 #include <config.h>
 #include <gdk/gdkx.h>
 #include <prefs.h>
+#include "deepin-wm-background.h"
 #include "../core/screen-private.h"
 #include "../core/display-private.h"
-#include "deepin-wm-background.h"
 #include "deepin-design.h"
 #include "deepin-shadow-workspace.h"
+#include "deepin-window-surface-manager.h"
 #include "deepin-fixed.h"
 
 struct _DeepinWMBackgroundPrivate
@@ -39,6 +40,13 @@ struct _DeepinWMBackgroundPrivate
     GList* worskpaces;
     GList* worskpace_thumbs;
     /*DeepinShadowWorkspaceAdder* adder;*/
+
+    /* calculation cache */
+    int top_offset;
+    int bottom_offset;
+    float scale;
+    gint width, height; /* for workspace */
+    gint thumb_width, thumb_height; /* for top thumbs */
 };
 
 
@@ -75,6 +83,64 @@ static void deepin_wm_background_class_init (DeepinWMBackgroundClass *klass)
     object_class->finalize = deepin_wm_background_finalize;
 }
 
+static gint find_by_meta_workspace(gconstpointer a, gconstpointer b)
+{
+    DeepinShadowWorkspace* ws = (DeepinShadowWorkspace*)a;
+    MetaWorkspace* meta = (MetaWorkspace*)b;
+    if (deepin_shadow_workspace_get_workspace(ws) == meta) {
+        return 0;
+    }
+
+    return 1;
+}
+
+static DeepinShadowWorkspace* _find_workspace(GList* l, MetaWorkspace* next)
+{
+    GList* tmp = g_list_find_custom(l, next, find_by_meta_workspace);
+    g_assert(tmp->data);
+    return (DeepinShadowWorkspace*)tmp->data;
+}
+
+void deepin_wm_background_switch_workspace(DeepinWMBackground* self, 
+        MetaWorkspace* next, MetaMotionDirection dir)
+{
+    DeepinWMBackgroundPrivate* priv = self->priv;
+    DeepinShadowWorkspace* next_ws = _find_workspace(priv->worskpaces, next);
+    DeepinShadowWorkspace* next_thumb = _find_workspace(priv->worskpace_thumbs, next);
+
+    DeepinShadowWorkspace* current_thumb = _find_workspace(priv->worskpace_thumbs,
+                deepin_shadow_workspace_get_workspace(priv->active_workspace));
+    DeepinShadowWorkspace* current = priv->active_workspace;
+
+    //DO move animation
+    deepin_shadow_workspace_set_current(current, FALSE);
+    deepin_shadow_workspace_set_current(current_thumb, FALSE);
+
+    deepin_shadow_workspace_set_current(next_ws, TRUE);
+    deepin_shadow_workspace_set_current(next_thumb, TRUE);
+
+    priv->active_workspace = next_ws;
+
+    GdkRectangle geom;
+    gint monitor_index = gdk_screen_get_monitor_at_window(priv->gscreen,
+            gtk_widget_get_window(GTK_WIDGET(self)));
+    gdk_screen_get_monitor_geometry(priv->gscreen, monitor_index, &geom);
+
+    gint i = 0,
+         current_pos = g_list_index(priv->worskpaces, next_ws),
+         pad = FLOW_CLONE_DISTANCE_PERCENT * geom.width;
+
+    GList* l = priv->worskpaces;
+    while (l) {
+        gint x = (geom.width - priv->width) / 2 +  (i - current_pos) * (priv->width + pad);
+        deepin_fixed_move(DEEPIN_FIXED(priv->fixed), (GtkWidget*)l->data,
+                x + priv->width/2, priv->top_offset + priv->height/2, TRUE);
+
+        i++;
+        l = l->next;
+    }
+}
+
 static void deepin_wm_background_setup(DeepinWMBackground* self)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
@@ -85,19 +151,21 @@ static void deepin_wm_background_setup(DeepinWMBackground* self)
             gtk_widget_get_window(GTK_WIDGET(self)));
     gdk_screen_get_monitor_geometry(priv->gscreen, monitor_index, &geom);
             
-    priv->fixed = gtk_fixed_new();
+    priv->fixed = deepin_fixed_new();
     gtk_container_add(GTK_CONTAINER(self), priv->fixed);
 
-    int top_offset = (int)(geom.height * FLOW_CLONE_TOP_OFFSET_PERCENT);
-    int bottom_offset = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);
-    float scale = (float)(geom.height - top_offset - bottom_offset) / geom.height;
+    priv->top_offset = (int)(geom.height * FLOW_CLONE_TOP_OFFSET_PERCENT);
+    priv->bottom_offset = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);
+    float scale = (float)(geom.height - priv->top_offset - priv->bottom_offset) / geom.height;
 
-    gint width = geom.width * scale, height = geom.height * scale;
+    priv->scale = scale;
+    priv->width = geom.width * scale;
+    priv->height = geom.height * scale;
 
     // calculate monitor width height ratio
     float monitor_whr = (float)geom.height / geom.width;
-    gint thumb_width = geom.width * WORKSPACE_WIDTH_PERCENT;
-    gint thumb_height = width * monitor_whr;
+    priv->thumb_width = geom.width * WORKSPACE_WIDTH_PERCENT;
+    priv->thumb_height = priv->thumb_width * monitor_whr;
 
     GList *l = priv->screen->workspaces;
     gint current = 0;
@@ -141,9 +209,9 @@ static void deepin_wm_background_setup(DeepinWMBackground* self)
     gint i = 0, pad = FLOW_CLONE_DISTANCE_PERCENT * geom.width;
     l = priv->worskpaces;
     while (l) {
-        gint x = (geom.width - width) / 2 +  (i - current) * (width + pad);
-        gtk_fixed_put(GTK_FIXED(priv->fixed), (GtkWidget*)l->data,
-                x, top_offset);
+        gint x = (geom.width - priv->width) / 2 +  (i - current) * (priv->width + pad);
+        deepin_fixed_put(DEEPIN_FIXED(priv->fixed), (GtkWidget*)l->data,
+                x + priv->width/2, priv->top_offset + priv->height/2);
 
         i++;
         l = l->next;
@@ -155,12 +223,12 @@ static void deepin_wm_background_setup(DeepinWMBackground* self)
     
     gint count = g_list_length(priv->worskpace_thumbs);
     int thumb_y = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);
-    int thumb_x = (geom.width - count * (thumb_width + thumb_spacing))/2;
+    int thumb_x = (geom.width - count * (priv->thumb_width + thumb_spacing))/2;
 
     while (l) {
-        int x = thumb_x + i * (thumb_width + thumb_spacing);
-        gtk_fixed_put(GTK_FIXED(priv->fixed), (GtkWidget*)l->data,
-                x, thumb_y);
+        int x = thumb_x + i * (priv->thumb_width + thumb_spacing);
+        deepin_fixed_put(DEEPIN_FIXED(priv->fixed), (GtkWidget*)l->data,
+                x + priv->thumb_width/2, thumb_y + priv->thumb_height/2);
 
         i++;
         l = l->next;
@@ -169,6 +237,8 @@ static void deepin_wm_background_setup(DeepinWMBackground* self)
 
 GtkWidget* deepin_wm_background_new(MetaScreen* screen)
 {
+    deepin_window_surface_manager_flush();
+
     GtkWidget* widget = (GtkWidget*)g_object_new(DEEPIN_TYPE_WM_BACKGROUND,
             "type", GTK_WINDOW_POPUP, NULL);
     deepin_setup_style_class(widget, "deepin-window-manager"); 
@@ -198,7 +268,18 @@ void deepin_wm_background_handle_event(DeepinWMBackground* self, XEvent* event,
     DeepinWMBackgroundPrivate* priv = self->priv;
 
     if (keysym == XK_Left || keysym == XK_Right) {
-        g_message("switch workspace");
+        MetaMotionDirection dir = keysym == XK_Left ? META_MOTION_LEFT:META_MOTION_RIGHT;
+        MetaWorkspace* current = deepin_shadow_workspace_get_workspace(priv->active_workspace); 
+        MetaWorkspace* next = meta_workspace_get_neighbor(current, dir);
+        if (next) {
+            if (next == current) {
+                //bouncing
+                return;
+            }
+
+            meta_workspace_activate(next, event->xkey.time);
+            deepin_wm_background_switch_workspace(self, next, dir);
+        }
 
     } else { 
         /* pass through to active workspace */

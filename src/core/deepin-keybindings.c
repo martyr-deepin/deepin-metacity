@@ -29,6 +29,7 @@
 #include "keybindings.h"
 #include "window-private.h"
 #include "deepin-shadow-workspace.h"
+#include "deepin-window-surface-manager.h"
 
 static unsigned int get_primary_modifier (MetaDisplay *display,
         unsigned int entire_binding_mask)
@@ -253,6 +254,7 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
         }
 
         GtkWidget* top = screen->exposing_windows_popup;
+        deepin_window_surface_manager_flush();
 
         DeepinShadowWorkspace* active_workspace = 
             (DeepinShadowWorkspace*)deepin_shadow_workspace_new();

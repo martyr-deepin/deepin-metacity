@@ -23,8 +23,9 @@
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 #include <gtk/gtk.h>
-#include "types.h"
 #include <prefs.h>
+#include "types.h"
+#include "../core/workspace.h"
 
 G_BEGIN_DECLS
 
@@ -56,6 +57,8 @@ GType deepin_wm_background_get_type (void) G_GNUC_CONST;
 GtkWidget* deepin_wm_background_new(MetaScreen* screen);
 void deepin_wm_background_handle_event(DeepinWMBackground* self, XEvent* event,
         KeySym keysym, MetaKeyBindingAction action);
+void deepin_wm_background_switch_workspace(DeepinWMBackground* self, 
+        MetaWorkspace* next, MetaMotionDirection dir);
 
 G_END_DECLS
 
