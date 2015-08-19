@@ -245,6 +245,8 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
         gtk_render_frame(context, cr, -x, -y, fw, fh);
     }
 
+    if (priv->meta_window->unmanaging || !priv->snapshot) return TRUE;
+
     gdouble d = priv->ai.blur_radius * pos + priv->blur_radius * (1.0 - pos);
     if (!priv->animation) d = priv->blur_radius;
     if (d > 0.0) {
@@ -638,6 +640,14 @@ void meta_deepin_cloned_widget_set_blur_radius(MetaDeepinClonedWidget* self, gdo
     }
 }
 
+static void on_surface_invalid(DeepinWindowSurfaceManager* manager,
+        MetaWindow* window, MetaDeepinClonedWidget* self)
+{
+    if (self->priv->meta_window == window) {
+        self->priv->snapshot = NULL;
+    }
+}
+
 void meta_deepin_cloned_widget_set_size(MetaDeepinClonedWidget* self,
         gdouble width, gdouble height)
 {
@@ -648,6 +658,8 @@ void meta_deepin_cloned_widget_set_size(MetaDeepinClonedWidget* self,
 
     priv->snapshot = deepin_window_surface_manager_get_surface(
             priv->meta_window, (double)width/r.width);
+    g_signal_connect(deepin_window_surface_manager_get(), 
+            "surface-invalid", (GCallback)on_surface_invalid, self);
 
     priv->real_size.width = width;
     priv->real_size.height = height;

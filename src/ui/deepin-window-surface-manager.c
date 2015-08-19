@@ -36,6 +36,13 @@ struct _DeepinWindowSurfaceManagerPrivate
     GHashTable* windows;
 };
 
+enum
+{
+    SIGNAL_SURFACE_INVALID,
+    N_SIGNALS
+};
+
+static guint signals[N_SIGNALS];
 
 G_DEFINE_TYPE (DeepinWindowSurfaceManager, deepin_window_surface_manager, G_TYPE_OBJECT);
 
@@ -62,6 +69,13 @@ static void deepin_window_surface_manager_class_init (DeepinWindowSurfaceManager
 	g_type_class_add_private (klass, sizeof (DeepinWindowSurfaceManagerPrivate));
 
 	object_class->finalize = deepin_window_surface_manager_finalize;
+    
+    signals[SIGNAL_SURFACE_INVALID] = g_signal_new ("surface-invalid",
+            DEEPIN_TYPE_WINDOW_SURFACE_MANAGER,
+            G_SIGNAL_RUN_LAST,
+            0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 1, G_TYPE_POINTER);
 }
 
 static gint scale_compare(gconstpointer a, gconstpointer b, gpointer data)
@@ -162,7 +176,11 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
 void deepin_window_surface_manager_remove_window(MetaWindow* window)
 {
     DeepinWindowSurfaceManager* self = deepin_window_surface_manager_get();
-    g_hash_table_remove(self->priv->windows, window);
+    if (g_hash_table_contains(self->priv->windows, window)) {
+        g_message("%s: %s", __func__, window->title);
+        g_hash_table_remove(self->priv->windows, window);
+        g_signal_emit(self, signals[SIGNAL_SURFACE_INVALID], 0, window);
+    }
 }
 
 DeepinWindowSurfaceManager* deepin_window_surface_manager_get(void)

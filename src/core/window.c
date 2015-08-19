@@ -43,6 +43,7 @@
 #include "constraints.h"
 #include "compositor.h"
 #include "effects.h"
+#include "deepin-window-surface-manager.h"
 
 #include <X11/Xatom.h>
 #include <X11/Xlibint.h> /* For display->resource_mask */
@@ -968,6 +969,7 @@ meta_window_free (MetaWindow  *window,
               window->desc);
 
   window->unmanaging = TRUE;
+  deepin_window_surface_manager_remove_window(window);
 
   if (window->fullscreen)
     {
