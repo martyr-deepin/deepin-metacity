@@ -23,9 +23,9 @@
 #include <gtk/gtk.h>
 #include <prefs.h>
 
-#include "../ui/deepin-fixed.h"
+#include "deepin-fixed.h"
 #include "../core/workspace.h"
-#include "../ui/deepin-cloned-widget.h"
+#include "deepin-cloned-widget.h"
 
 G_BEGIN_DECLS
 

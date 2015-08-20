@@ -31,6 +31,7 @@
 #include "deepin-ease.h"
 #include "deepin-shadow-workspace.h"
 #include "deepin-background-cache.h"
+#include "deepin-name-entry.h"
 
 /* TODO: handle live window add/remove events */
 
@@ -42,7 +43,7 @@ struct _DeepinShadowWorkspacePrivate
     gint dynamic: 1; /* if animatable */
     gint selected: 1; 
     gint freeze: 1; /* do not liveupdate when freezed */
-    gint thumb_mode: 1;
+    gint thumb_mode: 1; /* show name and no presentation */
 
     gint fixed_width, fixed_height;
     gdouble scale; 
@@ -50,6 +51,7 @@ struct _DeepinShadowWorkspacePrivate
     GPtrArray* clones;
     MetaWorkspace* workspace;
 
+    GtkWidget* entry;
     MetaDeepinClonedWidget* window_need_focused;
 };
 
@@ -455,6 +457,9 @@ static void deepin_shadow_workspace_get_preferred_height (GtkWidget *widget,
     DeepinShadowWorkspace *self = DEEPIN_SHADOW_WORKSPACE (widget);
 
     *minimum = *natural = self->priv->fixed_height;
+    if (self->priv->thumb_mode) {
+        *minimum = *natural = self->priv->fixed_height + WORKSPACE_NAME_HEIGHT + WORKSPACE_NAME_DISTANCE;
+    }
 }
 
 static void _draw_round_box(cairo_t* cr, gint width, gint height, double radius)
@@ -492,13 +497,8 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
     DeepinShadowWorkspace *fixed = DEEPIN_SHADOW_WORKSPACE (widget);
     DeepinShadowWorkspacePrivate *priv = fixed->priv;
 
-    /*GdkRectangle r;*/
-    /*gdk_cairo_get_clip_rectangle(cr, &r);*/
-    /*g_message("%s: clip %d, %d, %d, %d", __func__, r.x, r.y, r.width, r.height);*/
-
     GtkAllocation req;
     gtk_widget_get_allocation(widget, &req);
-    /*g_message("%s: (%d, %d, %d, %d)", __func__, req.x, req.y, req.width, req.height);*/
 
     GtkStyleContext* context = gtk_widget_get_style_context(widget);
 
@@ -509,9 +509,10 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
         /*_style_get_borders(context, &borders);*/
 
         int b = 2;
-        gtk_render_background(context, cr, -b, -b, req.width+2*b, req.height+2*b);
+        gtk_render_background(context, cr, -b, -b, req.width+2*b, 
+                priv->fixed_height+2*b);
 
-        _draw_round_box(cr, req.width, req.height, 4.0);
+        _draw_round_box(cr, req.width, priv->fixed_height, 4.0);
         cairo_clip(cr);
 
     } else {
@@ -522,6 +523,7 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
             deepin_background_cache_get_surface(priv->scale), 0, 0);
     cairo_paint(cr);
 
+    cairo_reset_clip(cr);
     return GTK_WIDGET_CLASS(deepin_shadow_workspace_parent_class)->draw(widget, cr);
 }
 
@@ -591,6 +593,24 @@ static void deepin_shadow_workspace_class_init (DeepinShadowWorkspaceClass *klas
     object_class->finalize = deepin_shadow_workspace_finalize;
 }
 
+static void _create_entry(DeepinShadowWorkspace* self)
+{
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+
+    GtkWidget* w = deepin_name_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(w), meta_workspace_get_name(priv->workspace));
+
+    GtkAllocation alloc;
+    gtk_widget_get_allocation(w, &alloc);
+
+    deepin_fixed_put(DEEPIN_FIXED(self), w,
+            (priv->fixed_width - alloc.width)/2, 
+            priv->fixed_height + WORKSPACE_NAME_DISTANCE + alloc.height/2);
+
+    gtk_widget_show(w);
+    priv->entry = w;
+}
+
 void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
         MetaWorkspace* ws)
 {
@@ -625,6 +645,9 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
     }
     g_list_free(ls);
 
+    if (priv->thumb_mode && !priv->entry) {
+        _create_entry(self);
+    }
     gtk_widget_queue_resize(GTK_WIDGET(self));
 }
 
@@ -684,26 +707,36 @@ void deepin_shadow_workspace_set_presentation(DeepinShadowWorkspace* self,
 void deepin_shadow_workspace_set_current(DeepinShadowWorkspace* self,
         gboolean val)
 {
-    self->priv->selected = val;
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+    priv->selected = val;
 
-    GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(self));
-    if (self->priv->selected) {
-        gtk_style_context_set_state (context, GTK_STATE_FLAG_SELECTED);
-    } else {
-        gtk_style_context_set_state (context, GTK_STATE_FLAG_NORMAL);
-    }
+    GtkStateFlags state = priv->selected? GTK_STATE_FLAG_SELECTED: GTK_STATE_FLAG_NORMAL;
+    
+    gtk_style_context_set_state(gtk_widget_get_style_context(GTK_WIDGET(self)), state);
+    gtk_style_context_set_state(gtk_widget_get_style_context(GTK_WIDGET(priv->entry)), state);
     gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
 void deepin_shadow_workspace_set_thumb_mode(DeepinShadowWorkspace* self,
         gboolean val)
 {
-    self->priv->thumb_mode = val;
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+    priv->thumb_mode = val;
     if (val) {
         deepin_shadow_workspace_set_presentation(self, FALSE);
         GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(self));
         gtk_style_context_remove_class(context, "deepin-workspace-clone"); 
         deepin_setup_style_class(GTK_WIDGET(self), "deepin-workspace-thumb-clone");
+        if (priv->workspace && !priv->entry) {
+            _create_entry(self);
+        }
+
+    } else {
+        GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(self));
+        gtk_style_context_remove_class(context, "deepin-workspace-thumb-clone");
+        deepin_setup_style_class(GTK_WIDGET(self), "deepin-workspace-clone"); 
+
+        if (priv->entry) gtk_widget_hide(priv->entry);
     }
 }
 
@@ -796,5 +829,4 @@ MetaWorkspace* deepin_shadow_workspace_get_workspace(DeepinShadowWorkspace* self
 {
     return self->priv->workspace;
 }
-
 

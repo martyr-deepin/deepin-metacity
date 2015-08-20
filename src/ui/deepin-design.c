@@ -135,3 +135,4 @@ void deepin_setup_style_class(GtkWidget* widget, const char* class_name)
     gtk_style_context_add_class(style_ctx, class_name);
 }
 
+

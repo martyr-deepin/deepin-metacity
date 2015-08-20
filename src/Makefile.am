@@ -106,27 +106,29 @@ libdeepin_metacity_private_la_SOURCES=			\
 	ui/deepin-tabpopup.c		\
 	include/deepin-tabpopup.h	\
 	ui/deepin-ease.c			\
-	ui/deepin-ease.h			\
+	include/deepin-ease.h		\
 	ui/deepin-tab-widget.c		\
-	ui/deepin-tab-widget.h		\
+	include/deepin-tab-widget.h	\
 	ui/deepin-fixed.c			\
-	ui/deepin-fixed.h			\
+	include/deepin-fixed.h		\
 	ui/deepin-design.c			\
-	ui/deepin-design.h			\
-	ui/deepin-stackblur.c		\
-	ui/deepin-stackblur.h		\
-	ui/deepin-switch-previewer.c	\
-	ui/deepin-switch-previewer.h	\
-	ui/deepin-cloned-widget.c		\
-	ui/deepin-cloned-widget.h		\
-	ui/deepin-wm-background.c		\
-	ui/deepin-wm-background.h		\
-	ui/deepin-background-cache.c	\
-	ui/deepin-background-cache.h	\
-	ui/deepin-shadow-workspace.c	\
-	ui/deepin-shadow-workspace.h	\
+	include/deepin-design.h				\
+	ui/deepin-stackblur.c				\
+	include/deepin-stackblur.h			\
+	ui/deepin-switch-previewer.c		\
+	include/deepin-switch-previewer.h	\
+	ui/deepin-cloned-widget.c			\
+	include/deepin-cloned-widget.h		\
+	ui/deepin-wm-background.c			\
+	include/deepin-wm-background.h		\
+	ui/deepin-background-cache.c		\
+	include/deepin-background-cache.h	\
+	ui/deepin-shadow-workspace.c		\
+	include/deepin-shadow-workspace.h	\
 	ui/deepin-window-surface-manager.c	\
-	ui/deepin-window-surface-manager.h	\
+	include/deepin-window-surface-manager.h	\
+	ui/deepin-name-entry.c      \
+	include/deepin-name-entry.h \
 	ui/select-workspace.c			\
 	ui/select-workspace.h			\
 	ui/tile-preview.c			\

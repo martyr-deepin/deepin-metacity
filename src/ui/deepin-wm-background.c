@@ -233,6 +233,7 @@ static void deepin_wm_background_setup(DeepinWMBackground* self)
         i++;
         l = l->next;
     }
+
 }
 
 GtkWidget* deepin_wm_background_new(MetaScreen* screen)
