@@ -29,6 +29,7 @@
  */
 
 #include <config.h>
+#include <gdk/gdkx.h>
 #include "display-private.h"
 #include "util.h"
 #include "main.h"
@@ -1555,11 +1556,24 @@ event_callback (XEvent   *event,
                                           display->grab_old_window_stacking);
             }
 
-          if (display->grab_op == META_GRAB_OP_KEYBOARD_PREVIEWING_WORKSPACE 
-                  || display->grab_op == META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS) {
-            /* do not end grab on this */
-            break;
-          }
+          if (display->grab_op == META_GRAB_OP_KEYBOARD_PREVIEWING_WORKSPACE) 
+            {
+                MetaScreen *screen =
+                    meta_display_screen_for_root (display, event->xany.window);
+                if (!screen) screen = display->active_screen;
+                /*deepin_wm_background_handle_event(screen->ws_previewer,*/
+                        /*event, XK_VoidSymbol, -1);*/
+                break;
+            }
+          if (display->grab_op == META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS) 
+            {
+                MetaScreen *screen =
+                    meta_display_screen_for_root (display, event->xany.window);
+                if (!screen) screen = display->active_screen;
+                GtkWidget* ws = gtk_bin_get_child(screen->exposing_windows_popup);
+                /*deepin_shadow_workspace_handle_event(ws, event, XK_VoidSymbol, -1);*/
+                break;
+            }
           meta_display_end_grab_op (display,
                                     event->xbutton.time);
         }
@@ -3226,8 +3240,11 @@ meta_display_begin_grab_op (MetaDisplay *display,
   if (pointer_already_grabbed)
     display->grab_have_pointer = TRUE;
 
-  meta_display_set_grab_op_cursor (display, screen, op, FALSE, grab_xwindow,
-                                   timestamp);
+  if (op != META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS 
+          && op != META_GRAB_OP_KEYBOARD_PREVIEWING_WORKSPACE) {
+      meta_display_set_grab_op_cursor (display, screen, op, FALSE, grab_xwindow,
+              timestamp);
+  }
 
   if (!display->grab_have_pointer && !grab_op_is_keyboard (op))
     {

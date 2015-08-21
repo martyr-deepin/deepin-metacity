@@ -24,6 +24,8 @@
 #include <util.h>
 #include <tabpopup.h>
 #include <ui.h>
+#include <gdk/gdkdevice.h>
+#include <gdk/gdkx.h>
 #include <screen.h>
 #include "workspace.h"
 #include "keybindings.h"
@@ -182,6 +184,49 @@ static void handle_switch(MetaDisplay *display, MetaScreen *screen,
     do_choose_window (display, screen, window, event, binding, backwards);
 }
 
+static void _do_ungrab(MetaScreen* screen, GtkWidget* w, gboolean release_keyboard)
+{
+    GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(screen->display->xdisplay);
+    GdkDeviceManager* dev_man = gdk_display_get_device_manager(gdisplay);
+    GdkDevice* pointer = gdk_device_manager_get_client_pointer(dev_man);
+    GdkDevice* kb = gdk_device_get_associated_device(pointer);
+
+    if (release_keyboard) 
+        gdk_device_ungrab(kb, GDK_CURRENT_TIME);
+    gdk_device_ungrab(pointer, GDK_CURRENT_TIME);
+}
+
+static void _do_grab(MetaScreen* screen, GtkWidget* w, gboolean grab_keyboard)
+{
+    GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(screen->display->xdisplay);
+    GdkDeviceManager* dev_man = gdk_display_get_device_manager(gdisplay);
+    GdkDevice* pointer = gdk_device_manager_get_client_pointer(dev_man);
+    GdkDevice* kb = gdk_device_get_associated_device(pointer);
+
+    g_assert(gdk_device_get_source(pointer) == GDK_SOURCE_MOUSE);
+    g_assert(gdk_device_get_source(kb) == GDK_SOURCE_KEYBOARD);
+
+    GdkGrabStatus ret = GDK_GRAB_SUCCESS;
+    if (grab_keyboard) {
+        ret = gdk_device_grab(kb, gtk_widget_get_window(w), 
+                GDK_OWNERSHIP_NONE, TRUE,
+                GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK,
+                NULL, GDK_CURRENT_TIME);
+        if (ret != GDK_GRAB_SUCCESS) {
+            g_message("%s: grab keyboard failed", __func__);
+        }
+    }
+
+    ret = gdk_device_grab(pointer, gtk_widget_get_window(w), 
+            GDK_OWNERSHIP_NONE, TRUE,
+            GDK_BUTTON_PRESS_MASK| GDK_BUTTON_RELEASE_MASK| 
+            GDK_ENTER_NOTIFY_MASK| GDK_FOCUS_CHANGE_MASK,
+            NULL, GDK_CURRENT_TIME);
+    if (ret != GDK_GRAB_SUCCESS) {
+        g_message("%s: grab failed", __func__);
+    }
+}
+
 static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
         MetaWindow *window, XEvent *event,
         MetaKeyBinding *binding, gpointer user_data)
@@ -217,7 +262,26 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
 
         gtk_widget_show_all(GTK_WIDGET(screen->ws_previewer));
         gtk_window_move(GTK_WINDOW(screen->ws_previewer), 0, 0);
+
+        /* rely on auto ungrab when destroyed */
+        _do_grab(screen, screen->ws_previewer, TRUE);
     }
+}
+
+static gboolean on_top_event(GtkWidget* top, GdkEvent* ev, gpointer data)
+{
+    switch(ev->type) {
+        case GDK_BUTTON_PRESS:
+            g_message("%s: button press", __func__);
+            break;
+        case GDK_BUTTON_RELEASE:
+            g_message("%s: button release", __func__);
+            break;
+        case GDK_MOTION_NOTIFY:
+            break;
+        default: break;
+    }
+    return FALSE;
 }
 
 static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
@@ -263,8 +327,13 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
         deepin_shadow_workspace_set_current(active_workspace, TRUE);
 
         gtk_container_add(GTK_CONTAINER(top), (GtkWidget*)active_workspace);
-
         gtk_widget_show_all(top);
+
+        gtk_widget_add_events(top, GDK_ALL_EVENTS_MASK);
+        gtk_widget_add_events(active_workspace, GDK_ALL_EVENTS_MASK);
+        g_object_connect(G_OBJECT(top),
+                "signal::event", on_top_event, NULL,
+                NULL);
     }
 }
 

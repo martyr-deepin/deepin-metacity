@@ -36,6 +36,8 @@
 #include "effects.h"
 #include "util.h"
 #include "deepin-keybindings.h"
+#include "deepin-wm-background.h"
+#include "deepin-shadow-workspace.h"
 
 #include <X11/keysym.h>
 #include <string.h>
@@ -1301,8 +1303,11 @@ meta_display_process_key_event (MetaDisplay *display,
     return; /* event window is destroyed */
 
   /* ignore key events on popup menus and such. */
+  /* Sian Cao: take care special care when exposing/previewing happens */
   if (window == NULL &&
-      meta_ui_window_is_widget (screen->ui, event->xany.window))
+      meta_ui_window_is_widget (screen->ui, event->xany.window) &&
+      display->grab_op != META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS && 
+      display->grab_op != META_GRAB_OP_KEYBOARD_PREVIEWING_WORKSPACE) 
     return;
 
   keysym = keycode_to_keysym (display, event->xkey.keycode);
@@ -2529,7 +2534,7 @@ process_workspace_switch_grab (MetaDisplay *display,
       MetaWorkspace *target_workspace;
 
       target_workspace =
-        (MetaWorkspace *) meta_ui_tab_popup_get_selected (screen->tab_popup);
+        (MetaWorkspace *) meta_ui_tab_popup_get_selected (screen->ws_popup);
 
       meta_topic (META_DEBUG_KEYBINDINGS,
                   "Ending workspace tab operation, primary modifier released\n");
@@ -2566,7 +2571,7 @@ process_workspace_switch_grab (MetaDisplay *display,
 
   /* select the next workspace in the tabpopup */
   workspace =
-    (MetaWorkspace *) meta_ui_tab_popup_get_selected (screen->tab_popup);
+    (MetaWorkspace *) meta_ui_tab_popup_get_selected (screen->ws_popup);
 
   if (workspace)
     {
@@ -2607,7 +2612,7 @@ process_workspace_switch_grab (MetaDisplay *display,
 
       if (target_workspace)
         {
-          meta_ui_tab_popup_select (screen->tab_popup,
+          meta_ui_tab_popup_select (screen->ws_popup,
                                     (MetaTabEntryKey) target_workspace);
           meta_topic (META_DEBUG_KEYBINDINGS,
                       "Tab key pressed, moving tab focus in popup\n");
@@ -2625,7 +2630,7 @@ process_workspace_switch_grab (MetaDisplay *display,
   meta_topic (META_DEBUG_KEYBINDINGS,
               "Ending workspace tabbing & focusing default window; uninteresting key pressed\n");
   workspace =
-    (MetaWorkspace *) meta_ui_tab_popup_get_selected (screen->tab_popup);
+    (MetaWorkspace *) meta_ui_tab_popup_get_selected (screen->ws_popup);
   meta_workspace_focus_default_window (workspace, NULL, event->xkey.time);
   return FALSE;
 }
@@ -2698,7 +2703,7 @@ process_exposing_windows (MetaDisplay *display,
       return FALSE; /* end grab */
     }
 
-  GtkWidget* ws = gtk_bin_get_child(screen->exposing_windows_popup);
+  GtkWidget* ws = gtk_bin_get_child(GTK_BIN(screen->exposing_windows_popup));
   deepin_shadow_workspace_handle_event(ws, event, keysym, action);
 
   return TRUE;

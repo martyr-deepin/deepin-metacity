@@ -391,6 +391,13 @@ static void meta_deepin_cloned_widget_size_allocate(GtkWidget* widget,
     gtk_widget_set_clip(widget, &expanded);
 }
 
+static gboolean on_deepin_cloned_widget_pressed(MetaDeepinClonedWidget* self,
+               GdkEvent* event, gpointer user_data)
+{
+    g_message("%s", __func__);
+    return FALSE;
+}
+
 static void meta_deepin_cloned_widget_init (MetaDeepinClonedWidget *self)
 {
     MetaDeepinClonedWidgetPrivate* priv = self->priv =
@@ -410,6 +417,10 @@ static void meta_deepin_cloned_widget_init (MetaDeepinClonedWidget *self)
             GTK_STATE_FLAG_NORMAL);
 
     gtk_widget_set_has_window(GTK_WIDGET(self), FALSE);
+
+    g_object_connect(G_OBJECT(self), 
+            "signal::button-press-event", on_deepin_cloned_widget_pressed, NULL,
+            NULL);
 }
 
 static void meta_deepin_cloned_widget_class_init (MetaDeepinClonedWidgetClass *klass)

@@ -233,7 +233,38 @@ static void deepin_wm_background_setup(DeepinWMBackground* self)
         i++;
         l = l->next;
     }
+}
 
+static gboolean on_deepin_wm_background_event(DeepinWMBackground* self,
+        GdkEvent* ev, gpointer data)
+{
+    DeepinWMBackgroundPrivate* priv = self->priv;
+    GtkWidget* w = gtk_grab_get_current();
+
+    switch(ev->type) {
+        case GDK_BUTTON_PRESS:
+            break;
+        case GDK_BUTTON_RELEASE:
+            break;
+        case GDK_KEY_PRESS:
+            if (w && GTK_IS_ENTRY(w)) {
+                break;
+            }
+            return TRUE;
+
+        case GDK_KEY_RELEASE:
+            if (w && GTK_IS_ENTRY(w)) {
+                break;
+            }
+            return TRUE;
+
+        /*case GDK_MOTION_NOTIFY:*/
+            /*g_message("%s: motion notify", __func__);*/
+            /*break;*/
+        default: break;
+    }
+
+    return FALSE;
 }
 
 GtkWidget* deepin_wm_background_new(MetaScreen* screen)
@@ -257,6 +288,12 @@ GtkWidget* deepin_wm_background_new(MetaScreen* screen)
     gtk_window_set_position(GTK_WINDOW(widget), GTK_WIN_POS_CENTER_ALWAYS);
     gtk_window_set_default_size(GTK_WINDOW(widget), w, h);
     gtk_widget_realize (widget);
+
+    gtk_widget_add_events(widget, GDK_ALL_EVENTS_MASK);
+
+    g_object_connect(G_OBJECT(widget),
+            "signal::event", on_deepin_wm_background_event, NULL,
+            NULL);
 
     self->priv->screen = screen;
     deepin_wm_background_setup(self);

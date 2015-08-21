@@ -396,7 +396,6 @@ static int padding_bottom  = 12;
 static void calculate_places(DeepinShadowWorkspace* self)
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
-    GPtrArray* clones = priv->clones;
     if (priv->clones->len) {
         /*g_ptr_array_sort(clones, window_compare);*/
 
@@ -410,12 +409,13 @@ static void calculate_places(DeepinShadowWorkspace* self)
     }
 }
 
-
 static void deepin_shadow_workspace_init (DeepinShadowWorkspace *self)
 {
     self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, DEEPIN_TYPE_SHADOW_WORKSPACE, DeepinShadowWorkspacePrivate);
 
     self->priv->scale = 1.0;
+    gtk_widget_set_sensitive(GTK_WIDGET(self), TRUE);
+    gtk_widget_set_events(GTK_WIDGET(self), GDK_ALL_EVENTS_MASK);
 }
 
 static void deepin_shadow_workspace_finalize (GObject *object)
@@ -423,6 +423,7 @@ static void deepin_shadow_workspace_finalize (GObject *object)
     DeepinShadowWorkspacePrivate* priv = DEEPIN_SHADOW_WORKSPACE(object)->priv;
     if (priv->clones) {
         g_ptr_array_free(priv->clones, FALSE);
+        priv->clones = NULL;
     }
 
     G_OBJECT_CLASS (deepin_shadow_workspace_parent_class)->finalize (object);
@@ -593,6 +594,37 @@ static void deepin_shadow_workspace_class_init (DeepinShadowWorkspaceClass *klas
     object_class->finalize = deepin_shadow_workspace_finalize;
 }
 
+static gboolean on_entry_pressed(GtkWidget* entry,
+               GdkEvent* event, gpointer user_data)
+{
+    g_message("%s", __func__);
+    gtk_grab_add(entry);
+    gtk_entry_grab_focus_without_selecting(entry);
+    return FALSE;
+}
+
+static gboolean on_entry_key_pressed(GtkWidget* entry,
+               GdkEvent* event, gpointer user_data)
+{
+    g_message("%s", __func__);
+    return FALSE;
+}
+
+static gboolean on_entry_entered(GtkWidget* entry,
+               GdkEvent* event, gpointer user_data)
+{
+    g_message("%s", __func__);
+    return FALSE;
+}
+
+static gboolean on_entry_leaved(GtkWidget* entry,
+               GdkEvent* event, gpointer user_data)
+{
+    g_message("%s", __func__);
+    gtk_grab_remove(entry);
+    return FALSE;
+}
+
 static void _create_entry(DeepinShadowWorkspace* self)
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
@@ -607,7 +639,16 @@ static void _create_entry(DeepinShadowWorkspace* self)
             (priv->fixed_width - alloc.width)/2, 
             priv->fixed_height + WORKSPACE_NAME_DISTANCE + alloc.height/2);
 
+    gtk_widget_add_events(w, GDK_ENTER_NOTIFY_MASK|GDK_LEAVE_NOTIFY_MASK);
+    g_object_connect(G_OBJECT(w),
+            "signal::button-press-event", on_entry_pressed, NULL,
+            "signal::enter-notify-event", on_entry_entered, NULL,
+            "signal::leave-notify-event", on_entry_leaved, NULL,
+            "signal::key-press-event", on_entry_key_pressed, NULL,
+            NULL);
+
     gtk_widget_show(w);
+
     priv->entry = w;
 }
 
@@ -625,6 +666,7 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
         MetaWindow* win = (MetaWindow*)l->data;
         if (win->type == META_WINDOW_NORMAL) {
             GtkWidget* widget = meta_deepin_cloned_widget_new(win);
+            gtk_widget_set_sensitive(widget, TRUE);
             g_ptr_array_add(priv->clones, widget);
 
             MetaRectangle r;
@@ -662,6 +704,34 @@ static void on_deepin_shadow_workspace_show(DeepinShadowWorkspace* self, gpointe
     g_idle_add((GSourceFunc)on_idle, self);
 }
 
+static gboolean on_deepin_shadow_workspace_pressed(DeepinShadowWorkspace* self,
+               GdkEvent* event, gpointer user_data)
+{
+    g_message("%s: %s", __func__, meta_workspace_get_name(self->priv->workspace));
+    return FALSE;
+}
+
+static gboolean on_deepin_shadow_workspace_leaved(DeepinShadowWorkspace* self,
+               GdkEvent* event, gpointer user_data)
+{
+    g_message("%s: %s", __func__, meta_workspace_get_name(self->priv->workspace));
+    return FALSE;
+}
+
+static gboolean on_deepin_shadow_workspace_entered(DeepinShadowWorkspace* self,
+               GdkEvent* event, gpointer user_data)
+{
+    g_message("%s: %s", __func__, meta_workspace_get_name(self->priv->workspace));
+    return FALSE;
+}
+
+static gboolean on_deepin_shadow_workspace_motion(DeepinShadowWorkspace* self,
+               GdkEvent* event, gpointer user_data)
+{
+    /*g_message("%s: %s", __func__, meta_workspace_get_name(self->priv->workspace));*/
+    return FALSE;
+}
+
 GtkWidget* deepin_shadow_workspace_new(void)
 {
     DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)g_object_new(
@@ -675,9 +745,14 @@ GtkWidget* deepin_shadow_workspace_new(void)
     GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(self));
     gtk_style_context_set_state (context, GTK_STATE_FLAG_NORMAL);
     deepin_setup_style_class(GTK_WIDGET(self), "deepin-workspace-clone"); 
-
-    g_signal_connect(G_OBJECT(self), "show",
-            (GCallback)on_deepin_shadow_workspace_show, NULL);
+    
+    g_object_connect(G_OBJECT(self),
+            "signal::show", on_deepin_shadow_workspace_show, NULL,
+            "signal::button-press-event", on_deepin_shadow_workspace_pressed, NULL,
+            "signal::enter-notify-event", on_deepin_shadow_workspace_entered, NULL,
+            "signal::leave-notify-event", on_deepin_shadow_workspace_leaved, NULL,
+            "signal::motion-notify-event", on_deepin_shadow_workspace_motion, NULL,
+            NULL);
 
     return (GtkWidget*)self;
 }
@@ -710,10 +785,27 @@ void deepin_shadow_workspace_set_current(DeepinShadowWorkspace* self,
     DeepinShadowWorkspacePrivate* priv = self->priv;
     priv->selected = val;
 
+    /*MetaDisplay* display = meta_get_display();*/
+    /*GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(display->xdisplay);*/
+    /*GdkDeviceManager* dev_man = gdk_display_get_device_manager(gdisplay);*/
+    /*GdkDevice* pointer = gdk_device_manager_get_client_pointer(dev_man);*/
+
+    /*if (gtk_widget_get_realized(self)) */
+        /*gtk_widget_realize(self);*/
+
+    /*if (val) {*/
+        /*gtk_device_grab_add(self, pointer, FALSE);*/
+    /*} else {*/
+        /*gtk_device_grab_remove(self, pointer);*/
+    /*}*/
+
     GtkStateFlags state = priv->selected? GTK_STATE_FLAG_SELECTED: GTK_STATE_FLAG_NORMAL;
     
     gtk_style_context_set_state(gtk_widget_get_style_context(GTK_WIDGET(self)), state);
-    gtk_style_context_set_state(gtk_widget_get_style_context(GTK_WIDGET(priv->entry)), state);
+    if (priv->entry) {
+        gtk_style_context_set_state(
+                gtk_widget_get_style_context(GTK_WIDGET(priv->entry)), state);
+    }
     gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
@@ -798,6 +890,8 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
         XEvent* event, KeySym keysym, MetaKeyBindingAction action)
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
+    GtkWidget* w = gtk_grab_get_current();
+    if (w && GTK_IS_ENTRY(w)) return;
 
     gboolean backward = FALSE;
     if (keysym == XK_Tab
@@ -822,6 +916,12 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
                 meta_window_activate(mw, event->xkey.time);
             }
         }
+    } else if (event->type == ButtonPress) {
+        MetaDisplay* display = meta_get_display();
+        GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(display->xdisplay);
+        GdkWindow* win = gdk_x11_window_lookup_for_display(gdisplay, event->xbutton.window);
+
+        g_message("%s button press on %x", __func__, event->xbutton.window);
     }
 }
 
