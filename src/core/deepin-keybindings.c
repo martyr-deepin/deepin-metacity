@@ -268,22 +268,6 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
     }
 }
 
-static gboolean on_top_event(GtkWidget* top, GdkEvent* ev, gpointer data)
-{
-    switch(ev->type) {
-        case GDK_BUTTON_PRESS:
-            g_message("%s: button press", __func__);
-            break;
-        case GDK_BUTTON_RELEASE:
-            g_message("%s: button release", __func__);
-            break;
-        case GDK_MOTION_NOTIFY:
-            break;
-        default: break;
-    }
-    return FALSE;
-}
-
 static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
         MetaWindow *window, XEvent *event,
         MetaKeyBinding *binding, gpointer user_data)
@@ -329,11 +313,7 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
         gtk_container_add(GTK_CONTAINER(top), (GtkWidget*)active_workspace);
         gtk_widget_show_all(top);
 
-        gtk_widget_add_events(top, GDK_ALL_EVENTS_MASK);
-        gtk_widget_add_events(active_workspace, GDK_ALL_EVENTS_MASK);
-        g_object_connect(G_OBJECT(top),
-                "signal::event", on_top_event, NULL,
-                NULL);
+        _do_grab(screen, top, FALSE);
     }
 }
 

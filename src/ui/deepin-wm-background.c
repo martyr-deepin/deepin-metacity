@@ -247,23 +247,17 @@ static gboolean on_deepin_wm_background_event(DeepinWMBackground* self,
         case GDK_BUTTON_RELEASE:
             break;
         case GDK_KEY_PRESS:
-            if (w && GTK_IS_ENTRY(w)) {
-                break;
-            }
-            return TRUE;
-
         case GDK_KEY_RELEASE:
-            if (w && GTK_IS_ENTRY(w)) {
-                break;
-            }
+            /*if (w && GTK_IS_ENTRY(w)) {*/
+                /*break;*/
+            /*}*/
             return TRUE;
 
-        /*case GDK_MOTION_NOTIFY:*/
-            /*g_message("%s: motion notify", __func__);*/
-            /*break;*/
         default: break;
     }
 
+    if (priv->active_workspace && gtk_widget_get_realized(priv->active_workspace))
+        return gtk_widget_event(GTK_WIDGET(priv->active_workspace), ev);
     return FALSE;
 }
 

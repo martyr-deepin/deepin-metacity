@@ -90,6 +90,8 @@ static const float WORKSPACE_WIDTH_PERCENT = 0.12f;
  */
 static const float SPACING_PERCENT = 0.02f;
 
+static const int CLOSE_BUTTON_SIZE = 31;
+
 //const int ANIMATION_DURATION = 500;
 //const AnimationMode ANIMATION_MODE = AnimationMode.EASE_OUT_QUAD;
 

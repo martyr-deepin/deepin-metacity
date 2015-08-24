@@ -45,10 +45,12 @@ struct _MetaDeepinClonedWidgetClass
   GtkWidgetClass parent_class;
 };
 
-GType      meta_deepin_cloned_widget_get_type (void) G_GNUC_CONST;
-GtkWidget *meta_deepin_cloned_widget_new      (MetaWindow*);
-void       meta_deepin_cloned_widget_select   (MetaDeepinClonedWidget *);
-void       meta_deepin_cloned_widget_unselect (MetaDeepinClonedWidget *);
+GType meta_deepin_cloned_widget_get_type(void) G_GNUC_CONST;
+GtkWidget *meta_deepin_cloned_widget_new(MetaWindow*);
+void meta_deepin_cloned_widget_select(MetaDeepinClonedWidget *);
+void meta_deepin_cloned_widget_unselect(MetaDeepinClonedWidget *);
+
+gboolean meta_deepin_cloned_widget_is_mouse_over(MetaDeepinClonedWidget*);
 
 /* for animation */
 void meta_deepin_cloned_widget_set_scale(MetaDeepinClonedWidget*, gdouble, gdouble);
@@ -70,6 +72,7 @@ void meta_deepin_cloned_widget_translate_x(MetaDeepinClonedWidget*, gdouble);
 void meta_deepin_cloned_widget_translate_y(MetaDeepinClonedWidget*, gdouble);
 
 void meta_deepin_cloned_widget_set_size(MetaDeepinClonedWidget*, gdouble, gdouble);
+void meta_deepin_cloned_widget_get_size(MetaDeepinClonedWidget*, gdouble*, gdouble*);
 
 void meta_deepin_cloned_widget_set_render_frame(MetaDeepinClonedWidget*, gboolean);
 

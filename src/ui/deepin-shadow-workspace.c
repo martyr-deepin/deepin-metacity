@@ -44,14 +44,18 @@ struct _DeepinShadowWorkspacePrivate
     gint selected: 1; 
     gint freeze: 1; /* do not liveupdate when freezed */
     gint thumb_mode: 1; /* show name and no presentation */
+    gint ready: 1; /* if dynamic, this is set after presentation finished, 
+                      else, set when window placements are done */
 
     gint fixed_width, fixed_height;
     gdouble scale; 
 
     GPtrArray* clones;
+    MetaDeepinClonedWidget* hovered_clone;
     MetaWorkspace* workspace;
 
     GtkWidget* entry;
+    GtkWidget* close_button;
     MetaDeepinClonedWidget* window_need_focused;
 };
 
@@ -87,7 +91,10 @@ static ClonedPrivateInfo* clone_get_info(MetaDeepinClonedWidget* w)
 
 static void on_window_placed(MetaDeepinClonedWidget* clone, gpointer data)
 {
+    static int placement_count = 0;
+
     ClonedPrivateInfo* info = clone_get_info(clone);
+    DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
 
     GtkRequisition req;
     gtk_widget_get_preferred_size(GTK_WIDGET(clone), &req, NULL);
@@ -99,6 +106,10 @@ static void on_window_placed(MetaDeepinClonedWidget* clone, gpointer data)
 
     meta_deepin_cloned_widget_set_size(clone, req.width, req.height);
     g_signal_handlers_disconnect_by_func(clone, on_window_placed, data); 
+
+    if (++placement_count >= self->priv->clones->len) {
+        self->priv->ready = TRUE;
+    }
 }
 
 G_DEFINE_TYPE (DeepinShadowWorkspace, deepin_shadow_workspace, DEEPIN_TYPE_FIXED);
@@ -120,7 +131,7 @@ static void place_window(DeepinShadowWorkspace* self,
             self->priv->dynamic);
 
     g_signal_connect(G_OBJECT(clone), "transition-finished", 
-            (GCallback)on_window_placed, info);
+            (GCallback)on_window_placed, self);
 
     if (self->priv->dynamic) {
         meta_deepin_cloned_widget_set_scale(clone, 1.0, 1.0);
@@ -387,6 +398,10 @@ static void natural_placement (DeepinShadowWorkspace* self, MetaRectangle area)
 
     g_free(directions);
     g_free(rects);
+
+    if (!priv->dynamic) {
+        priv->ready = TRUE;
+    }
 }
 
 static int padding_top  = 12;
@@ -599,7 +614,7 @@ static gboolean on_entry_pressed(GtkWidget* entry,
 {
     g_message("%s", __func__);
     gtk_grab_add(entry);
-    gtk_entry_grab_focus_without_selecting(entry);
+    gtk_entry_grab_focus_without_selecting(GTK_ENTRY(entry));
     return FALSE;
 }
 
@@ -607,6 +622,7 @@ static gboolean on_entry_key_pressed(GtkWidget* entry,
                GdkEvent* event, gpointer user_data)
 {
     g_message("%s", __func__);
+    if (event->key.keyval == GDK_KEY_Tab) return TRUE;
     return FALSE;
 }
 
@@ -652,6 +668,93 @@ static void _create_entry(DeepinShadowWorkspace* self)
     priv->entry = w;
 }
 
+// propagate from cloned
+static gboolean on_deepin_cloned_widget_leaved(MetaDeepinClonedWidget* cloned,
+               GdkEvent* event, gpointer data)
+{
+    DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
+    if (!self->priv->ready) return FALSE;
+
+    if (self->priv->thumb_mode) {
+        return FALSE;
+    }
+
+    /* FIXME: there is a problem: when cloned is gets focused (so scaled up),
+     * leave event will looks like as if it happened inside of cloned. need
+     * a workaround */
+    gint x, y;
+    x = event->crossing.x_root;
+    y = event->crossing.y_root;
+
+    GtkAllocation alloc;
+    gtk_widget_get_allocation(GTK_WIDGET(cloned), &alloc);
+
+    GdkRectangle r = {alloc.x, alloc.y, alloc.width, alloc.height};
+    if (x > r.x && x < r.x + r.width && y > r.y && y < r.y + r.height) {
+        return FALSE;
+    }
+
+    self->priv->hovered_clone = NULL;
+
+    gtk_widget_set_opacity(self->priv->close_button, 0.0);
+    deepin_fixed_move(DEEPIN_FIXED(self), self->priv->close_button,
+            -100, -100,
+            FALSE);
+    return TRUE;
+}
+
+// propagate from cloned
+static gboolean on_deepin_cloned_widget_entered(MetaDeepinClonedWidget* cloned,
+               GdkEvent* event, gpointer data)
+{
+    DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
+    if (!self->priv->ready) return FALSE;
+
+    if (!self->priv->thumb_mode) {
+        self->priv->hovered_clone = cloned;
+
+        GtkAllocation alloc;
+        gtk_widget_get_allocation(GTK_WIDGET(cloned), &alloc);
+
+        gint x = 0, y = 0;
+        gtk_container_child_get(GTK_CONTAINER(self), GTK_WIDGET(cloned),
+                "x", &x, "y", &y, NULL);
+
+        gdouble sx = 1.0;
+        meta_deepin_cloned_widget_get_scale(cloned, &sx, NULL);
+
+        /* FIXME: when cloned gets focused (scaled up), need to change button
+         * position acoordingly */
+        deepin_fixed_move(DEEPIN_FIXED(self), self->priv->close_button,
+                x + alloc.width * sx /2,
+                y - alloc.height * sx /2,
+                FALSE);
+                
+        gtk_widget_set_opacity(self->priv->close_button, 1.0);
+    }
+    return TRUE;
+}
+
+static gboolean on_close_button_clicked(GtkWidget* widget,
+               GdkEvent* event, gpointer data)
+{
+    g_message("%s", __func__);
+    DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
+    if (!self->priv->ready) return FALSE;
+    return FALSE;
+}
+
+static gboolean on_close_button_leaved(GtkWidget* widget,
+               GdkEvent* event, gpointer data)
+{
+    g_message("%s", __func__);
+    DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
+
+    if (!self->priv->hovered_clone) return FALSE;
+    // redirect to hover window
+    return on_deepin_cloned_widget_leaved(self->priv->hovered_clone, event, data);
+}
+
 void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
         MetaWorkspace* ws)
 {
@@ -680,6 +783,11 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
             deepin_fixed_put(DEEPIN_FIXED(self), widget,
                     r.x * priv->scale + w/2,
                     r.y * priv->scale + h/2);
+
+            g_object_connect(G_OBJECT(widget),
+                    "signal::enter-notify-event", on_deepin_cloned_widget_entered, self,
+                    "signal::leave-notify-event", on_deepin_cloned_widget_leaved, self,
+                    NULL);
         }
 
 
@@ -690,6 +798,25 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
     if (priv->thumb_mode && !priv->entry) {
         _create_entry(self);
     }
+
+    if (!priv->thumb_mode) {
+        priv->close_button = gtk_event_box_new();
+        gtk_event_box_set_above_child(GTK_EVENT_BOX(priv->close_button), FALSE);
+        gtk_event_box_set_visible_window(GTK_EVENT_BOX(priv->close_button), FALSE);
+
+        GtkWidget* image = gtk_image_new_from_file(METACITY_PKGDATADIR "/close.png");
+        gtk_container_add(GTK_CONTAINER(priv->close_button), image);
+
+        deepin_fixed_put(DEEPIN_FIXED(self), priv->close_button, 0, 0);
+        gdk_window_lower(gtk_widget_get_window(priv->close_button));
+        gtk_widget_set_opacity(self->priv->close_button, 0.0);
+        
+        g_object_connect(G_OBJECT(priv->close_button), 
+                "signal::leave-notify-event", on_close_button_leaved, self,
+                "signal::button-release-event", on_close_button_clicked, self,
+                NULL);
+    }
+
     gtk_widget_queue_resize(GTK_WIDGET(self));
 }
 
@@ -711,24 +838,12 @@ static gboolean on_deepin_shadow_workspace_pressed(DeepinShadowWorkspace* self,
     return FALSE;
 }
 
-static gboolean on_deepin_shadow_workspace_leaved(DeepinShadowWorkspace* self,
-               GdkEvent* event, gpointer user_data)
-{
-    g_message("%s: %s", __func__, meta_workspace_get_name(self->priv->workspace));
-    return FALSE;
-}
-
-static gboolean on_deepin_shadow_workspace_entered(DeepinShadowWorkspace* self,
-               GdkEvent* event, gpointer user_data)
-{
-    g_message("%s: %s", __func__, meta_workspace_get_name(self->priv->workspace));
-    return FALSE;
-}
-
 static gboolean on_deepin_shadow_workspace_motion(DeepinShadowWorkspace* self,
                GdkEvent* event, gpointer user_data)
 {
-    /*g_message("%s: %s", __func__, meta_workspace_get_name(self->priv->workspace));*/
+    /*g_message("%s: %s at (%f, %f)", __func__,*/
+            /*meta_workspace_get_name(self->priv->workspace),*/
+            /*event->motion.x, event->motion.y);*/
     return FALSE;
 }
 
@@ -749,8 +864,6 @@ GtkWidget* deepin_shadow_workspace_new(void)
     g_object_connect(G_OBJECT(self),
             "signal::show", on_deepin_shadow_workspace_show, NULL,
             "signal::button-press-event", on_deepin_shadow_workspace_pressed, NULL,
-            "signal::enter-notify-event", on_deepin_shadow_workspace_entered, NULL,
-            "signal::leave-notify-event", on_deepin_shadow_workspace_leaved, NULL,
             "signal::motion-notify-event", on_deepin_shadow_workspace_motion, NULL,
             NULL);
 
@@ -784,20 +897,6 @@ void deepin_shadow_workspace_set_current(DeepinShadowWorkspace* self,
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
     priv->selected = val;
-
-    /*MetaDisplay* display = meta_get_display();*/
-    /*GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(display->xdisplay);*/
-    /*GdkDeviceManager* dev_man = gdk_display_get_device_manager(gdisplay);*/
-    /*GdkDevice* pointer = gdk_device_manager_get_client_pointer(dev_man);*/
-
-    /*if (gtk_widget_get_realized(self)) */
-        /*gtk_widget_realize(self);*/
-
-    /*if (val) {*/
-        /*gtk_device_grab_add(self, pointer, FALSE);*/
-    /*} else {*/
-        /*gtk_device_grab_remove(self, pointer);*/
-    /*}*/
 
     GtkStateFlags state = priv->selected? GTK_STATE_FLAG_SELECTED: GTK_STATE_FLAG_NORMAL;
     
@@ -890,6 +989,8 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
         XEvent* event, KeySym keysym, MetaKeyBindingAction action)
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
+    if (!priv->ready) return;
+
     GtkWidget* w = gtk_grab_get_current();
     if (w && GTK_IS_ENTRY(w)) return;
 
@@ -928,5 +1029,15 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
 MetaWorkspace* deepin_shadow_workspace_get_workspace(DeepinShadowWorkspace* self)
 {
     return self->priv->workspace;
+}
+
+gboolean deepin_shadow_workspace_get_is_thumb_mode(DeepinShadowWorkspace* self)
+{
+    return self->priv->thumb_mode;
+}
+
+gboolean deepin_shadow_workspace_get_is_current(DeepinShadowWorkspace* self)
+{
+    return self->priv->selected;
 }
 

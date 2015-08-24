@@ -27,6 +27,7 @@
 #include "deepin-design.h"
 #include "deepin-stackblur.h"
 #include "deepin-ease.h"
+#include "deepin-shadow-workspace.h"
 
 /* target values for animation */
 typedef struct _AnimationInfo 
@@ -67,11 +68,16 @@ typedef struct _MetaDeepinClonedWidgetPrivate
 
     int render_background: 1;
     int render_frame: 1;
+    int mouse_over: 1;
 
     MetaWindow* meta_window;
     cairo_surface_t* snapshot;
 
     GtkRequisition real_size;
+
+    GdkWindow* event_window;
+
+    GtkWidget* close_button;
 } MetaDeepinClonedWidgetPrivate;
 
 enum {
@@ -88,6 +94,8 @@ enum {
 enum
 {
     SIGNAL_TRANSITION_FINISHED,
+    SIGNAL_ENTERED,
+    SIGNAL_LEAVED,
     N_SIGNALS
 };
 
@@ -364,6 +372,13 @@ static void meta_deepin_cloned_widget_size_allocate(GtkWidget* widget,
     MetaDeepinClonedWidgetPrivate* priv = META_DEEPIN_CLONED_WIDGET(widget)->priv;
     gtk_widget_set_allocation(widget, allocation);
 
+    if (gtk_widget_get_realized (widget))
+        gdk_window_move_resize (priv->event_window,
+                allocation->x,
+                allocation->y,
+                allocation->width,
+                allocation->height);
+
     /* FIXME: calculate expaned according to scale, translate, and rotate */
     GtkAllocation expanded;
 
@@ -423,6 +438,102 @@ static void meta_deepin_cloned_widget_init (MetaDeepinClonedWidget *self)
             NULL);
 }
 
+static void meta_deepin_cloned_widget_realize (GtkWidget *widget)
+{
+    MetaDeepinClonedWidget *self = META_DEEPIN_CLONED_WIDGET (widget);
+    MetaDeepinClonedWidgetPrivate *priv = self->priv;
+    GtkAllocation allocation;
+    GdkWindow *window;
+    GdkWindowAttr attributes;
+    gint attributes_mask;
+
+    gtk_widget_get_allocation (widget, &allocation);
+
+    gtk_widget_set_realized (widget, TRUE);
+
+    attributes.window_type = GDK_WINDOW_CHILD;
+    attributes.x = allocation.x;
+    attributes.y = allocation.y;
+    attributes.width = allocation.width;
+    attributes.height = allocation.height;
+    attributes.wclass = GDK_INPUT_ONLY;
+    attributes.event_mask = gtk_widget_get_events (widget);
+    attributes.event_mask |= (GDK_BUTTON_PRESS_MASK |
+            GDK_BUTTON_RELEASE_MASK |
+            GDK_ENTER_NOTIFY_MASK |
+            GDK_LEAVE_NOTIFY_MASK);
+
+    attributes_mask = GDK_WA_X | GDK_WA_Y;
+
+    window = gtk_widget_get_parent_window (widget);
+    gtk_widget_set_window (widget, window);
+    g_object_ref (window);
+
+    priv->event_window = gdk_window_new (window,
+            &attributes, attributes_mask);
+    gtk_widget_register_window (widget, priv->event_window);
+}
+
+static void meta_deepin_cloned_widget_unrealize (GtkWidget *widget)
+{
+    MetaDeepinClonedWidget *self = META_DEEPIN_CLONED_WIDGET (widget);
+    MetaDeepinClonedWidgetPrivate *priv = self->priv;
+
+    if (priv->event_window) {
+        gtk_widget_unregister_window (widget, priv->event_window);
+        gdk_window_destroy (priv->event_window);
+        priv->event_window = NULL;
+    }
+
+    GTK_WIDGET_CLASS (meta_deepin_cloned_widget_parent_class)->unrealize (widget);
+}
+
+static void meta_deepin_cloned_widget_map (GtkWidget *widget)
+{
+    MetaDeepinClonedWidget *self = META_DEEPIN_CLONED_WIDGET (widget);
+    MetaDeepinClonedWidgetPrivate *priv = self->priv;
+
+    GTK_WIDGET_CLASS (meta_deepin_cloned_widget_parent_class)->map (widget);
+
+    if (priv->event_window)
+        gdk_window_show (priv->event_window);
+}
+
+static void meta_deepin_cloned_widget_unmap (GtkWidget *widget)
+{
+    MetaDeepinClonedWidget *self = META_DEEPIN_CLONED_WIDGET (widget);
+    MetaDeepinClonedWidgetPrivate *priv = self->priv;
+
+    if (priv->event_window) {
+        gdk_window_hide (priv->event_window);
+    }
+
+    GTK_WIDGET_CLASS (meta_deepin_cloned_widget_parent_class)->unmap (widget);
+}
+
+static gboolean meta_deepin_cloned_widget_enter_notify (GtkWidget *widget,
+			 GdkEventCrossing *event)
+{
+    MetaDeepinClonedWidget *self = META_DEEPIN_CLONED_WIDGET (widget);
+    MetaDeepinClonedWidgetPrivate *priv = self->priv;
+
+    priv->mouse_over = TRUE;
+    g_signal_emit(self, signals[SIGNAL_ENTERED], 0);
+
+    return FALSE;
+}
+
+static gboolean meta_deepin_cloned_widget_leave_notify (GtkWidget *widget,
+        GdkEventCrossing *event)
+{
+    MetaDeepinClonedWidget *self = META_DEEPIN_CLONED_WIDGET (widget);
+    MetaDeepinClonedWidgetPrivate *priv = self->priv;
+
+    priv->mouse_over = FALSE;
+    g_signal_emit(self, signals[SIGNAL_LEAVED], 0);
+    return FALSE;
+}
+
 static void meta_deepin_cloned_widget_class_init (MetaDeepinClonedWidgetClass *klass)
 {
     GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
@@ -432,6 +543,12 @@ static void meta_deepin_cloned_widget_class_init (MetaDeepinClonedWidgetClass *k
     widget_class->get_preferred_width = meta_deepin_cloned_widget_get_preferred_width;
     widget_class->get_preferred_height = meta_deepin_cloned_widget_get_preferred_height;
     widget_class->size_allocate = meta_deepin_cloned_widget_size_allocate;
+    widget_class->realize = meta_deepin_cloned_widget_realize;
+    widget_class->unrealize = meta_deepin_cloned_widget_unrealize;
+    widget_class->map = meta_deepin_cloned_widget_map;
+    widget_class->unmap = meta_deepin_cloned_widget_unmap;
+    widget_class->enter_notify_event = meta_deepin_cloned_widget_enter_notify;
+    widget_class->leave_notify_event = meta_deepin_cloned_widget_leave_notify;
 
     gobject_class->set_property = meta_deepin_cloned_widget_set_property;
     gobject_class->get_property = meta_deepin_cloned_widget_get_property;
@@ -472,6 +589,20 @@ static void meta_deepin_cloned_widget_class_init (MetaDeepinClonedWidgetClass *k
 
 
     signals[SIGNAL_TRANSITION_FINISHED] = g_signal_new ("transition-finished",
+            META_TYPE_DEEPIN_CLONED_WIDGET,
+            G_SIGNAL_RUN_LAST,
+            0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 0, NULL);
+
+    signals[SIGNAL_ENTERED] = g_signal_new ("entered",
+            META_TYPE_DEEPIN_CLONED_WIDGET,
+            G_SIGNAL_RUN_LAST,
+            0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 0, NULL);
+    
+    signals[SIGNAL_LEAVED] = g_signal_new ("leaved",
             META_TYPE_DEEPIN_CLONED_WIDGET,
             G_SIGNAL_RUN_LAST,
             0,
@@ -748,5 +879,17 @@ void meta_deepin_cloned_widget_set_render_frame(MetaDeepinClonedWidget* self,
     gboolean old = self->priv->render_frame;
     self->priv->render_frame = val;
     if (old != val) gtk_widget_queue_draw(GTK_WIDGET(self));
+}
+
+void meta_deepin_cloned_widget_get_size(MetaDeepinClonedWidget* self,
+        gdouble* w, gdouble* h)
+{
+    if (w) *w = self->priv->real_size.width;
+    if (h) *h = self->priv->real_size.height;
+}
+
+gboolean meta_deepin_cloned_widget_is_mouse_over(MetaDeepinClonedWidget* self)
+{
+    return self->priv->mouse_over;
 }
 
