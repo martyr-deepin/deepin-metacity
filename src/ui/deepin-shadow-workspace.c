@@ -703,6 +703,25 @@ static gboolean on_deepin_cloned_widget_leaved(MetaDeepinClonedWidget* cloned,
     return TRUE;
 }
 
+static void _move_close_button_for(DeepinShadowWorkspace* self,
+        MetaDeepinClonedWidget* cloned)
+{
+    GtkAllocation alloc;
+    gtk_widget_get_allocation(GTK_WIDGET(cloned), &alloc);
+
+    gint x = 0, y = 0;
+    gtk_container_child_get(GTK_CONTAINER(self), GTK_WIDGET(cloned),
+            "x", &x, "y", &y, NULL);
+
+    gdouble sx = 1.0;
+    meta_deepin_cloned_widget_get_scale(cloned, &sx, NULL);
+
+    deepin_fixed_move(DEEPIN_FIXED(self), self->priv->close_button,
+            x + alloc.width * sx /2,
+            y - alloc.height * sx /2,
+            FALSE);
+}
+
 // propagate from cloned
 static gboolean on_deepin_cloned_widget_entered(MetaDeepinClonedWidget* cloned,
                GdkEvent* event, gpointer data)
@@ -712,24 +731,7 @@ static gboolean on_deepin_cloned_widget_entered(MetaDeepinClonedWidget* cloned,
 
     if (!self->priv->thumb_mode) {
         self->priv->hovered_clone = cloned;
-
-        GtkAllocation alloc;
-        gtk_widget_get_allocation(GTK_WIDGET(cloned), &alloc);
-
-        gint x = 0, y = 0;
-        gtk_container_child_get(GTK_CONTAINER(self), GTK_WIDGET(cloned),
-                "x", &x, "y", &y, NULL);
-
-        gdouble sx = 1.0;
-        meta_deepin_cloned_widget_get_scale(cloned, &sx, NULL);
-
-        /* FIXME: when cloned gets focused (scaled up), need to change button
-         * position acoordingly */
-        deepin_fixed_move(DEEPIN_FIXED(self), self->priv->close_button,
-                x + alloc.width * sx /2,
-                y - alloc.height * sx /2,
-                FALSE);
-                
+        _move_close_button_for(self, cloned);
         gtk_widget_set_opacity(self->priv->close_button, 1.0);
     }
     return TRUE;
@@ -931,6 +933,16 @@ void deepin_shadow_workspace_set_thumb_mode(DeepinShadowWorkspace* self,
     }
 }
 
+static void on_deepin_shadow_workspace_focus_finished(
+        MetaDeepinClonedWidget* clone, gpointer data)
+{
+    DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
+    _move_close_button_for(self, clone);
+
+    g_signal_handlers_disconnect_by_func(clone, 
+            on_deepin_shadow_workspace_focus_finished, data); 
+}
+
 void deepin_shadow_workspace_focus_next(DeepinShadowWorkspace* self,
         gboolean backward)
 {
@@ -965,6 +977,12 @@ void deepin_shadow_workspace_focus_next(DeepinShadowWorkspace* self,
             scale = 1.0;
             meta_deepin_cloned_widget_set_scale(priv->window_need_focused, scale, scale);
             meta_deepin_cloned_widget_unselect(priv->window_need_focused);
+            if (priv->hovered_clone == priv->window_need_focused) {
+                g_signal_connect(G_OBJECT(priv->window_need_focused),
+                        "transition-finished", 
+                        (GCallback)on_deepin_shadow_workspace_focus_finished,
+                        self);
+            }
         }
 
         MetaDeepinClonedWidget* next = g_ptr_array_index(clones, i);
@@ -975,6 +993,10 @@ void deepin_shadow_workspace_focus_next(DeepinShadowWorkspace* self,
         meta_deepin_cloned_widget_set_scale(next, scale, scale);
         meta_deepin_cloned_widget_select(next);
 
+        if (priv->hovered_clone == next) {
+            g_signal_connect(G_OBJECT(next), "transition-finished", 
+                    (GCallback)on_deepin_shadow_workspace_focus_finished, self);
+        }
         priv->window_need_focused = next;
     }
 }
