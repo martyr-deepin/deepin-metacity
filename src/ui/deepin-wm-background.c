@@ -141,7 +141,7 @@ void deepin_wm_background_switch_workspace(DeepinWMBackground* self,
     }
 }
 
-static void deepin_wm_background_setup(DeepinWMBackground* self)
+void deepin_wm_background_setup(DeepinWMBackground* self)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
 
@@ -290,7 +290,6 @@ GtkWidget* deepin_wm_background_new(MetaScreen* screen)
             NULL);
 
     self->priv->screen = screen;
-    deepin_wm_background_setup(self);
     return widget;
 }
 

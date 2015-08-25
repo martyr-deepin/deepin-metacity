@@ -59,6 +59,7 @@ void deepin_wm_background_handle_event(DeepinWMBackground* self, XEvent* event,
         KeySym keysym, MetaKeyBindingAction action);
 void deepin_wm_background_switch_workspace(DeepinWMBackground* self, 
         MetaWorkspace* next, MetaMotionDirection dir);
+void deepin_wm_background_setup(DeepinWMBackground* self);
 
 G_END_DECLS
 

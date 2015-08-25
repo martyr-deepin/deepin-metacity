@@ -32,6 +32,7 @@
 #include "window-private.h"
 #include "deepin-shadow-workspace.h"
 #include "deepin-window-surface-manager.h"
+#include "deepin-wm-background.h"
 
 static unsigned int get_primary_modifier (MetaDisplay *display,
         unsigned int entire_binding_mask)
@@ -260,6 +261,7 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
             return;
         }
 
+        deepin_wm_background_setup(screen->ws_previewer);
         gtk_widget_show_all(GTK_WIDGET(screen->ws_previewer));
         gtk_window_move(GTK_WINDOW(screen->ws_previewer), 0, 0);
 
