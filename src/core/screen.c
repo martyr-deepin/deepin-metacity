@@ -44,6 +44,8 @@
 #include <X11/extensions/Xinerama.h>
 #endif
 
+#include <X11/extensions/XInput2.h>
+
 #include <X11/Xatom.h>
 #include <locale.h>
 #include <string.h>
@@ -325,6 +327,58 @@ reload_xinerama_infos (MetaScreen *screen)
   g_assert (screen->xinerama_infos != NULL);
 }
 
+/* The guard window allows us to leave minimized windows mapped so
+ * that compositor code may provide live previews of them.
+ * Instead of being unmapped/withdrawn, they get pushed underneath
+ * the guard window. We also select events on the guard window, which
+ * should effectively be forwarded to events on the background actor,
+ * providing that the scene graph is set up correctly.
+ */
+static Window
+create_guard_window (Display *xdisplay, MetaScreen *screen)
+{
+  XSetWindowAttributes attributes;
+  Window guard_window;
+  gulong create_serial;
+
+  attributes.event_mask = NoEventMask;
+  attributes.override_redirect = True;
+
+  /* We have to call record_add() after we have the new window ID,
+   * so save the serial for the CreateWindow request until then */
+  create_serial = XNextRequest(xdisplay);
+  guard_window =
+    XCreateWindow (xdisplay,
+		   screen->xroot,
+		   0, /* x */
+		   0, /* y */
+		   screen->rect.width,
+		   screen->rect.height,
+		   0, /* border width */
+		   0, /* depth */
+		   InputOnly, /* class */
+		   CopyFromParent, /* visual */
+		   CWEventMask|CWOverrideRedirect,
+		   &attributes);
+
+  /* https://bugzilla.gnome.org/show_bug.cgi?id=710346 */
+  XStoreName (xdisplay, guard_window, "deepin metacity guard window");
+
+  {
+    unsigned char mask_bits[XIMaskLen (XI_LASTEVENT)] = { 0 };
+    XIEventMask mask = { XIAllMasterDevices, sizeof (mask_bits), mask_bits };
+
+    XISetMask (mask.mask, XI_ButtonPress);
+    XISetMask (mask.mask, XI_ButtonRelease);
+    XISetMask (mask.mask, XI_Motion);
+    XISelectEvents (xdisplay, guard_window, &mask, 1);
+  }
+
+  XLowerWindow (xdisplay, guard_window);
+  XMapWindow (xdisplay, guard_window);
+  return guard_window;
+}
+
 MetaScreen*
 meta_screen_new (MetaDisplay *display,
                  int          number,
@@ -504,6 +558,7 @@ meta_screen_new (MetaDisplay *display,
   screen->vertical_workspaces = FALSE;
   screen->starting_corner = META_SCREEN_TOPLEFT;
   screen->compositor_data = NULL;
+  screen->guard_window = None;
 
   {
     XFontStruct *font_info;
@@ -772,6 +827,9 @@ meta_screen_manage_all_windows (MetaScreen *screen)
   GList *windows;
   GList *list;
 
+  if (screen->guard_window == None)
+    screen->guard_window = create_guard_window (screen->display->xdisplay,
+                                                screen);
   meta_display_grab (screen->display);
 
   windows = list_windows (screen);
@@ -2399,6 +2457,22 @@ meta_screen_resize (MetaScreen *screen,
 {
   screen->rect.width = width;
   screen->rect.height = height;
+
+  /* Resize the guard window to fill the screen again. */
+  if (screen->guard_window != None)
+    {
+      XWindowChanges changes;
+
+      changes.x = 0;
+      changes.y = 0;
+      changes.width = screen->rect.width;
+      changes.height = screen->rect.height;
+
+      XConfigureWindow(screen->display->xdisplay,
+                       screen->guard_window,
+                       CWX | CWY | CWWidth | CWHeight,
+                       &changes);
+    }
 
   reload_xinerama_infos (screen);
   set_desktop_geometry_hint (screen);

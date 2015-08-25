@@ -14,7 +14,7 @@ libdeepin_metacity_private_la_CFLAGS =
 libdeepin_metacity_private_la_SOURCES=			\
 	core/async-getprop.c			\
 	core/async-getprop.h			\
-	core/atomnames.h                        \
+	core/atomnames.h                \
 	core/bell.c				\
 	core/bell.h				\
 	core/boxes.c				\
@@ -27,10 +27,10 @@ libdeepin_metacity_private_la_SOURCES=			\
 	core/above-tab-keycode.c		\
 	core/constraints.c			\
 	core/constraints.h			\
-	core/core.c				\
+	core/core.c					\
 	core/delete.c				\
 	core/display.c				\
-	core/display-private.h			\
+	core/display-private.h		\
 	include/display.h			\
 	ui/draw-workspace.c			\
 	ui/draw-workspace.h			\
@@ -43,11 +43,11 @@ libdeepin_metacity_private_la_SOURCES=			\
 	core/eventqueue.c			\
 	core/eventqueue.h			\
 	core/frame.c				\
-	core/frame-private.h			\
+	core/frame-private.h		\
 	include/frame.h				\
 	ui/gradient.c				\
 	ui/gradient.h				\
-	core/group-private.h			\
+	core/group-private.h		\
 	core/group-props.c			\
 	core/group-props.h			\
 	core/group.c				\
@@ -58,27 +58,27 @@ libdeepin_metacity_private_la_SOURCES=			\
 	core/keybindings.h			\
 	core/deepin-keybindings.c   \
 	core/deepin-keybindings.h   \
-	core/main.c				\
+	core/main.c					\
 	include/main.h				\
-	core/metacity-Xatomtype.h		\
+	core/metacity-Xatomtype.h	\
 	core/place.c				\
 	core/place.h				\
 	core/prefs.c				\
 	include/prefs.h				\
 	core/screen.c				\
-	core/screen-private.h			\
+	core/screen-private.h		\
 	include/screen.h			\
-	include/types.h                         \
+	include/types.h             \
 	core/session.c				\
 	core/session.h				\
 	core/stack.c				\
 	core/stack.h				\
-	core/util.c				\
+	core/util.c					\
 	include/util.h				\
 	core/window-props.c			\
 	core/window-props.h			\
 	core/window.c				\
-	core/window-private.h			\
+	core/window-private.h		\
 	include/window.h			\
 	core/workspace.c			\
 	core/workspace.h			\
@@ -129,8 +129,8 @@ libdeepin_metacity_private_la_SOURCES=			\
 	include/deepin-window-surface-manager.h	\
 	ui/deepin-name-entry.c      \
 	include/deepin-name-entry.h \
-	ui/select-workspace.c			\
-	ui/select-workspace.h			\
+	ui/select-workspace.c		\
+	ui/select-workspace.h		\
 	ui/tile-preview.c			\
 	include/tile-preview.h		\
 	ui/theme-parser.c			\

@@ -156,6 +156,11 @@ struct _MetaWindow
   /* Whether we have to fullscreen after placement */
   guint fullscreen_after_placement : 1;
 
+  /* Whether window has been hidden from view by lowering it to the bottom
+   * of window stack.
+   */
+  guint hidden: 1;
+
   /* Area to cover when in fullscreen mode.  If _NET_WM_FULLSCREEN_MONITORS has
    * been overridden (via a client message), the window will cover the union of
    * these monitors.  If not, this is the single monitor which the window's

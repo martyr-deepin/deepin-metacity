@@ -264,6 +264,26 @@ meta_window_new_with_attrs (MetaDisplay       *display,
       return NULL;
     }
 
+  MetaScreen* screen = NULL;
+  for (tmp = display->screens; tmp != NULL; tmp = tmp->next)
+    {
+      MetaScreen *scr = (MetaScreen*)tmp->data;
+
+      if (scr->xroot == attrs->root)
+        {
+          screen = tmp->data;
+          break;
+        }
+    }
+
+  g_assert (screen);
+
+  if (xwindow == screen->guard_window) 
+    {
+      meta_verbose ("Not to manage screen guard window 0x%lx\n", xwindow);
+      return NULL;
+    }
+
   if (attrs->override_redirect)
     {
       meta_verbose ("Deciding not to manage override_redirect window 0x%lx\n", xwindow);
@@ -475,10 +495,11 @@ meta_window_new_with_attrs (MetaDisplay       *display,
   window->tab_unminimized = FALSE;
   window->iconic = FALSE;
   window->mapped = attrs->map_state != IsUnmapped;
+  window->hidden = FALSE;
   /* if already mapped, no need to worry about focus-on-first-time-showing */
   window->showing_for_first_time = !window->mapped;
   /* if already mapped we don't want to do the placement thing */
-  window->placed = window->mapped;
+  window->placed = window->mapped && !window->hidden;
   if (window->placed)
     meta_topic (META_DEBUG_PLACEMENT,
                 "Not placing window 0x%lx since it's already mapped\n",
@@ -2287,6 +2308,14 @@ meta_window_show (MetaWindow *window)
                                               NULL, NULL);
                 }
             }
+        } 
+
+      if (window->hidden)
+        {
+          meta_stack_freeze (window->screen->stack);
+          window->hidden = FALSE;
+          meta_stack_thaw (window->screen->stack);
+          did_show = TRUE;
         }
 
       if (window->iconic)
@@ -2350,6 +2379,7 @@ meta_window_hide (MetaWindow *window)
 
   did_hide = FALSE;
 
+#if 0
   if (window->frame && window->frame->mapped)
     {
       meta_topic (META_DEBUG_WINDOW_STATE, "Frame actually needs unmap\n");
@@ -2370,6 +2400,16 @@ meta_window_hide (MetaWindow *window)
       meta_error_trap_push (window->display);
       XUnmapWindow (window->display->xdisplay, window->xwindow);
       meta_error_trap_pop (window->display, FALSE);
+      did_hide = TRUE;
+    }
+#endif
+
+  if (!window->hidden)
+    {
+      meta_stack_freeze (window->screen->stack);
+      window->hidden = TRUE;
+      meta_stack_thaw (window->screen->stack);
+
       did_hide = TRUE;
     }
 
@@ -4317,7 +4357,7 @@ meta_window_focus (MetaWindow  *window,
 
   meta_window_flush_calc_showing (window);
 
-  if (!window->mapped && !window->shaded)
+  if ((!window->mapped || window->hidden) && !window->shaded)
     {
       meta_topic (META_DEBUG_FOCUS,
                   "Window %s is not showing, not focusing after all\n",
