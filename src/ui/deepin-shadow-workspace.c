@@ -46,6 +46,7 @@ struct _DeepinShadowWorkspacePrivate
     gint thumb_mode: 1; /* show name and no presentation */
     gint ready: 1; /* if dynamic, this is set after presentation finished, 
                       else, set when window placements are done */
+    gint animating: 1; /* placement animation is going on */
 
     gint fixed_width, fixed_height;
     gdouble scale; 
@@ -88,6 +89,34 @@ static ClonedPrivateInfo* clone_get_info(MetaDeepinClonedWidget* w)
     return info;
 }
 
+static void _hide_close_button(DeepinShadowWorkspace* self)
+{
+    if (self->priv->close_button) {
+        gtk_widget_set_opacity(self->priv->close_button, 0.0);
+        deepin_fixed_move(DEEPIN_FIXED(self), self->priv->close_button,
+                -100, -100,
+                FALSE);
+    }
+}
+
+static void _move_close_button_for(DeepinShadowWorkspace* self,
+        MetaDeepinClonedWidget* cloned)
+{
+    GtkAllocation alloc;
+    gtk_widget_get_allocation(GTK_WIDGET(cloned), &alloc);
+
+    gint x = 0, y = 0;
+    gtk_container_child_get(GTK_CONTAINER(self), GTK_WIDGET(cloned),
+            "x", &x, "y", &y, NULL);
+
+    gdouble sx = 1.0;
+    meta_deepin_cloned_widget_get_scale(cloned, &sx, NULL);
+
+    deepin_fixed_move(DEEPIN_FIXED(self), self->priv->close_button,
+            x + alloc.width * sx /2,
+            y - alloc.height * sx /2,
+            FALSE);
+}
 
 static void on_window_placed(MetaDeepinClonedWidget* clone, gpointer data)
 {
@@ -105,10 +134,16 @@ static void on_window_placed(MetaDeepinClonedWidget* clone, gpointer data)
             req.width, req.height);
 
     meta_deepin_cloned_widget_set_size(clone, req.width, req.height);
-    g_signal_handlers_disconnect_by_func(clone, on_window_placed, data); 
+    g_signal_handlers_disconnect_by_func(clone, (gpointer)on_window_placed, data); 
 
     if (++placement_count >= self->priv->clones->len) {
+        self->priv->animating = FALSE;
         self->priv->ready = TRUE;
+        placement_count = 0;
+        if (self->priv->hovered_clone) {
+            _move_close_button_for(self, self->priv->hovered_clone);
+            gtk_widget_set_opacity(self->priv->close_button, 1.0);
+        }
     }
 }
 
@@ -121,8 +156,8 @@ static void place_window(DeepinShadowWorkspace* self,
     gtk_widget_get_preferred_size(GTK_WIDGET(clone), &req, NULL);
 
     float fscale = (float)rect.width / req.width;
-    g_debug("%s: bound: %d,%d,%d,%d, scale %f", __func__,
-            rect.x, rect.y, rect.width, rect.height, fscale);
+    /*g_debug("%s: bound: %d,%d,%d,%d, scale %f", __func__,*/
+            /*rect.x, rect.y, rect.width, rect.height, fscale);*/
     ClonedPrivateInfo* info = clone_get_info(clone);
     info->init_scale = fscale;
 
@@ -420,8 +455,19 @@ static void calculate_places(DeepinShadowWorkspace* self)
             priv->fixed_height - padding_top - padding_bottom
         };
 
+        priv->animating = TRUE;
         natural_placement(self, area);
     }
+}
+
+static gboolean on_idle(DeepinShadowWorkspace* self)
+{
+    if (!self->priv->thumb_mode) {
+        if (self->priv->close_button) {
+        }
+        calculate_places(self);
+    }
+    return G_SOURCE_REMOVE;
 }
 
 static void deepin_shadow_workspace_init (DeepinShadowWorkspace *self)
@@ -648,7 +694,7 @@ static gboolean on_entry_key_pressed(GtkWidget* entry,
     if (event->key.keyval == GDK_KEY_Tab) 
         return TRUE;
 
-    if (event->key.keyval ==GDK_KEY_Return) {
+    if (event->key.keyval == GDK_KEY_Return) {
         const char* orig = meta_workspace_get_name(self->priv->workspace); 
         const char* new_name = gtk_entry_get_text(GTK_ENTRY(entry));
         if (!g_str_equal(new_name, orig)) {
@@ -732,31 +778,8 @@ static gboolean on_deepin_cloned_widget_leaved(MetaDeepinClonedWidget* cloned,
     }
 
     self->priv->hovered_clone = NULL;
-
-    gtk_widget_set_opacity(self->priv->close_button, 0.0);
-    deepin_fixed_move(DEEPIN_FIXED(self), self->priv->close_button,
-            -100, -100,
-            FALSE);
+    _hide_close_button(self);
     return TRUE;
-}
-
-static void _move_close_button_for(DeepinShadowWorkspace* self,
-        MetaDeepinClonedWidget* cloned)
-{
-    GtkAllocation alloc;
-    gtk_widget_get_allocation(GTK_WIDGET(cloned), &alloc);
-
-    gint x = 0, y = 0;
-    gtk_container_child_get(GTK_CONTAINER(self), GTK_WIDGET(cloned),
-            "x", &x, "y", &y, NULL);
-
-    gdouble sx = 1.0;
-    meta_deepin_cloned_widget_get_scale(cloned, &sx, NULL);
-
-    deepin_fixed_move(DEEPIN_FIXED(self), self->priv->close_button,
-            x + alloc.width * sx /2,
-            y - alloc.height * sx /2,
-            FALSE);
 }
 
 // propagate from cloned
@@ -768,8 +791,11 @@ static gboolean on_deepin_cloned_widget_entered(MetaDeepinClonedWidget* cloned,
 
     if (!self->priv->thumb_mode) {
         self->priv->hovered_clone = cloned;
-        _move_close_button_for(self, cloned);
-        gtk_widget_set_opacity(self->priv->close_button, 1.0);
+        /* delay show up if is animating */
+        if (!self->priv->animating) {
+            _move_close_button_for(self, cloned);
+            gtk_widget_set_opacity(self->priv->close_button, 1.0);
+        }
     }
     return TRUE;
 }
@@ -779,7 +805,21 @@ static gboolean on_close_button_clicked(GtkWidget* widget,
 {
     g_message("%s", __func__);
     DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
-    if (!self->priv->ready) return FALSE;
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+
+    if (!priv->ready) return FALSE;
+
+    MetaWindow* meta_window = meta_deepin_cloned_widget_get_window(priv->hovered_clone);
+    GtkWidget* clone = (GtkWidget*)priv->hovered_clone;
+    g_ptr_array_remove(priv->clones, clone);
+    gtk_container_remove(GTK_CONTAINER(self), clone);
+
+    meta_window_delete(meta_window, CurrentTime);
+
+    priv->hovered_clone = NULL;
+    _hide_close_button(self);
+
+    g_idle_add((GSourceFunc)on_idle, self);
     return FALSE;
 }
 
@@ -856,12 +896,6 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
     }
 
     gtk_widget_queue_resize(GTK_WIDGET(self));
-}
-
-static gboolean on_idle(DeepinShadowWorkspace* self)
-{
-    if (!self->priv->thumb_mode) calculate_places(self);
-    return G_SOURCE_REMOVE;
 }
 
 static void on_deepin_shadow_workspace_show(DeepinShadowWorkspace* self, gpointer data)
