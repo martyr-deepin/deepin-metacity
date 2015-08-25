@@ -25,16 +25,13 @@ struct _DeepinNameEntryPrivate
     gint disposed: 1;
 };
 
-
-
-
 G_DEFINE_TYPE (DeepinNameEntry, deepin_name_entry, GTK_TYPE_ENTRY);
 
-static void deepin_name_entry_init (DeepinNameEntry *deepin_name_entry)
+static void deepin_name_entry_init (DeepinNameEntry *self)
 {
-	deepin_name_entry->priv = G_TYPE_INSTANCE_GET_PRIVATE (deepin_name_entry, DEEPIN_TYPE_NAME_ENTRY, DeepinNameEntryPrivate);
+	self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, DEEPIN_TYPE_NAME_ENTRY,
+            DeepinNameEntryPrivate);
 
-	/* TODO: Add initialization code here */
 }
 
 static void deepin_name_entry_finalize (GObject *object)

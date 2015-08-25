@@ -612,32 +612,70 @@ static void deepin_shadow_workspace_class_init (DeepinShadowWorkspaceClass *klas
 static gboolean on_entry_pressed(GtkWidget* entry,
                GdkEvent* event, gpointer user_data)
 {
-    g_message("%s", __func__);
-    gtk_grab_add(entry);
-    gtk_entry_grab_focus_without_selecting(GTK_ENTRY(entry));
+    GdkEventButton evb = event->button;
+
+    if (!gtk_widget_has_grab(entry)) {
+        g_message("%s: grab", __func__);
+        gtk_grab_add(entry);
+        gtk_entry_grab_focus_without_selecting(GTK_ENTRY(entry));
+
+    } else {
+        gint x = evb.x_root, y = evb.y_root;
+        GtkAllocation alloc;
+        gtk_widget_get_allocation(entry, &alloc);
+
+        GdkRectangle r = {alloc.x, alloc.y, alloc.width, alloc.height};
+        if (x <= r.x || x >= r.x + r.width || y <= r.y || y >= r.y + r.height) {
+            g_message("%s: ungrab and replay", __func__);
+            /* hack: when click out side of entry, loose grab and replay click,
+             * incase some other entry was clicked and cannot get event */
+            if (gtk_widget_has_grab(entry)) {
+                gtk_grab_remove(entry);
+                GdkEvent* copy = gtk_get_current_event();
+                gdk_event_put(copy);
+                gdk_event_free(copy);
+            }
+        }
+    }
     return FALSE;
 }
 
 static gboolean on_entry_key_pressed(GtkWidget* entry,
-               GdkEvent* event, gpointer user_data)
+               GdkEvent* event, gpointer data)
 {
-    g_message("%s", __func__);
-    if (event->key.keyval == GDK_KEY_Tab) return TRUE;
+    DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
+
+    if (event->key.keyval == GDK_KEY_Tab) 
+        return TRUE;
+
+    if (event->key.keyval ==GDK_KEY_Return) {
+        const char* orig = meta_workspace_get_name(self->priv->workspace); 
+        const char* new_name = gtk_entry_get_text(GTK_ENTRY(entry));
+        if (!g_str_equal(new_name, orig)) {
+            int id = meta_workspace_index(self->priv->workspace);
+            meta_prefs_change_workspace_name(id, new_name);
+        }
+
+        if (gtk_widget_has_grab(entry)) {
+            gtk_grab_remove(entry);
+        }
+
+        GtkWidget* top = gtk_widget_get_toplevel(entry);
+        if (gtk_widget_is_toplevel(top)) {
+            gtk_window_set_focus(GTK_WINDOW(top), NULL);
+        }
+
+        return TRUE;
+    }
+
+    /* pass through to make keys work */
     return FALSE;
 }
 
-static gboolean on_entry_entered(GtkWidget* entry,
+static gboolean on_entry_focus_out(GtkWidget* entry,
                GdkEvent* event, gpointer user_data)
 {
     g_message("%s", __func__);
-    return FALSE;
-}
-
-static gboolean on_entry_leaved(GtkWidget* entry,
-               GdkEvent* event, gpointer user_data)
-{
-    g_message("%s", __func__);
-    gtk_grab_remove(entry);
     return FALSE;
 }
 
@@ -657,10 +695,9 @@ static void _create_entry(DeepinShadowWorkspace* self)
 
     gtk_widget_add_events(w, GDK_ENTER_NOTIFY_MASK|GDK_LEAVE_NOTIFY_MASK);
     g_object_connect(G_OBJECT(w),
-            "signal::button-press-event", on_entry_pressed, NULL,
-            "signal::enter-notify-event", on_entry_entered, NULL,
-            "signal::leave-notify-event", on_entry_leaved, NULL,
-            "signal::key-press-event", on_entry_key_pressed, NULL,
+            "signal::button-press-event", on_entry_pressed, self,
+            "signal::focus-out-event", on_entry_focus_out, self,
+            "signal::key-press-event", on_entry_key_pressed, self,
             NULL);
 
     gtk_widget_show(w);
@@ -810,7 +847,6 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
         gtk_container_add(GTK_CONTAINER(priv->close_button), image);
 
         deepin_fixed_put(DEEPIN_FIXED(self), priv->close_button, 0, 0);
-        gdk_window_lower(gtk_widget_get_window(priv->close_button));
         gtk_widget_set_opacity(self->priv->close_button, 0.0);
         
         g_object_connect(G_OBJECT(priv->close_button), 
