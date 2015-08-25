@@ -48,6 +48,8 @@ struct _DeepinShadowWorkspacePrivate
                       else, set when window placements are done */
     gint animating: 1; /* placement animation is going on */
 
+    guint idle_id;
+
     gint fixed_width, fixed_height;
     gdouble scale; 
 
@@ -212,9 +214,9 @@ static GdkPoint rect_center(MetaRectangle rect)
 
 static void natural_placement (DeepinShadowWorkspace* self, MetaRectangle area)
 {
-    /*g_debug("%s: geom: %d,%d,%d,%d", __func__, area.x, area.y, area.width, area.height);*/
     DeepinShadowWorkspacePrivate* priv = self->priv;
     GPtrArray* clones = priv->clones;
+    if (!clones || clones->len == 0) return;
 
     MetaRectangle bounds = {area.x, area.y, area.width, area.height};
 
@@ -446,7 +448,7 @@ static int padding_bottom  = 12;
 static void calculate_places(DeepinShadowWorkspace* self)
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
-    if (priv->clones->len) {
+    if (priv->clones && priv->clones->len) {
         /*g_ptr_array_sort(clones, window_compare);*/
 
         MetaRectangle area = {
@@ -462,8 +464,11 @@ static void calculate_places(DeepinShadowWorkspace* self)
 
 static gboolean on_idle(DeepinShadowWorkspace* self)
 {
+    if (self->priv->disposed) return G_SOURCE_REMOVE;
+
     if (!self->priv->thumb_mode) {
         if (self->priv->close_button) {
+            _hide_close_button(self);
         }
         calculate_places(self);
     }
@@ -482,6 +487,13 @@ static void deepin_shadow_workspace_init (DeepinShadowWorkspace *self)
 static void deepin_shadow_workspace_finalize (GObject *object)
 {
     DeepinShadowWorkspacePrivate* priv = DEEPIN_SHADOW_WORKSPACE(object)->priv;
+    if (priv->idle_id) {
+        g_source_remove(priv->idle_id);
+        priv->idle_id = 0;
+    }
+
+    priv->disposed = TRUE;
+
     if (priv->clones) {
         g_ptr_array_free(priv->clones, FALSE);
         priv->clones = NULL;
@@ -819,7 +831,11 @@ static gboolean on_close_button_clicked(GtkWidget* widget,
     priv->hovered_clone = NULL;
     _hide_close_button(self);
 
-    g_idle_add((GSourceFunc)on_idle, self);
+    if (priv->idle_id) {
+        g_source_remove(priv->idle_id);
+        priv->idle_id = 0;
+    }
+    priv->idle_id = g_idle_add((GSourceFunc)on_idle, self);
     return FALSE;
 }
 
@@ -900,7 +916,11 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
 
 static void on_deepin_shadow_workspace_show(DeepinShadowWorkspace* self, gpointer data)
 {
-    g_idle_add((GSourceFunc)on_idle, self);
+    if (self->priv->idle_id > 0) {
+        g_source_remove(self->priv->idle_id);
+        self->priv->idle_id = 0;
+    }
+    self->priv->idle_id = g_idle_add((GSourceFunc)on_idle, self);
 }
 
 static gboolean on_deepin_shadow_workspace_pressed(DeepinShadowWorkspace* self,
