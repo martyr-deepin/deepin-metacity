@@ -70,7 +70,6 @@ static void deepin_background_cache_flush(DeepinBackgroundCache* self)
 }
 
 
-/* FIXME: change when screen resized */
 static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
 {
     DeepinBackgroundCachePrivate* priv = self->priv;
@@ -110,7 +109,7 @@ static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
             g_object_unref(orig);
         }
 
-        g_assert(priv->background);
+        g_assert(!priv->background);
 
         priv->background = gdk_cairo_surface_create_from_pixbuf(pixbuf, 1.0, NULL);
         if (cairo_image_surface_get_format(priv->background) != CAIRO_FORMAT_ARGB32) {
@@ -136,6 +135,14 @@ static void deepin_background_cache_settings_chagned(GSettings *settings,
     }
 }
 
+static void on_screen_resized(DeepinMessageHub* hub, MetaScreen* screen,
+        DeepinBackgroundCache* self)
+{
+    deepin_background_cache_flush(self);
+    deepin_background_cache_load_background(self);
+    deepin_message_hub_desktop_changed();
+}
+
 static void deepin_background_cache_init (DeepinBackgroundCache *self)
 {
 	self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, DEEPIN_TYPE_BACKGROUND_CACHE, DeepinBackgroundCachePrivate);
@@ -145,6 +152,9 @@ static void deepin_background_cache_init (DeepinBackgroundCache *self)
     self->priv->bg_settings = g_settings_new(BACKGROUND_SCHEMA);
     g_signal_connect(G_OBJECT(self->priv->bg_settings), "changed",
             (GCallback)deepin_background_cache_settings_chagned, self);
+
+    g_signal_connect(G_OBJECT(deepin_message_hub_get()),
+            "screen-resized", (GCallback)on_screen_resized, self);
 }
 
 static void deepin_background_cache_finalize (GObject *object)

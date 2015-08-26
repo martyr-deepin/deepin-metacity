@@ -33,6 +33,7 @@ enum
     SIGNAL_WINDOW_REMOVED,
     SIGNAL_WINDOW_ADDED,
     SIGNAL_DESKTOP_CHANGED,
+    SIGNAL_SCREEN_RESIZED,
 
     LAST_SIGNAL
 };
@@ -74,6 +75,12 @@ void deepin_message_hub_desktop_changed()
     g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_DESKTOP_CHANGED], 0);
 }
 
+void deepin_message_hub_screen_resized(MetaScreen* screen)
+{
+    g_message("%s", __func__);
+    g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_SCREEN_RESIZED], 0, screen);
+}
+
 static void deepin_message_hub_class_init (DeepinMessageHubClass *klass)
 {
     GObjectClass* object_class = G_OBJECT_CLASS (klass);
@@ -99,6 +106,12 @@ static void deepin_message_hub_class_init (DeepinMessageHubClass *klass)
             G_SIGNAL_RUN_LAST, 0,
             NULL, NULL, NULL,
             G_TYPE_NONE, 0);
+
+    signals[SIGNAL_SCREEN_RESIZED] = g_signal_new ("screen-resized",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 1, G_TYPE_POINTER);
 }
 
 DeepinMessageHub* deepin_message_hub_get()

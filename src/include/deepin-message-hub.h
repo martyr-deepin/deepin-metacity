@@ -57,6 +57,7 @@ DeepinMessageHub* deepin_message_hub_get();
 void deepin_message_hub_window_removed(MetaWindow*);
 void deepin_message_hub_window_added(MetaWindow*);
 void deepin_message_hub_desktop_changed();
+void deepin_message_hub_screen_resized(MetaScreen* screen);
 
 G_END_DECLS
 

@@ -2495,6 +2495,7 @@ meta_screen_resize (MetaScreen *screen,
 
   if (screen->desktop_bg) 
     {
+        deepin_message_hub_screen_resized(screen);
     }
 
   reload_xinerama_infos (screen);

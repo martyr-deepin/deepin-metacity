@@ -71,6 +71,15 @@ static void deepin_desktop_background_class_init (DeepinDesktopBackgroundClass *
     object_class->finalize = deepin_desktop_background_finalize;
 }
 
+static void on_screen_resized(DeepinMessageHub* hub, MetaScreen* screen,
+        DeepinDesktopBackground* self)
+{
+    if (screen == self->priv->screen) {
+        gtk_window_resize(GTK_WINDOW(self), screen->rect.width, screen->rect.height);
+        gtk_widget_queue_draw(GTK_WIDGET(self));
+    }
+}
+
 static void on_desktop_changed(DeepinMessageHub* hub, DeepinDesktopBackground* self)
 {
     gtk_widget_queue_draw(GTK_WIDGET(self));
@@ -99,8 +108,10 @@ DeepinDesktopBackground* deepin_desktop_background_new(MetaScreen* screen)
     gtk_window_set_keep_below(GTK_WINDOW(widget), TRUE);
     gtk_window_set_type_hint(GTK_WINDOW(widget), GDK_WINDOW_TYPE_HINT_DESKTOP);
 
-    g_signal_connect(G_OBJECT(deepin_message_hub_get()),
-            "desktop-changed", on_desktop_changed, widget);
+    g_object_connect(G_OBJECT(deepin_message_hub_get()),
+            "signal::desktop-changed", on_desktop_changed, widget,
+            "signal::screen-resized", on_screen_resized, widget,
+            NULL);
     return self;
 }
 
