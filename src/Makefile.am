@@ -83,6 +83,8 @@ libdeepin_metacity_private_la_SOURCES=			\
 	core/workspace.c			\
 	core/workspace.h			\
 	core/xprops.c				\
+	core/deepin-message-hub.c  		\
+	include/deepin-message-hub.h    \
 	include/xprops.h			\
 	include/common.h			\
 	include/core.h				\

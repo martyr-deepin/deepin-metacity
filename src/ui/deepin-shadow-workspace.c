@@ -32,6 +32,7 @@
 #include "deepin-shadow-workspace.h"
 #include "deepin-background-cache.h"
 #include "deepin-name-entry.h"
+#include "deepin-message-hub.h"
 
 /* TODO: handle live window add/remove events */
 
@@ -47,8 +48,6 @@ struct _DeepinShadowWorkspacePrivate
     gint ready: 1; /* if dynamic, this is set after presentation finished, 
                       else, set when window placements are done */
     gint animating: 1; /* placement animation is going on */
-
-    guint idle_id;
 
     gint fixed_width, fixed_height;
     gdouble scale; 
@@ -448,6 +447,10 @@ static int padding_bottom  = 12;
 static void calculate_places(DeepinShadowWorkspace* self)
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
+
+    /* suppress pending calls */
+    if (priv->animating) return;
+
     if (priv->clones && priv->clones->len) {
         /*g_ptr_array_sort(clones, window_compare);*/
 
@@ -475,6 +478,33 @@ static gboolean on_idle(DeepinShadowWorkspace* self)
     return G_SOURCE_REMOVE;
 }
 
+static void on_window_removed(DeepinMessageHub* hub, MetaWindow* window, 
+        gpointer data)
+{
+    DeepinShadowWorkspace* self = DEEPIN_SHADOW_WORKSPACE(data);
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+    if (!priv->ready || !priv->clones) return;
+    g_message("%s", __func__);
+
+    for (gint i = 0; i < priv->clones->len; i++) {
+        MetaDeepinClonedWidget* clone = g_ptr_array_index(priv->clones, i);
+        if (meta_deepin_cloned_widget_get_window(clone) == window) {
+            g_message("workspace: destroy clone due to window destroyed");
+            g_ptr_array_remove(priv->clones, clone);
+            gtk_container_remove(GTK_CONTAINER(self), clone);
+
+            if (priv->hovered_clone == clone) {
+                priv->hovered_clone = NULL;
+                _hide_close_button(self);
+            }
+
+            if (!window->screen->closing && priv->ready)
+                g_idle_add((GSourceFunc)on_idle, self);
+        }
+    }
+}
+
+
 static void deepin_shadow_workspace_init (DeepinShadowWorkspace *self)
 {
     self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, DEEPIN_TYPE_SHADOW_WORKSPACE, DeepinShadowWorkspacePrivate);
@@ -486,13 +516,12 @@ static void deepin_shadow_workspace_init (DeepinShadowWorkspace *self)
 
 static void deepin_shadow_workspace_finalize (GObject *object)
 {
-    DeepinShadowWorkspacePrivate* priv = DEEPIN_SHADOW_WORKSPACE(object)->priv;
-    if (priv->idle_id) {
-        g_source_remove(priv->idle_id);
-        priv->idle_id = 0;
-    }
-
+    DeepinShadowWorkspace* self = DEEPIN_SHADOW_WORKSPACE(object);
+    DeepinShadowWorkspacePrivate* priv = self->priv;
     priv->disposed = TRUE;
+
+    g_signal_handlers_disconnect_by_data(G_OBJECT(deepin_message_hub_get()), 
+            self);
 
     if (priv->clones) {
         g_ptr_array_free(priv->clones, FALSE);
@@ -831,11 +860,7 @@ static gboolean on_close_button_clicked(GtkWidget* widget,
     priv->hovered_clone = NULL;
     _hide_close_button(self);
 
-    if (priv->idle_id) {
-        g_source_remove(priv->idle_id);
-        priv->idle_id = 0;
-    }
-    priv->idle_id = g_idle_add((GSourceFunc)on_idle, self);
+    g_idle_add((GSourceFunc)on_idle, self);
     return FALSE;
 }
 
@@ -916,11 +941,7 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
 
 static void on_deepin_shadow_workspace_show(DeepinShadowWorkspace* self, gpointer data)
 {
-    if (self->priv->idle_id > 0) {
-        g_source_remove(self->priv->idle_id);
-        self->priv->idle_id = 0;
-    }
-    self->priv->idle_id = g_idle_add((GSourceFunc)on_idle, self);
+    g_idle_add((GSourceFunc)on_idle, self);
 }
 
 static gboolean on_deepin_shadow_workspace_pressed(DeepinShadowWorkspace* self,
@@ -957,6 +978,10 @@ GtkWidget* deepin_shadow_workspace_new(void)
             "signal::show", on_deepin_shadow_workspace_show, NULL,
             "signal::button-press-event", on_deepin_shadow_workspace_pressed, NULL,
             "signal::motion-notify-event", on_deepin_shadow_workspace_motion, NULL,
+            NULL);
+
+    g_object_connect(G_OBJECT(deepin_message_hub_get()), 
+            "signal::window-removed", on_window_removed, self,
             NULL);
 
     return (GtkWidget*)self;

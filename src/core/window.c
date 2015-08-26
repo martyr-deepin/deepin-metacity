@@ -43,7 +43,7 @@
 #include "constraints.h"
 #include "compositor.h"
 #include "effects.h"
-#include "deepin-window-surface-manager.h"
+#include "deepin-message-hub.h"
 
 #include <X11/Xatom.h>
 #include <X11/Xlibint.h> /* For display->resource_mask */
@@ -825,6 +825,7 @@ meta_window_new_with_attrs (MetaDisplay       *display,
 
   window->constructing = FALSE;
 
+  deepin_message_hub_window_added(window);
   return window;
 }
 
@@ -971,6 +972,7 @@ void
 meta_window_free (MetaWindow  *window,
                   guint32      timestamp)
 {
+  deepin_message_hub_window_removed(window);
   GList *tmp;
 
   meta_verbose ("Unmanaging 0x%lx\n", window->xwindow);
@@ -990,7 +992,6 @@ meta_window_free (MetaWindow  *window,
               window->desc);
 
   window->unmanaging = TRUE;
-  deepin_window_surface_manager_remove_window(window);
 
   if (window->fullscreen)
     {

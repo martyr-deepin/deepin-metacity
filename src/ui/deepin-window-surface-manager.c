@@ -27,10 +27,14 @@
 #include "compositor.h"
 #include "deepin-design.h"
 #include "deepin-window-surface-manager.h"
+#include "deepin-message-hub.h"
 
 static DeepinWindowSurfaceManager* _the_manager = NULL;
 
-/* windows[i] is a GTree, key is scale, value is surface */
+/*
+ * MetaWindow -> surface list
+ *   windows[i] is a GTree, key is scale, value is surface 
+ */
 struct _DeepinWindowSurfaceManagerPrivate
 {
     GHashTable* windows;
@@ -145,7 +149,7 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
         cairo_destroy(cr);
         cairo_surface_destroy(ref);
         ref = ret;
-        g_message("%s: clip visible rect", window->title);
+        g_message("%s: clip visible rect", window->desc);
 
         g_tree_insert(t, s, ref);
     }
@@ -167,7 +171,7 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
         s = g_new(double, 1);
         *s = scale;
         g_tree_insert(t, s, surface);
-        g_message("%s: (%s) new scale %f", __func__, window->title, scale);
+        g_message("%s: (%s) new scale %f", __func__, window->desc, scale);
     }
     
     return surface;
@@ -175,9 +179,11 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
 
 void deepin_window_surface_manager_remove_window(MetaWindow* window)
 {
+    if (!window) return;
+
     DeepinWindowSurfaceManager* self = deepin_window_surface_manager_get();
     if (g_hash_table_contains(self->priv->windows, window)) {
-        g_message("%s: %s", __func__, window->title);
+        g_message("%s: %s", __func__, window->desc);
         g_hash_table_remove(self->priv->windows, window);
         g_signal_emit(self, signals[SIGNAL_SURFACE_INVALID], 0, window);
     }
@@ -196,11 +202,20 @@ void deepin_window_surface_manager_flush()
     g_list_free(l);
 }
 
+static void on_window_removed(DeepinMessageHub* hub, MetaWindow* window, 
+        gpointer data)
+{
+    deepin_window_surface_manager_remove_window(window);
+}
+
 DeepinWindowSurfaceManager* deepin_window_surface_manager_get(void)
 {
     if (!_the_manager) {
         _the_manager = (DeepinWindowSurfaceManager*)g_object_new(
                 DEEPIN_TYPE_WINDOW_SURFACE_MANAGER, NULL);
+        g_object_connect(G_OBJECT(deepin_message_hub_get()), 
+                "signal::window-removed", on_window_removed, NULL,
+                NULL);
     }
     return _the_manager;
 }

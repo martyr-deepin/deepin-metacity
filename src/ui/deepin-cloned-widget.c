@@ -76,8 +76,6 @@ typedef struct _MetaDeepinClonedWidgetPrivate
     GtkRequisition real_size;
 
     GdkWindow* event_window;
-
-    GtkWidget* close_button;
 } MetaDeepinClonedWidgetPrivate;
 
 enum {
@@ -174,6 +172,9 @@ static void meta_deepin_cloned_widget_dispose(GObject *object)
 {
     MetaDeepinClonedWidget *self = META_DEEPIN_CLONED_WIDGET(object);
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
+
+    priv->meta_window = NULL;
+    priv->snapshot = NULL;
 
     G_OBJECT_CLASS(meta_deepin_cloned_widget_parent_class)->dispose(object);
 }
@@ -610,6 +611,14 @@ static void meta_deepin_cloned_widget_class_init (MetaDeepinClonedWidgetClass *k
             G_TYPE_NONE, 0, NULL);
 }
 
+static void on_surface_invalid(DeepinWindowSurfaceManager* manager,
+        MetaWindow* window, MetaDeepinClonedWidget* self)
+{
+    if (window && self->priv->meta_window == window) {
+        self->priv->snapshot = NULL;
+    }
+}
+
 GtkWidget * meta_deepin_cloned_widget_new (MetaWindow* meta)
 {
     MetaDeepinClonedWidget* widget;
@@ -617,6 +626,8 @@ GtkWidget * meta_deepin_cloned_widget_new (MetaWindow* meta)
     widget = (MetaDeepinClonedWidget*)g_object_new (META_TYPE_DEEPIN_CLONED_WIDGET, NULL);
     widget->priv->meta_window = meta;
     deepin_setup_style_class(GTK_WIDGET(widget), "deepin-window-clone");
+    g_signal_connect(deepin_window_surface_manager_get(), 
+            "surface-invalid", (GCallback)on_surface_invalid, widget);
 
     return (GtkWidget*)widget;
 }
@@ -782,14 +793,6 @@ void meta_deepin_cloned_widget_set_blur_radius(MetaDeepinClonedWidget* self, gdo
     }
 }
 
-static void on_surface_invalid(DeepinWindowSurfaceManager* manager,
-        MetaWindow* window, MetaDeepinClonedWidget* self)
-{
-    if (self->priv->meta_window == window) {
-        self->priv->snapshot = NULL;
-    }
-}
-
 void meta_deepin_cloned_widget_set_size(MetaDeepinClonedWidget* self,
         gdouble width, gdouble height)
 {
@@ -800,8 +803,6 @@ void meta_deepin_cloned_widget_set_size(MetaDeepinClonedWidget* self,
 
     priv->snapshot = deepin_window_surface_manager_get_surface(
             priv->meta_window, (double)width/r.width);
-    g_signal_connect(deepin_window_surface_manager_get(), 
-            "surface-invalid", (GCallback)on_surface_invalid, self);
 
     priv->real_size.width = width;
     priv->real_size.height = height;

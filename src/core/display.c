@@ -35,6 +35,7 @@
 #include "main.h"
 #include "screen-private.h"
 #include "window-private.h"
+#include "deepin-message-hub.h"
 #include "window-props.h"
 #include "group-props.h"
 #include "frame-private.h"
@@ -707,6 +708,9 @@ meta_display_open (void)
     enable_compositor (the_display, FALSE);
 
   meta_display_grab (the_display);
+
+  /* instance message hub before manage windows */
+  deepin_message_hub_get();
 
   /* Now manage all existing windows */
   tmp = the_display->screens;
