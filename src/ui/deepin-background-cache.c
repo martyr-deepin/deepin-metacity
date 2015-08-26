@@ -24,6 +24,7 @@
 #include <gdk/gdkx.h>
 #include <cairo.h>
 #include "deepin-background-cache.h"
+#include "deepin-message-hub.h"
 
 #define GSETTINGS_BG_KEY "picture-uri"
 #define BACKGROUND_SCHEMA "com.deepin.wrap.gnome.desktop.background"
@@ -48,6 +49,28 @@ static DeepinBackgroundCache* _the_cache = NULL;
 
 G_DEFINE_TYPE (DeepinBackgroundCache, deepin_background_cache, G_TYPE_OBJECT);
 
+static void deepin_background_cache_flush(DeepinBackgroundCache* self)
+{
+    DeepinBackgroundCachePrivate* priv = self->priv;
+    if (priv->background) {
+        g_clear_pointer(&priv->background, cairo_surface_destroy);
+    }
+
+    if (priv->caches) {
+        GList* l = priv->caches;
+        while (l) {
+            ScaledCacheInfo* sci = (ScaledCacheInfo*)l->data;
+            cairo_surface_destroy(sci->surface);
+            g_slice_free(ScaledCacheInfo, sci);
+            l = l->next;
+        }
+        g_list_free(priv->caches);
+        priv->caches = NULL;
+    }
+}
+
+
+/* FIXME: change when screen resized */
 static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
 {
     DeepinBackgroundCachePrivate* priv = self->priv;
@@ -87,9 +110,7 @@ static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
             g_object_unref(orig);
         }
 
-        if (priv->background) {
-            cairo_surface_destroy(priv->background);
-        }
+        g_assert(priv->background);
 
         priv->background = gdk_cairo_surface_create_from_pixbuf(pixbuf, 1.0, NULL);
         if (cairo_image_surface_get_format(priv->background) != CAIRO_FORMAT_ARGB32) {
@@ -100,6 +121,7 @@ static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
 _cleanup:
     if (path) g_free(path);
     if (pixbuf) g_object_unref(pixbuf);
+    if (scheme) g_free(scheme);
     if (f) g_object_unref(f);
     g_free(uri);
 }
@@ -108,7 +130,9 @@ static void deepin_background_cache_settings_chagned(GSettings *settings,
         gchar* key, gpointer user_data)
 {
     if (g_str_equal(key, GSETTINGS_BG_KEY)) {
+        deepin_background_cache_flush((DeepinBackgroundCache*)user_data);
         deepin_background_cache_load_background((DeepinBackgroundCache*)user_data);
+        deepin_message_hub_desktop_changed();
     }
 }
 
@@ -120,26 +144,15 @@ static void deepin_background_cache_init (DeepinBackgroundCache *self)
 
     self->priv->bg_settings = g_settings_new(BACKGROUND_SCHEMA);
     g_signal_connect(G_OBJECT(self->priv->bg_settings), "changed",
-            (GCallback)deepin_background_cache_load_background, self);
+            (GCallback)deepin_background_cache_settings_chagned, self);
 }
 
 static void deepin_background_cache_finalize (GObject *object)
 {
     DeepinBackgroundCachePrivate* priv = DEEPIN_BACKGROUND_CACHE(object)->priv;
 
-    if (priv->background) {
-        cairo_surface_destroy(priv->background);
-    }
+    deepin_background_cache_flush(DEEPIN_BACKGROUND_CACHE(object));
     
-    GList* l = priv->caches;
-    while (l) {
-        ScaledCacheInfo* sci = (ScaledCacheInfo*)l->data;
-        cairo_surface_destroy(sci->surface);
-        g_slice_free(ScaledCacheInfo, sci);
-        l = l->next;
-    }
-    g_list_free(priv->caches);
-
     if (priv->bg_settings) {
         g_clear_pointer(&priv->bg_settings, g_object_unref);
     }

@@ -23,6 +23,7 @@
  */
 
 #include <config.h>
+#include <gdk/gdkx.h>
 #include "window-private.h"
 #include "edge-resistance.h"
 #include "util.h"
@@ -281,6 +282,12 @@ meta_window_new_with_attrs (MetaDisplay       *display,
   if (xwindow == screen->guard_window) 
     {
       meta_verbose ("Not to manage screen guard window 0x%lx\n", xwindow);
+      return NULL;
+    }
+
+  if (xwindow == screen->desktop_bg_window)
+    {
+      meta_verbose ("Not to manage screen dekstop window 0x%lx\n", xwindow);
       return NULL;
     }
 

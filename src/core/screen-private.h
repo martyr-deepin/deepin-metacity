@@ -38,6 +38,7 @@
 
 typedef struct _MetaXineramaScreenInfo MetaXineramaScreenInfo;
 typedef struct _DeepinWMBackground DeepinWMBackground;
+typedef struct _DeepinDesktopBackground DeepinDesktopBackground;
 
 struct _MetaXineramaScreenInfo
 {
@@ -144,6 +145,9 @@ struct _MetaScreen
    * and restack them below a guard window. When using a compositor
    * this allows us to provide live previews of unmapped windows */
   Window guard_window;
+
+  DeepinDesktopBackground* desktop_bg;
+  Window desktop_bg_window;
 };
 
 MetaScreen*   meta_screen_new                 (MetaDisplay                *display,

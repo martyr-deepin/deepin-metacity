@@ -123,6 +123,8 @@ libdeepin_metacity_private_la_SOURCES=			\
 	include/deepin-cloned-widget.h		\
 	ui/deepin-wm-background.c			\
 	include/deepin-wm-background.h		\
+	ui/deepin-desktop-background.c			\
+	include/deepin-desktop-background.h		\
 	ui/deepin-background-cache.c		\
 	include/deepin-background-cache.h	\
 	ui/deepin-shadow-workspace.c		\

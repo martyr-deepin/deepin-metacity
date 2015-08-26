@@ -25,6 +25,7 @@
  */
 
 #include <config.h>
+#include <gdk/gdkx.h>
 #include "screen-private.h"
 #include "util.h"
 #include "errors.h"
@@ -36,6 +37,7 @@
 #include "stack.h"
 #include "xprops.h"
 #include "compositor.h"
+#include "deepin-desktop-background.h"
 
 #ifdef HAVE_SOLARIS_XINERAMA
 #include <X11/extensions/xinerama.h>
@@ -379,6 +381,19 @@ create_guard_window (Display *xdisplay, MetaScreen *screen)
   return guard_window;
 }
 
+static DeepinDesktopBackground* create_desktop_background(MetaScreen* screen)
+{
+    GtkWidget* widget = (GtkWidget*)deepin_desktop_background_new(screen);
+
+    gtk_widget_realize (widget);
+
+    screen->desktop_bg_window = GDK_WINDOW_XID(gtk_widget_get_window(widget));
+    gdk_window_lower(gtk_widget_get_window(widget));
+    gtk_widget_show_all(widget);
+
+    return DEEPIN_DESKTOP_BACKGROUND(widget);
+}
+
 MetaScreen*
 meta_screen_new (MetaDisplay *display,
                  int          number,
@@ -559,6 +574,7 @@ meta_screen_new (MetaDisplay *display,
   screen->starting_corner = META_SCREEN_TOPLEFT;
   screen->compositor_data = NULL;
   screen->guard_window = None;
+  screen->desktop_bg = NULL;
 
   {
     XFontStruct *font_info;
@@ -830,6 +846,9 @@ meta_screen_manage_all_windows (MetaScreen *screen)
   if (screen->guard_window == None)
     screen->guard_window = create_guard_window (screen->display->xdisplay,
                                                 screen);
+  if (!screen->desktop_bg) 
+      screen->desktop_bg = create_desktop_background(screen);
+
   meta_display_grab (screen->display);
 
   windows = list_windows (screen);
@@ -2472,6 +2491,10 @@ meta_screen_resize (MetaScreen *screen,
                        screen->guard_window,
                        CWX | CWY | CWWidth | CWHeight,
                        &changes);
+    }
+
+  if (screen->desktop_bg) 
+    {
     }
 
   reload_xinerama_infos (screen);
