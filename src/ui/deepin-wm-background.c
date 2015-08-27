@@ -239,7 +239,6 @@ static gboolean on_deepin_wm_background_event(DeepinWMBackground* self,
         GdkEvent* ev, gpointer data)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
-    GtkWidget* w = gtk_grab_get_current();
 
     switch(ev->type) {
         case GDK_BUTTON_PRESS:
@@ -248,9 +247,6 @@ static gboolean on_deepin_wm_background_event(DeepinWMBackground* self,
             break;
         case GDK_KEY_PRESS:
         case GDK_KEY_RELEASE:
-            /*if (w && GTK_IS_ENTRY(w)) {*/
-                /*break;*/
-            /*}*/
             return TRUE;
 
         default: break;

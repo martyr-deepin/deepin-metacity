@@ -20,6 +20,7 @@
 #include <config.h>
 #include <math.h>
 #include <util.h>
+#include <string.h>
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
 #include "deepin-window-surface-manager.h"
@@ -28,6 +29,7 @@
 #include "deepin-stackblur.h"
 #include "deepin-ease.h"
 #include "deepin-shadow-workspace.h"
+#include "deepin-message-hub.h"
 
 /* target values for animation */
 typedef struct _AnimationInfo 
@@ -619,6 +621,56 @@ static void on_surface_invalid(DeepinWindowSurfaceManager* manager,
     }
 }
 
+static void on_drag_data_get(GtkWidget* widget, GdkDragContext* context,
+        GtkSelectionData* data, guint info, guint time, gpointer user_data)
+{
+    static GdkAtom atom_window = GDK_NONE;
+    
+    if (atom_window == GDK_NONE) 
+        atom_window = gdk_atom_intern("window", FALSE);
+    g_assert(atom_window != GDK_NONE);
+
+    gchar* raw_data = g_strdup_printf("%ld", widget);
+
+    g_message("%s: set data %x", __func__, widget);
+    gtk_selection_data_set(data, atom_window, 8, raw_data, strlen(raw_data));
+    g_free(raw_data);
+}
+
+static void on_drag_begin(GtkWidget* widget, GdkDragContext *context,
+               gpointer user_data)
+{
+    g_message("%s", __func__);
+    MetaDeepinClonedWidgetPrivate* priv = META_DEEPIN_CLONED_WIDGET(widget)->priv;
+
+    gint w = cairo_image_surface_get_width(priv->snapshot); 
+    gint h = cairo_image_surface_get_height(priv->snapshot); 
+
+    cairo_surface_t* dest = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, w, h);
+
+    float sx = RECT_PREFER_WIDTH / (float)w;
+    cairo_t* cr2 = cairo_create(dest);
+    cairo_scale(cr2, sx, sx);
+    cairo_set_source_surface(cr2, priv->snapshot, 0, 0);
+    cairo_paint_with_alpha(cr2, 0.6);
+    cairo_destroy(cr2);
+
+    cairo_surface_set_device_offset(dest, -w * sx/2 , -h * sx/2);
+    gtk_drag_set_icon_surface(context, dest);
+
+    gtk_widget_set_opacity(widget, 0.0);
+    cairo_surface_destroy(dest);
+}
+
+static void on_drag_end(GtkWidget* widget, GdkDragContext *context,
+               gpointer user_data)
+{
+    g_message("%s", __func__);
+    gtk_widget_set_opacity(widget, 1.0);
+    //HACK: drag broken the grab, need to restore here
+    deepin_message_hub_drag_end();
+}
+
 GtkWidget * meta_deepin_cloned_widget_new (MetaWindow* meta)
 {
     MetaDeepinClonedWidget* widget;
@@ -628,6 +680,19 @@ GtkWidget * meta_deepin_cloned_widget_new (MetaWindow* meta)
     deepin_setup_style_class(GTK_WIDGET(widget), "deepin-window-clone");
     g_signal_connect(deepin_window_surface_manager_get(), 
             "surface-invalid", (GCallback)on_surface_invalid, widget);
+
+    GtkTargetEntry targets[] = {
+        {(char*)"window", GTK_TARGET_OTHER_WIDGET, DRAG_TARGET_WINDOW},
+    };
+
+    gtk_drag_source_set(GTK_WIDGET(widget), GDK_BUTTON1_MASK, targets, 
+            G_N_ELEMENTS(targets), GDK_ACTION_COPY);
+
+    g_object_connect(G_OBJECT(widget), 
+            "signal::drag-data-get", on_drag_data_get, NULL,
+            "signal::drag-begin", on_drag_begin, NULL,
+            "signal::drag-end", on_drag_end, NULL,
+            NULL);
 
     return (GtkWidget*)widget;
 }

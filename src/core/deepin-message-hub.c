@@ -34,6 +34,8 @@ enum
     SIGNAL_WINDOW_ADDED,
     SIGNAL_DESKTOP_CHANGED,
     SIGNAL_SCREEN_RESIZED,
+    SIGNAL_ABOUT_TO_CHANGE_WORKSPACE,
+    SIGNAL_DRAG_END,
 
     LAST_SIGNAL
 };
@@ -81,6 +83,22 @@ void deepin_message_hub_screen_resized(MetaScreen* screen)
     g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_SCREEN_RESIZED], 0, screen);
 }
 
+void deepin_message_hub_window_about_to_change_workspace(
+        MetaWindow* window, MetaWorkspace* workspace)
+{
+    g_message("%s: move %s to workspace %s", __func__, window->desc, 
+            meta_workspace_get_name(workspace));
+    g_signal_emit(deepin_message_hub_get(),
+            signals[SIGNAL_ABOUT_TO_CHANGE_WORKSPACE], 0, 
+            window, workspace);
+}
+ 
+void deepin_message_hub_drag_end()
+{
+    g_message("%s", __func__);
+    g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_DRAG_END], 0); 
+}
+
 static void deepin_message_hub_class_init (DeepinMessageHubClass *klass)
 {
     GObjectClass* object_class = G_OBJECT_CLASS (klass);
@@ -112,6 +130,21 @@ static void deepin_message_hub_class_init (DeepinMessageHubClass *klass)
             G_SIGNAL_RUN_LAST, 0,
             NULL, NULL, NULL,
             G_TYPE_NONE, 1, G_TYPE_POINTER);
+
+    signals[SIGNAL_ABOUT_TO_CHANGE_WORKSPACE] = g_signal_new (
+            "about-to-change-workspace",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 2,
+            G_TYPE_POINTER, G_TYPE_POINTER);
+
+    signals[SIGNAL_DRAG_END] = g_signal_new (
+            "drag-end",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 0);
 }
 
 DeepinMessageHub* deepin_message_hub_get()

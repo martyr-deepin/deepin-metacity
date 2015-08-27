@@ -22,6 +22,7 @@
 
 #include <gtk/gtk.h>
 #include "types.h"
+#include "../core/workspace.h"
 
 G_BEGIN_DECLS
 
@@ -58,6 +59,8 @@ void deepin_message_hub_window_removed(MetaWindow*);
 void deepin_message_hub_window_added(MetaWindow*);
 void deepin_message_hub_desktop_changed();
 void deepin_message_hub_screen_resized(MetaScreen* screen);
+void deepin_message_hub_window_about_to_change_workspace(MetaWindow*, MetaWorkspace*);
+void deepin_message_hub_drag_end();
 
 G_END_DECLS
 

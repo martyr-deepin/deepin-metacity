@@ -33,6 +33,7 @@
 #include "deepin-shadow-workspace.h"
 #include "deepin-window-surface-manager.h"
 #include "deepin-wm-background.h"
+#include "deepin-message-hub.h"
 
 static unsigned int get_primary_modifier (MetaDisplay *display,
         unsigned int entire_binding_mask)
@@ -228,6 +229,13 @@ static void _do_grab(MetaScreen* screen, GtkWidget* w, gboolean grab_keyboard)
     }
 }
 
+static void on_drag_end(DeepinMessageHub* hub, GtkWidget* top)
+{
+    g_message("on drag done, regrab");
+    MetaDisplay* display = meta_get_display();
+    _do_grab(display->active_screen, top, TRUE);
+}
+
 static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
         MetaWindow *window, XEvent *event,
         MetaKeyBinding *binding, gpointer user_data)
@@ -264,6 +272,9 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
         deepin_wm_background_setup(screen->ws_previewer);
         gtk_widget_show_all(GTK_WIDGET(screen->ws_previewer));
         gtk_window_move(GTK_WINDOW(screen->ws_previewer), 0, 0);
+
+        g_signal_connect(G_OBJECT(deepin_message_hub_get()),
+                "drag-end", on_drag_end, screen->ws_previewer);
 
         /* rely on auto ungrab when destroyed */
         _do_grab(screen, screen->ws_previewer, TRUE);
@@ -315,7 +326,10 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
         gtk_container_add(GTK_CONTAINER(top), (GtkWidget*)active_workspace);
         gtk_widget_show_all(top);
 
-        _do_grab(screen, top, FALSE);
+        g_signal_connect(G_OBJECT(deepin_message_hub_get()),
+                "drag-end", on_drag_end, top);
+
+        _do_grab(screen, top, TRUE);
     }
 }
 

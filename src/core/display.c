@@ -2650,8 +2650,9 @@ meta_spew_event (MetaDisplay *display,
     return;
 
   /* filter overnumerous events */
-  if (event->type == Expose || event->type == MotionNotify ||
-      event->type == NoExpose)
+  /*if (event->type == Expose || event->type == MotionNotify ||*/
+      /*event->type == NoExpose)*/
+  if (event->type == MotionNotify || event->type == NoExpose)
     return;
 
   switch (event->type)
@@ -2927,6 +2928,7 @@ meta_spew_event (MetaDisplay *display,
         {
           name = "(Unknown event)";
           extra = g_strdup_printf ("type: %d", event->xany.type);
+          return;
         }
       break;
     }
@@ -3524,6 +3526,8 @@ meta_display_end_grab_op (MetaDisplay *display,
   else if (display->grab_op == META_GRAB_OP_KEYBOARD_PREVIEWING_WORKSPACE) 
     {
       if (display->grab_screen->ws_previewer) {
+        g_signal_handlers_disconnect_by_data(deepin_message_hub_get(), 
+                display->grab_screen->ws_previewer);
         gtk_widget_destroy(GTK_WIDGET(display->grab_screen->ws_previewer));
         display->grab_screen->ws_previewer = NULL;
       }
@@ -3531,6 +3535,8 @@ meta_display_end_grab_op (MetaDisplay *display,
   else if (display->grab_op == META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS) 
     {
       if (display->grab_screen->exposing_windows_popup) {
+        g_signal_handlers_disconnect_by_data(deepin_message_hub_get(), 
+                display->grab_screen->exposing_windows_popup);
         gtk_widget_destroy(GTK_WIDGET(display->grab_screen->exposing_windows_popup));
         display->grab_screen->exposing_windows_popup = NULL;
       }

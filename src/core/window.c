@@ -4458,6 +4458,8 @@ void
 meta_window_change_workspace (MetaWindow    *window,
                               MetaWorkspace *workspace)
 {
+  deepin_message_hub_window_about_to_change_workspace(window, workspace);
+
   meta_window_change_workspace_without_transients (window, workspace);
 
   meta_window_foreach_transient (window, change_workspace_foreach,
