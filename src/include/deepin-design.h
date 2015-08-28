@@ -95,6 +95,7 @@ static const int CLOSE_BUTTON_SIZE = 31;
 //const int ANIMATION_DURATION = 500;
 //const AnimationMode ANIMATION_MODE = AnimationMode.EASE_OUT_QUAD;
 
+static const int MAX_WORKSPACE_NUM = 7; 
 
 void calculate_preferred_size(gint entry_count, gint max_width,
         float* box_width, float* box_height, float* item_width,

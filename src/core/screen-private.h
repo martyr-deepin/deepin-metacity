@@ -167,6 +167,7 @@ int           meta_screen_get_n_workspaces    (MetaScreen                 *scree
 MetaWorkspace* meta_screen_get_workspace_by_index (MetaScreen    *screen,
                                                    int            index);
 
+MetaWorkspace* meta_screen_new_workspace      (MetaScreen                 *screen);
 void          meta_screen_set_cursor          (MetaScreen                 *screen,
                                                MetaCursor                  cursor);
 void          meta_screen_update_cursor       (MetaScreen                 *screen);

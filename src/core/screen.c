@@ -38,6 +38,7 @@
 #include "xprops.h"
 #include "compositor.h"
 #include "deepin-desktop-background.h"
+#include "deepin-wm-background.h"
 
 #ifdef HAVE_SOLARIS_XINERAMA
 #include <X11/extensions/xinerama.h>
@@ -3019,5 +3020,26 @@ meta_screen_unset_cm_selection (MetaScreen *screen)
   a = XInternAtom (screen->display->xdisplay, selection, FALSE);
   XSetSelectionOwner (screen->display->xdisplay, a,
                       None, screen->wm_cm_timestamp);
+}
+
+MetaWorkspace*
+meta_screen_new_workspace(MetaScreen   *screen)
+{
+  int new_num;
+  MetaWorkspace *new_ws;
+
+
+  guint32 timestamp =
+      meta_display_get_current_time_roundtrip (screen->display);
+
+  new_ws = meta_workspace_new (screen);
+
+  new_num = g_list_length(screen->workspaces);
+
+  set_number_of_spaces_hint (screen, new_num);
+  meta_prefs_set_num_workspaces (new_num);
+
+  meta_screen_queue_workarea_recalc (screen);
+  return new_ws;
 }
 #endif /* HAVE_COMPOSITE_EXTENSIONS */

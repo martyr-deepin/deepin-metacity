@@ -131,6 +131,8 @@ libdeepin_metacity_private_la_SOURCES=			\
 	include/deepin-shadow-workspace.h	\
 	ui/deepin-window-surface-manager.c	\
 	include/deepin-window-surface-manager.h	\
+	ui/deepin-workspace-adder.c 		\
+	include/deepin-workspace-adder.h 	\
 	ui/deepin-name-entry.c      \
 	include/deepin-name-entry.h \
 	ui/select-workspace.c		\
