@@ -296,6 +296,9 @@ void deepin_wm_background_handle_event(DeepinWMBackground* self, XEvent* event,
     DeepinWMBackgroundPrivate* priv = self->priv;
     g_message("%s", __func__);
 
+    GtkWidget* w = gtk_grab_get_current();
+    if (w && GTK_IS_ENTRY(w)) return;
+
     if (keysym == XK_Left || keysym == XK_Right) {
         MetaMotionDirection dir = keysym == XK_Left ? META_MOTION_LEFT:META_MOTION_RIGHT;
         MetaWorkspace* current = deepin_shadow_workspace_get_workspace(priv->active_workspace); 
