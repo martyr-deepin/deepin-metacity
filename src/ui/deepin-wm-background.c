@@ -53,6 +53,11 @@ struct _DeepinWMBackgroundPrivate
 
 G_DEFINE_TYPE (DeepinWMBackground, deepin_wm_background, GTK_TYPE_WINDOW);
 
+static gboolean _show_adder(MetaScreen* screen)
+{
+    return meta_screen_get_n_workspaces(screen) < MAX_WORKSPACE_NUM;
+}
+
 static void deepin_wm_background_init (DeepinWMBackground *self)
 {
     self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, DEEPIN_TYPE_WM_BACKGROUND, DeepinWMBackgroundPrivate);
@@ -145,6 +150,11 @@ void deepin_wm_background_switch_workspace(DeepinWMBackground* self,
 static void relayout(DeepinWMBackground* self)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
+    if (!_show_adder(priv->screen) && priv->adder) {
+        gtk_container_remove(GTK_CONTAINER(priv->fixed), GTK_WIDGET(priv->adder));
+        priv->adder = NULL;
+    }
+
     GList *l = priv->screen->workspaces;
     gint current = g_list_index(priv->worskpaces, priv->active_workspace);
     if (current < 0) current = 0;
@@ -172,7 +182,7 @@ static void relayout(DeepinWMBackground* self)
     l = priv->worskpace_thumbs;
     int thumb_spacing = geom.width * SPACING_PERCENT;
     
-    gint count = g_list_length(priv->worskpace_thumbs) + 1;
+    gint count = g_list_length(priv->worskpace_thumbs) + _show_adder(priv->screen);
     int thumb_y = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);
     int thumb_x = (geom.width - count * (priv->thumb_width + thumb_spacing))/2;
 
@@ -194,11 +204,17 @@ static void relayout(DeepinWMBackground* self)
                 x + priv->thumb_width/2, y,
                 TRUE);
 
-        /*if (meta_screen_get_n_workspaces(priv->screen) == MAX_WORKSPACE_NUM) {*/
-            /*gtk_container_remove(GTK_CONTAINER(priv->fixed), GTK_WIDGET(priv->adder));*/
-            /*priv->adder = NULL;*/
-        /*}*/
     }
+}
+
+static gboolean delayed_relayout(gpointer user_data)
+{
+    DeepinWMBackground* self = (DeepinWMBackground*)user_data;
+    DeepinWMBackgroundPrivate* priv = self->priv;
+
+    relayout(self);
+
+    return G_SOURCE_REMOVE;
 }
 
 static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer user_data)
@@ -207,7 +223,6 @@ static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer use
     DeepinWMBackgroundPrivate* priv = self->priv;
 
     g_message("%s", __func__);
-    g_assert(meta_screen_get_n_workspaces(priv->screen) < MAX_WORKSPACE_NUM);
 
     GdkRectangle geom;
     gint monitor_index = gdk_screen_get_monitor_at_window(priv->gscreen,
@@ -254,10 +269,10 @@ static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer use
                 x + priv->thumb_width/2, thumb_y + priv->thumb_height/2);
     }
 
-    relayout(self);
+
+    g_idle_add(delayed_relayout, self);
 
     // activate it and do animation
-    
     meta_workspace_activate(new_ws, gtk_get_current_event_time());
     deepin_wm_background_switch_workspace(self, new_ws);
     return TRUE;
@@ -328,12 +343,12 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
         l = l->next;
     }
 
-    if (!priv->adder) {
+    if (_show_adder(priv->screen) && !priv->adder) {
         priv->adder = (DeepinWorkspaceAdder*)deepin_workspace_adder_new();
         gtk_widget_set_size_request(GTK_WIDGET(priv->adder), 
                 priv->thumb_width, priv->thumb_height);
         g_signal_connect(GTK_WIDGET(priv->adder), 
-                "button-release-event", on_adder_pressed, self);
+                "button-release-event", (GCallback)on_adder_pressed, self);
     }
 
     gint i = 0, pad = FLOW_CLONE_DISTANCE_PERCENT * geom.width;
@@ -351,7 +366,7 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
     l = priv->worskpace_thumbs;
     int thumb_spacing = geom.width * SPACING_PERCENT;
     
-    gint count = g_list_length(priv->worskpace_thumbs) + 1;
+    gint count = g_list_length(priv->worskpace_thumbs) + _show_adder(priv->screen);
     int thumb_y = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);
     int thumb_x = (geom.width - count * (priv->thumb_width + thumb_spacing))/2;
 
@@ -369,12 +384,6 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
         deepin_fixed_put(DEEPIN_FIXED(priv->fixed), (GtkWidget*)priv->adder,
                 x + priv->thumb_width/2,
                 thumb_y + (priv->thumb_height - WORKSPACE_NAME_HEIGHT - WORKSPACE_NAME_DISTANCE)/2);
-
-        if (meta_screen_get_n_workspaces(priv->screen) == MAX_WORKSPACE_NUM) {
-            //remove and hide
-            /*gtk_container_remove(GTK_CONTAINER(priv->fixed), GTK_WIDGET(priv->adder));*/
-            /*priv->adder = NULL;*/
-        }
     }
 }
 
