@@ -1191,8 +1191,6 @@ void deepin_shadow_workspace_focus_next(DeepinShadowWorkspace* self,
             i = backward ? (i - 1 + clones->len) % clones->len 
                 : (i + 1) % clones->len;
         }
-    } else {
-        i = 0;
     }
 
     if (!priv->thumb_mode) {
@@ -1255,17 +1253,16 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
         deepin_shadow_workspace_focus_next(self, backward);
 
     } if (keysym == XK_Return) {
-        meta_display_end_grab_op(priv->workspace->screen->display, event->xkey.time);
-
         MetaDeepinClonedWidget* clone = deepin_shadow_workspace_get_focused(self);
         if (!clone) {
             meta_workspace_focus_default_window(priv->workspace, NULL, event->xkey.time);
         } else {
             MetaWindow* mw = meta_deepin_cloned_widget_get_window(clone);
-            if (mw) {
-                meta_window_activate(mw, event->xkey.time);
-            }
+            g_assert(mw != NULL);
+            meta_window_activate(mw, event->xkey.time);
         }
+        meta_display_end_grab_op(priv->workspace->screen->display, event->xkey.time);
+
     } else if (event->type == ButtonPress) {
         MetaDisplay* display = meta_get_display();
         GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(display->xdisplay);

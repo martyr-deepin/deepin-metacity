@@ -245,6 +245,7 @@ static gboolean on_deepin_wm_background_event(DeepinWMBackground* self,
             break;
         case GDK_BUTTON_RELEASE:
             break;
+
         case GDK_KEY_PRESS:
         case GDK_KEY_RELEASE:
             return TRUE;
@@ -252,8 +253,8 @@ static gboolean on_deepin_wm_background_event(DeepinWMBackground* self,
         default: break;
     }
 
-    if (priv->active_workspace && gtk_widget_get_realized(priv->active_workspace))
-        return gtk_widget_event(GTK_WIDGET(priv->active_workspace), ev);
+    /*if (priv->active_workspace && gtk_widget_get_realized(priv->active_workspace))*/
+        /*return gtk_widget_event(GTK_WIDGET(priv->active_workspace), ev);*/
     return FALSE;
 }
 
@@ -293,6 +294,7 @@ void deepin_wm_background_handle_event(DeepinWMBackground* self, XEvent* event,
         KeySym keysym, MetaKeyBindingAction action)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
+    g_message("%s", __func__);
 
     if (keysym == XK_Left || keysym == XK_Right) {
         MetaMotionDirection dir = keysym == XK_Left ? META_MOTION_LEFT:META_MOTION_RIGHT;

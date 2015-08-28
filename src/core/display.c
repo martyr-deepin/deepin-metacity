@@ -1541,6 +1541,13 @@ event_callback (XEvent   *event,
            display->grab_window == window) ||
           grab_op_is_keyboard (display->grab_op))
         {
+          if (display->grab_op == META_GRAB_OP_KEYBOARD_PREVIEWING_WORKSPACE
+              || display->grab_op == META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS) 
+            {
+                /* do not end grab for these */
+                break;
+            }
+
           meta_topic (META_DEBUG_WINDOW_OPS,
                       "Ending grab op %u on window %s due to button press\n",
                       display->grab_op,
@@ -1560,24 +1567,6 @@ event_callback (XEvent   *event,
                                           display->grab_old_window_stacking);
             }
 
-          if (display->grab_op == META_GRAB_OP_KEYBOARD_PREVIEWING_WORKSPACE) 
-            {
-                MetaScreen *screen =
-                    meta_display_screen_for_root (display, event->xany.window);
-                if (!screen) screen = display->active_screen;
-                /*deepin_wm_background_handle_event(screen->ws_previewer,*/
-                        /*event, XK_VoidSymbol, -1);*/
-                break;
-            }
-          if (display->grab_op == META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS) 
-            {
-                MetaScreen *screen =
-                    meta_display_screen_for_root (display, event->xany.window);
-                if (!screen) screen = display->active_screen;
-                GtkWidget* ws = gtk_bin_get_child(screen->exposing_windows_popup);
-                /*deepin_shadow_workspace_handle_event(ws, event, XK_VoidSymbol, -1);*/
-                break;
-            }
           meta_display_end_grab_op (display,
                                     event->xbutton.time);
         }

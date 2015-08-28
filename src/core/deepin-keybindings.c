@@ -213,7 +213,7 @@ static void _do_grab(MetaScreen* screen, GtkWidget* w, gboolean grab_keyboard)
         ret = gdk_device_grab(kb, gtk_widget_get_window(w), 
                 GDK_OWNERSHIP_NONE, TRUE,
                 GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK,
-                NULL, GDK_CURRENT_TIME);
+                NULL, gtk_get_current_event_time());
         if (ret != GDK_GRAB_SUCCESS) {
             g_message("%s: grab keyboard failed", __func__);
         }
@@ -223,7 +223,7 @@ static void _do_grab(MetaScreen* screen, GtkWidget* w, gboolean grab_keyboard)
             GDK_OWNERSHIP_NONE, TRUE,
             GDK_BUTTON_PRESS_MASK| GDK_BUTTON_RELEASE_MASK| 
             GDK_ENTER_NOTIFY_MASK| GDK_FOCUS_CHANGE_MASK,
-            NULL, GDK_CURRENT_TIME);
+            NULL, gtk_get_current_event_time());
     if (ret != GDK_GRAB_SUCCESS) {
         g_message("%s: grab failed", __func__);
     }

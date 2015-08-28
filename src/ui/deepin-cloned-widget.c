@@ -670,6 +670,15 @@ static void on_drag_end(GtkWidget* widget, GdkDragContext *context,
     //HACK: drag broken the grab, need to restore here
     deepin_message_hub_drag_end();
 }
+    
+static gboolean on_drag_failed(GtkWidget      *widget,
+               GdkDragContext *context, GtkDragResult   result,
+               gpointer        user_data)
+{
+    /* cut off default processing (fail animation), which may 
+     * case a confliction when we regrab pointer later */
+    return TRUE;
+}
 
 GtkWidget * meta_deepin_cloned_widget_new (MetaWindow* meta)
 {
@@ -692,6 +701,7 @@ GtkWidget * meta_deepin_cloned_widget_new (MetaWindow* meta)
             "signal::drag-data-get", on_drag_data_get, NULL,
             "signal::drag-begin", on_drag_begin, NULL,
             "signal::drag-end", on_drag_end, NULL,
+            "signal::drag-failed", on_drag_failed, NULL,
             NULL);
 
     return (GtkWidget*)widget;
