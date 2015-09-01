@@ -3022,15 +3022,80 @@ meta_screen_unset_cm_selection (MetaScreen *screen)
                       None, screen->wm_cm_timestamp);
 }
 
+void 
+meta_screen_remove_workspace (MetaScreen *screen,
+        MetaWorkspace *workspace)
+{
+    GList         *l;
+    MetaWorkspace *neighbour = NULL;
+    GList         *next = NULL;
+    int            index;
+    gboolean       active_index_changed;
+    int            new_num;
+
+    l = screen->workspaces;
+    while (l) {
+        MetaWorkspace *w = l->data;
+
+        if (w == workspace) {
+            if (l->next)
+                next = l->next;
+
+            if (l->prev)
+                neighbour = l->prev->data;
+            else if (l->next)
+                neighbour = l->next->data;
+            else {
+                /* Cannot remove the only workspace! */
+                return;
+            }
+
+            break;
+        }
+
+        l = l->next;
+    }
+
+    if (!neighbour)
+        return;
+
+    meta_workspace_relocate_windows (workspace, neighbour);
+
+    guint32 timestamp =
+        meta_display_get_current_time_roundtrip (screen->display);
+    if (workspace == screen->active_workspace)
+        meta_workspace_activate (neighbour, timestamp);
+
+    /* To emit the signal after removing the workspace */
+    index = meta_workspace_index (workspace);
+
+    /* This also removes the workspace from the screens list */
+    meta_workspace_free (workspace);
+
+    new_num = g_list_length (screen->workspaces);
+
+    set_number_of_spaces_hint (screen, new_num);
+    meta_prefs_set_num_workspaces (new_num);
+
+    l = next;
+    while (l) {
+        MetaWorkspace *w = l->data;
+
+        meta_workspace_update_window_hints (w);
+
+        l = l->next;
+    }
+
+    meta_screen_queue_workarea_recalc (screen);
+}
+
 MetaWorkspace*
-meta_screen_new_workspace(MetaScreen   *screen)
+meta_screen_new_workspace (MetaScreen   *screen)
 {
   int new_num;
   MetaWorkspace *new_ws;
 
 
-  guint32 timestamp =
-      meta_display_get_current_time_roundtrip (screen->display);
 
   new_ws = meta_workspace_new (screen);
 

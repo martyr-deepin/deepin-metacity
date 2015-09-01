@@ -30,6 +30,7 @@
 #include "deepin-ease.h"
 #include "deepin-shadow-workspace.h"
 #include "deepin-message-hub.h"
+#include "deepin-shadow-workspace.h"
 
 /* target values for animation */
 typedef struct _AnimationInfo 
@@ -375,12 +376,26 @@ static void meta_deepin_cloned_widget_size_allocate(GtkWidget* widget,
     MetaDeepinClonedWidgetPrivate* priv = META_DEEPIN_CLONED_WIDGET(widget)->priv;
     gtk_widget_set_allocation(widget, allocation);
 
-    if (gtk_widget_get_realized (widget))
+    if (gtk_widget_get_realized (widget)) {
+        /*
+         * HACK: we make its event_window a child of workspace's event_window,
+         * so adjust event window's position accordingly 
+         */
+        GtkWidget* parent = gtk_widget_get_parent(widget);
+        GtkAllocation parent_alloc;
+        gtk_widget_get_allocation(parent, &parent_alloc);
+
+        if (!DEEPIN_IS_SHADOW_WORKSPACE(parent)) {
+            parent_alloc.x = 0;
+            parent_alloc.y = 0;
+        }
+
         gdk_window_move_resize (priv->event_window,
-                allocation->x,
-                allocation->y,
+                allocation->x - parent_alloc.x,
+                allocation->y - parent_alloc.y,
                 allocation->width,
                 allocation->height);
+    }
 
     /* FIXME: calculate expaned according to scale, translate, and rotate */
     GtkAllocation expanded;
@@ -434,6 +449,8 @@ static void meta_deepin_cloned_widget_init (MetaDeepinClonedWidget *self)
     gtk_style_context_set_state (gtk_widget_get_style_context(GTK_WIDGET(self)), 
             GTK_STATE_FLAG_NORMAL);
 
+    gtk_widget_set_sensitive(GTK_WIDGET(self), TRUE);
+    gtk_widget_set_events(GTK_WIDGET(self), GDK_ALL_EVENTS_MASK);
     gtk_widget_set_has_window(GTK_WIDGET(self), FALSE);
 
     g_object_connect(G_OBJECT(self), 
@@ -471,6 +488,11 @@ static void meta_deepin_cloned_widget_realize (GtkWidget *widget)
     window = gtk_widget_get_parent_window (widget);
     gtk_widget_set_window (widget, window);
     g_object_ref (window);
+
+    GtkWidget* parent = gtk_widget_get_parent(widget);
+    if (DEEPIN_IS_SHADOW_WORKSPACE(parent)) {
+        window = deepin_shadow_workspace_get_event_window(parent);
+    }
 
     priv->event_window = gdk_window_new (window,
             &attributes, attributes_mask);
@@ -967,5 +989,10 @@ void meta_deepin_cloned_widget_get_size(MetaDeepinClonedWidget* self,
 gboolean meta_deepin_cloned_widget_is_mouse_over(MetaDeepinClonedWidget* self)
 {
     return self->priv->mouse_over;
+}
+
+GdkWindow* meta_deepin_cloned_widget_get_event_window(MetaDeepinClonedWidget* self)
+{
+    return self->priv->event_window;
 }
 

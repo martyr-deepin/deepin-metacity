@@ -172,6 +172,20 @@ meta_workspace_free (MetaWorkspace *workspace)
 }
 
 void
+meta_workspace_update_window_hints (MetaWorkspace *workspace)
+{
+  GList *l = workspace->windows;
+  while (l)
+    {
+      MetaWindow *win = l->data;
+
+      meta_window_set_current_workspace_hint (win);
+
+      l = l->next;
+    }
+}
+
+void
 meta_workspace_add_window (MetaWorkspace *workspace,
                            MetaWindow    *window)
 {
@@ -283,8 +297,9 @@ meta_workspace_relocate_windows (MetaWorkspace *workspace,
     {
       MetaWindow *window = tmp->data;
 
-      meta_workspace_remove_window (workspace, window);
-      meta_workspace_add_window (new_home, window);
+      meta_window_change_workspace(window, new_home);
+      /*meta_workspace_remove_window (workspace, window);*/
+      /*meta_workspace_add_window (new_home, window);*/
 
       tmp = tmp->next;
     }

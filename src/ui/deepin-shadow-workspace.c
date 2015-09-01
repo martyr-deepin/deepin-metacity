@@ -59,9 +59,10 @@ struct _DeepinShadowWorkspacePrivate
 
     int placement_count;
 
+    GdkWindow* event_window;
 
     GtkWidget* entry;
-    GtkWidget* close_button;
+    GtkWidget* close_button; /* for focused clone */
     MetaDeepinClonedWidget* window_need_focused;
 };
 
@@ -523,6 +524,7 @@ static void deepin_shadow_workspace_init (DeepinShadowWorkspace *self)
     self->priv->scale = 1.0;
     gtk_widget_set_sensitive(GTK_WIDGET(self), TRUE);
     gtk_widget_set_events(GTK_WIDGET(self), GDK_ALL_EVENTS_MASK);
+    gtk_widget_set_has_window(GTK_WIDGET(self), FALSE);
 }
 
 static void deepin_shadow_workspace_finalize (GObject *object)
@@ -690,7 +692,90 @@ static void deepin_shadow_workspace_size_allocate(GtkWidget* widget,
     GTK_WIDGET_CLASS(deepin_shadow_workspace_parent_class)->size_allocate(
             widget, allocation);
 
+    DeepinShadowWorkspace *self = DEEPIN_SHADOW_WORKSPACE (widget);
+    if (gtk_widget_get_realized (widget))
+        gdk_window_move_resize (self->priv->event_window,
+                allocation->x,
+                allocation->y,
+                allocation->width,
+                allocation->height);
+
     _gtk_widget_set_simple_clip(widget, NULL);
+}
+
+static void deepin_shadow_workspace_realize (GtkWidget *widget)
+{
+    DeepinShadowWorkspace *self = DEEPIN_SHADOW_WORKSPACE (widget);
+    DeepinShadowWorkspacePrivate *priv = self->priv;
+    GtkAllocation allocation;
+    GdkWindow *window;
+    GdkWindowAttr attributes;
+    gint attributes_mask;
+
+    gtk_widget_get_allocation (widget, &allocation);
+
+    gtk_widget_set_realized (widget, TRUE);
+
+    attributes.window_type = GDK_WINDOW_CHILD;
+    attributes.x = allocation.x;
+    attributes.y = allocation.y;
+    attributes.width = allocation.width;
+    attributes.height = allocation.height;
+    attributes.wclass = GDK_INPUT_ONLY;
+    attributes.event_mask = gtk_widget_get_events (widget);
+    attributes.event_mask |= (GDK_BUTTON_PRESS_MASK |
+            GDK_BUTTON_RELEASE_MASK |
+            GDK_ENTER_NOTIFY_MASK |
+            GDK_EXPOSURE_MASK |
+            GDK_LEAVE_NOTIFY_MASK);
+
+    attributes_mask = GDK_WA_X | GDK_WA_Y;
+
+    window = gtk_widget_get_parent_window (widget);
+    gtk_widget_set_window (widget, window);
+    g_object_ref (window);
+
+    priv->event_window = gdk_window_new (window,
+            &attributes, attributes_mask);
+    gtk_widget_register_window (widget, priv->event_window);
+    gdk_window_lower(priv->event_window);
+}
+
+static void deepin_shadow_workspace_unrealize (GtkWidget *widget)
+{
+    DeepinShadowWorkspace *self = DEEPIN_SHADOW_WORKSPACE (widget);
+    DeepinShadowWorkspacePrivate *priv = self->priv;
+
+    if (priv->event_window) {
+        gtk_widget_unregister_window (widget, priv->event_window);
+        gdk_window_destroy (priv->event_window);
+        priv->event_window = NULL;
+    }
+
+    GTK_WIDGET_CLASS (deepin_shadow_workspace_parent_class)->unrealize (widget);
+}
+
+static void deepin_shadow_workspace_map (GtkWidget *widget)
+{
+    DeepinShadowWorkspace *self = DEEPIN_SHADOW_WORKSPACE (widget);
+    DeepinShadowWorkspacePrivate *priv = self->priv;
+
+    GTK_WIDGET_CLASS (deepin_shadow_workspace_parent_class)->map (widget);
+
+    if (priv->event_window)
+        gdk_window_show_unraised(priv->event_window);
+}
+
+static void deepin_shadow_workspace_unmap (GtkWidget *widget)
+{
+    DeepinShadowWorkspace *self = DEEPIN_SHADOW_WORKSPACE (widget);
+    DeepinShadowWorkspacePrivate *priv = self->priv;
+
+    if (priv->event_window) {
+        gdk_window_hide (priv->event_window);
+    }
+
+    GTK_WIDGET_CLASS (deepin_shadow_workspace_parent_class)->unmap (widget);
 }
 
 static void deepin_shadow_workspace_class_init (DeepinShadowWorkspaceClass *klass)
@@ -703,6 +788,11 @@ static void deepin_shadow_workspace_class_init (DeepinShadowWorkspaceClass *klas
     widget_class->get_preferred_height = deepin_shadow_workspace_get_preferred_height;
     widget_class->size_allocate = deepin_shadow_workspace_size_allocate;
     widget_class->draw = deepin_shadow_workspace_draw;
+
+    widget_class->realize = deepin_shadow_workspace_realize;
+    widget_class->unrealize = deepin_shadow_workspace_unrealize;
+    widget_class->map = deepin_shadow_workspace_map;
+    widget_class->unmap = deepin_shadow_workspace_unmap;
 
     object_class->finalize = deepin_shadow_workspace_finalize;
 }
@@ -900,7 +990,6 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
         MetaWindow* win = (MetaWindow*)l->data;
         if (win->type == META_WINDOW_NORMAL) {
             GtkWidget* widget = meta_deepin_cloned_widget_new(win);
-            gtk_widget_set_sensitive(widget, TRUE);
             g_ptr_array_add(priv->clones, widget);
 
             MetaRectangle r;
@@ -971,7 +1060,7 @@ static gboolean on_deepin_shadow_workspace_motion(DeepinShadowWorkspace* self,
     return FALSE;
 }
 
-static void on_change_workspace(DeepinMessageHub* hub, MetaWindow* window,
+static void on_window_change_workspace(DeepinMessageHub* hub, MetaWindow* window,
         MetaWorkspace* new_workspace, gpointer user_data)
 {
     DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)user_data;
@@ -1019,7 +1108,7 @@ static void on_drag_data_received(GtkWidget* widget, GdkDragContext* context,
 {
     DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)widget;
     DeepinShadowWorkspacePrivate* priv = self->priv;
-    g_message("%s", __func__);
+    g_message("%s: x %d, y %d", __func__, x, y);
 
     const guchar* raw_data = gtk_selection_data_get_data(data);
     if (raw_data) {
@@ -1056,8 +1145,13 @@ static gboolean on_drag_drop(GtkWidget* widget, GdkDragContext* context,
                gint x, gint y, guint time, gpointer user_data)
 {
     g_message("%s", __func__);
-    //HACK: drag broken the grab, need to restore here
-    /*deepin_message_hub_drag_end();*/
+    return FALSE;
+}
+
+static gboolean on_deepin_shadow_workspace_event(DeepinShadowWorkspace* self,
+        GdkEvent* ev, gpointer data)
+{
+    /*g_message("%s", __func__);*/
     return FALSE;
 }
 
@@ -1084,6 +1178,7 @@ GtkWidget* deepin_shadow_workspace_new(void)
             targets, G_N_ELEMENTS(targets), GDK_ACTION_COPY);
 
     g_object_connect(G_OBJECT(self),
+            "signal::event", on_deepin_shadow_workspace_event, NULL,
             "signal::show", on_deepin_shadow_workspace_show, NULL,
             "signal::button-press-event", on_deepin_shadow_workspace_pressed, NULL,
             "signal::motion-notify-event", on_deepin_shadow_workspace_motion, NULL,
@@ -1093,7 +1188,7 @@ GtkWidget* deepin_shadow_workspace_new(void)
 
     g_object_connect(G_OBJECT(deepin_message_hub_get()), 
             "signal::window-removed", on_window_removed, self,
-            "signal::about-to-change-workspace", on_change_workspace, self,
+            "signal::about-to-change-workspace", on_window_change_workspace, self,
             NULL);
 
     return (GtkWidget*)self;
@@ -1113,6 +1208,11 @@ void deepin_shadow_workspace_set_scale(DeepinShadowWorkspace* self, gdouble s)
     /* FIXME: need to check if repopulate */
 
     gtk_widget_queue_resize(GTK_WIDGET(self));
+}
+
+gdouble deepin_shadow_workspace_get_scale(DeepinShadowWorkspace* self)
+{
+    return self->priv->scale;
 }
 
 void deepin_shadow_workspace_set_presentation(DeepinShadowWorkspace* self,
@@ -1285,5 +1385,10 @@ gboolean deepin_shadow_workspace_get_is_thumb_mode(DeepinShadowWorkspace* self)
 gboolean deepin_shadow_workspace_get_is_current(DeepinShadowWorkspace* self)
 {
     return self->priv->selected;
+}
+
+GdkWindow* deepin_shadow_workspace_get_event_window(DeepinShadowWorkspace* self)
+{
+    return self->priv->event_window;
 }
 

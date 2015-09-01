@@ -48,6 +48,9 @@ struct _DeepinWMBackgroundPrivate
     float scale;
     gint width, height; /* for workspace */
     gint thumb_width, thumb_height; /* for top thumbs */
+
+    DeepinShadowWorkspace* hover_ws;
+    GtkWidget* close_button; /* for hovered workspace thumb */
 };
 
 
@@ -58,35 +61,34 @@ static gboolean _show_adder(MetaScreen* screen)
     return meta_screen_get_n_workspaces(screen) < MAX_WORKSPACE_NUM;
 }
 
-static void deepin_wm_background_init (DeepinWMBackground *self)
+static void _hide_close_button(DeepinWMBackground* self)
 {
-    self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, DEEPIN_TYPE_WM_BACKGROUND, DeepinWMBackgroundPrivate);
+    DeepinWMBackgroundPrivate* priv= self->priv;
 
-    DeepinWMBackgroundPrivate* priv = self->priv;
-    priv->worskpaces = NULL;
+    if (priv->close_button) {
+        gtk_widget_set_opacity(priv->close_button, 0.0);
+        gtk_widget_hide(priv->close_button);
+    }
 }
 
-static void deepin_wm_background_finalize (GObject *object)
+static void _move_close_button_for(DeepinWMBackground* self,
+        DeepinShadowWorkspace* ws_thumb)
 {
-    /* TODO: Add deinitalization code here */
+    DeepinWMBackgroundPrivate* priv= self->priv;
 
-    G_OBJECT_CLASS (deepin_wm_background_parent_class)->finalize (object);
-}
+    GtkAllocation alloc;
+    gtk_widget_get_allocation(GTK_WIDGET(ws_thumb), &alloc);
 
-static gboolean deepin_wm_background_real_draw(GtkWidget *widget, cairo_t* cr)
-{
-    return GTK_WIDGET_CLASS(deepin_wm_background_parent_class)->draw(widget, cr);
-}
+    gint x = 0, y = 0;
+    gtk_container_child_get(GTK_CONTAINER(priv->fixed), GTK_WIDGET(ws_thumb),
+            "x", &x, "y", &y, NULL);
 
-static void deepin_wm_background_class_init (DeepinWMBackgroundClass *klass)
-{
-    GObjectClass* object_class = G_OBJECT_CLASS (klass);
-    GtkWidgetClass* widget_class = GTK_WIDGET_CLASS (klass);
-
-    g_type_class_add_private (klass, sizeof (DeepinWMBackgroundPrivate));
-    widget_class->draw = deepin_wm_background_real_draw;
-
-    object_class->finalize = deepin_wm_background_finalize;
+    deepin_fixed_raise(DEEPIN_FIXED(priv->fixed), priv->close_button);
+    deepin_fixed_move(DEEPIN_FIXED(priv->fixed), priv->close_button,
+            x + alloc.width/2,
+            y - alloc.height/2,
+            FALSE);
+    gtk_widget_show(priv->close_button);
 }
 
 static gint find_by_meta_workspace(gconstpointer a, gconstpointer b)
@@ -107,45 +109,6 @@ static DeepinShadowWorkspace* _find_workspace(GList* l, MetaWorkspace* next)
     return (DeepinShadowWorkspace*)tmp->data;
 }
 
-void deepin_wm_background_switch_workspace(DeepinWMBackground* self, 
-        MetaWorkspace* next)
-{
-    DeepinWMBackgroundPrivate* priv = self->priv;
-    DeepinShadowWorkspace* next_ws = _find_workspace(priv->worskpaces, next);
-    DeepinShadowWorkspace* next_thumb = _find_workspace(priv->worskpace_thumbs, next);
-
-    DeepinShadowWorkspace* current_thumb = _find_workspace(priv->worskpace_thumbs,
-                deepin_shadow_workspace_get_workspace(priv->active_workspace));
-    DeepinShadowWorkspace* current = priv->active_workspace;
-
-    //DO move animation
-    deepin_shadow_workspace_set_current(current, FALSE);
-    deepin_shadow_workspace_set_current(current_thumb, FALSE);
-
-    deepin_shadow_workspace_set_current(next_ws, TRUE);
-    deepin_shadow_workspace_set_current(next_thumb, TRUE);
-
-    priv->active_workspace = next_ws;
-
-    GdkRectangle geom;
-    gint monitor_index = gdk_screen_get_monitor_at_window(priv->gscreen,
-            gtk_widget_get_window(GTK_WIDGET(self)));
-    gdk_screen_get_monitor_geometry(priv->gscreen, monitor_index, &geom);
-
-    gint i = 0,
-         current_pos = g_list_index(priv->worskpaces, next_ws),
-         pad = FLOW_CLONE_DISTANCE_PERCENT * geom.width;
-
-    GList* l = priv->worskpaces;
-    while (l) {
-        gint x = (geom.width - priv->width) / 2 +  (i - current_pos) * (priv->width + pad);
-        deepin_fixed_move(DEEPIN_FIXED(priv->fixed), (GtkWidget*)l->data,
-                x + priv->width/2, priv->top_offset + priv->height/2, TRUE);
-
-        i++;
-        l = l->next;
-    }
-}
     
 static void relayout(DeepinWMBackground* self)
 {
@@ -210,11 +173,207 @@ static void relayout(DeepinWMBackground* self)
 static gboolean delayed_relayout(gpointer user_data)
 {
     DeepinWMBackground* self = (DeepinWMBackground*)user_data;
-    DeepinWMBackgroundPrivate* priv = self->priv;
 
     relayout(self);
 
     return G_SOURCE_REMOVE;
+}
+
+static gboolean on_close_button_clicked(GtkWidget* widget,
+               GdkEvent* event, gpointer data)
+{
+    g_message("%s", __func__);
+    DeepinWMBackground* self = (DeepinWMBackground*)data;
+    DeepinWMBackgroundPrivate* priv = self->priv;
+
+    gboolean need_switch_active = FALSE;
+
+    _hide_close_button(self);
+
+    gint index = g_list_index(priv->worskpace_thumbs, priv->hover_ws);
+    DeepinShadowWorkspace* ws = g_list_nth(priv->worskpaces, index)->data;
+    MetaWorkspace* workspace = deepin_shadow_workspace_get_workspace(ws);
+    need_switch_active = (ws == priv->active_workspace);
+
+    priv->worskpaces = g_list_remove(priv->worskpaces, ws);
+    priv->worskpace_thumbs = g_list_remove(priv->worskpace_thumbs, priv->hover_ws);
+
+    gtk_container_remove(GTK_CONTAINER(priv->fixed), (GtkWidget*)priv->hover_ws);
+    gtk_container_remove(GTK_CONTAINER(priv->fixed), (GtkWidget*)ws);
+
+    meta_screen_remove_workspace(priv->screen, workspace);
+
+    priv->hover_ws = NULL;
+    g_idle_add(delayed_relayout, self);
+
+    if (need_switch_active) {
+        MetaWorkspace* next_ws = priv->screen->active_workspace;
+        priv->active_workspace = _find_workspace(priv->worskpaces, next_ws);
+        DeepinShadowWorkspace* current_thumb = _find_workspace(
+                priv->worskpace_thumbs,
+                deepin_shadow_workspace_get_workspace(priv->active_workspace));
+
+        deepin_shadow_workspace_set_current(priv->active_workspace, TRUE);
+        deepin_shadow_workspace_set_current(current_thumb, TRUE);
+    }
+
+    return TRUE;
+}
+
+static gboolean on_close_button_leaved(GtkWidget* widget,
+               GdkEvent* event, gpointer data)
+{
+    g_message("%s", __func__);
+    DeepinWMBackground* self = (DeepinWMBackground*)data;
+    DeepinWMBackgroundPrivate* priv = self->priv;
+
+    if (priv->hover_ws) {
+        /* FIXME: there is a problem: when cloned is gets focused (so scaled up),
+         * leave event will looks like as if it happened inside of cloned. need
+         * a workaround */
+        gint x, y;
+        x = event->crossing.x_root;
+        y = event->crossing.y_root;
+
+        GtkAllocation alloc;
+        gtk_widget_get_allocation(GTK_WIDGET(priv->hover_ws), &alloc);
+
+        GdkRectangle r = {alloc.x, alloc.y, alloc.width, alloc.height};
+        if (x > r.x && x < r.x + r.width && y > r.y && y < r.y + r.height) {
+            return FALSE;
+        }
+    }
+
+    priv->hover_ws = NULL;
+    _hide_close_button(self);
+    return FALSE;
+}
+
+static void _create_close_button(DeepinWMBackground* self)
+{
+    DeepinWMBackgroundPrivate* priv= self->priv;
+
+    priv->close_button = gtk_event_box_new();
+    gtk_event_box_set_above_child(GTK_EVENT_BOX(priv->close_button), TRUE);
+    gtk_event_box_set_visible_window(GTK_EVENT_BOX(priv->close_button), FALSE);
+
+    GtkWidget* image = gtk_image_new_from_file(METACITY_PKGDATADIR "/close.png");
+    gtk_container_add(GTK_CONTAINER(priv->close_button), image);
+
+    deepin_fixed_put(DEEPIN_FIXED(priv->fixed), priv->close_button, -100, -100);
+    gtk_widget_set_opacity(priv->close_button, 0.0);
+
+    g_object_connect(G_OBJECT(priv->close_button), 
+            "signal::leave-notify-event", on_close_button_leaved, self,
+            "signal::button-release-event", on_close_button_clicked, self,
+            NULL);
+}
+
+static gboolean on_workspace_thumb_leaved(DeepinShadowWorkspace* ws_thumb,
+               GdkEvent* event, gpointer data)
+{
+    DeepinWMBackground* self = (DeepinWMBackground*)data;
+    g_message("%s", __func__);
+
+    gint x, y;
+    x = event->crossing.x_root;
+    y = event->crossing.y_root;
+
+    GtkAllocation alloc;
+    gtk_widget_get_allocation(GTK_WIDGET(ws_thumb), &alloc);
+
+    GdkRectangle r = {alloc.x, alloc.y, alloc.width, alloc.height};
+    if (x > r.x && x < r.x + r.width && y > r.y && y < r.y + r.height) {
+        return FALSE;
+    }
+
+    self->priv->hover_ws = NULL;
+    _hide_close_button(self);
+    return TRUE;
+}
+
+static gboolean on_workspace_thumb_entered(DeepinShadowWorkspace* ws_thumb,
+               GdkEvent* event, gpointer data)
+{
+    DeepinWMBackground* self = DEEPIN_WM_BACKGROUND(data);
+    DeepinWMBackgroundPrivate* priv= self->priv;
+    g_message("%s", __func__);
+
+    priv->hover_ws = ws_thumb;
+    _move_close_button_for(self, ws_thumb);
+    gtk_widget_set_opacity(priv->close_button, 1.0);
+    return TRUE;
+}
+
+static void deepin_wm_background_init (DeepinWMBackground *self)
+{
+    self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, DEEPIN_TYPE_WM_BACKGROUND, DeepinWMBackgroundPrivate);
+
+    DeepinWMBackgroundPrivate* priv = self->priv;
+    priv->worskpaces = NULL;
+}
+
+static void deepin_wm_background_finalize (GObject *object)
+{
+    /* TODO: Add deinitalization code here */
+
+    G_OBJECT_CLASS (deepin_wm_background_parent_class)->finalize (object);
+}
+
+static gboolean deepin_wm_background_real_draw(GtkWidget *widget, cairo_t* cr)
+{
+    return GTK_WIDGET_CLASS(deepin_wm_background_parent_class)->draw(widget, cr);
+}
+
+static void deepin_wm_background_class_init (DeepinWMBackgroundClass *klass)
+{
+    GObjectClass* object_class = G_OBJECT_CLASS (klass);
+    GtkWidgetClass* widget_class = GTK_WIDGET_CLASS (klass);
+
+    g_type_class_add_private (klass, sizeof (DeepinWMBackgroundPrivate));
+    widget_class->draw = deepin_wm_background_real_draw;
+
+    object_class->finalize = deepin_wm_background_finalize;
+}
+
+void deepin_wm_background_switch_workspace(DeepinWMBackground* self, 
+        MetaWorkspace* next)
+{
+    DeepinWMBackgroundPrivate* priv = self->priv;
+    DeepinShadowWorkspace* next_ws = _find_workspace(priv->worskpaces, next);
+    DeepinShadowWorkspace* next_thumb = _find_workspace(priv->worskpace_thumbs, next);
+
+    DeepinShadowWorkspace* current_thumb = _find_workspace(priv->worskpace_thumbs,
+                deepin_shadow_workspace_get_workspace(priv->active_workspace));
+    DeepinShadowWorkspace* current = priv->active_workspace;
+
+    //DO move animation
+    deepin_shadow_workspace_set_current(current, FALSE);
+    deepin_shadow_workspace_set_current(current_thumb, FALSE);
+
+    deepin_shadow_workspace_set_current(next_ws, TRUE);
+    deepin_shadow_workspace_set_current(next_thumb, TRUE);
+
+    priv->active_workspace = next_ws;
+
+    GdkRectangle geom;
+    gint monitor_index = gdk_screen_get_monitor_at_window(priv->gscreen,
+            gtk_widget_get_window(GTK_WIDGET(self)));
+    gdk_screen_get_monitor_geometry(priv->gscreen, monitor_index, &geom);
+
+    gint i = 0,
+         current_pos = g_list_index(priv->worskpaces, next_ws),
+         pad = FLOW_CLONE_DISTANCE_PERCENT * geom.width;
+
+    GList* l = priv->worskpaces;
+    while (l) {
+        gint x = (geom.width - priv->width) / 2 +  (i - current_pos) * (priv->width + pad);
+        deepin_fixed_move(DEEPIN_FIXED(priv->fixed), (GtkWidget*)l->data,
+                x + priv->width/2, priv->top_offset + priv->height/2, TRUE);
+
+        i++;
+        l = l->next;
+    }
 }
 
 static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer user_data)
@@ -255,6 +414,11 @@ static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer use
         deepin_shadow_workspace_set_thumb_mode(dsw, TRUE);
         deepin_shadow_workspace_set_scale(dsw, WORKSPACE_WIDTH_PERCENT);
         deepin_shadow_workspace_populate(dsw, new_ws);
+
+        g_object_connect(G_OBJECT(dsw), 
+                "signal::enter-notify-event", on_workspace_thumb_entered, self,
+                "signal::leave-notify-event", on_workspace_thumb_leaved, self,
+                NULL);
 
         gtk_widget_show(GTK_WIDGET(dsw));
         priv->worskpace_thumbs = g_list_append(priv->worskpace_thumbs, dsw);
@@ -337,6 +501,11 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
                 deepin_shadow_workspace_set_current(dsw, TRUE);
             }
 
+            g_object_connect(G_OBJECT(dsw), 
+                    "signal::enter-notify-event", on_workspace_thumb_entered, self,
+                    "signal::leave-notify-event", on_workspace_thumb_leaved, self,
+                    NULL);
+
             priv->worskpace_thumbs = g_list_append(priv->worskpace_thumbs, dsw);
         }
 
@@ -385,6 +554,8 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
                 x + priv->thumb_width/2,
                 thumb_y + (priv->thumb_height - WORKSPACE_NAME_HEIGHT - WORKSPACE_NAME_DISTANCE)/2);
     }
+
+    _create_close_button(self);
 }
 
 static gboolean on_deepin_wm_background_event(DeepinWMBackground* self,

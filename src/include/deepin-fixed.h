@@ -107,6 +107,8 @@ void       deepin_fixed_move              (DeepinFixed       *fixed,
                                         gint            y, 
                                         gboolean        animate);
 
+void       deepin_fixed_raise            (DeepinFixed       *fixed,
+                                        GtkWidget      *widget);
 
 G_END_DECLS
 

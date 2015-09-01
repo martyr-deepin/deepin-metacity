@@ -58,6 +58,7 @@ GtkWidget* deepin_shadow_workspace_new(void);
 void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
         MetaWorkspace* ws);
 void deepin_shadow_workspace_set_scale(DeepinShadowWorkspace*, gdouble);
+gdouble deepin_shadow_workspace_get_scale(DeepinShadowWorkspace*);
 
 // true to do presentation animation during show up
 void deepin_shadow_workspace_set_presentation(DeepinShadowWorkspace*, gboolean);
@@ -73,6 +74,8 @@ MetaDeepinClonedWidget* deepin_shadow_workspace_get_focused(DeepinShadowWorkspac
 void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
         XEvent* event, KeySym keysym, MetaKeyBindingAction action);
 MetaWorkspace* deepin_shadow_workspace_get_workspace(DeepinShadowWorkspace*);
+
+GdkWindow* deepin_shadow_workspace_get_event_window(DeepinShadowWorkspace*);
 
 G_END_DECLS
 

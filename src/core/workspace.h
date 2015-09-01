@@ -71,6 +71,7 @@ void           meta_workspace_add_window    (MetaWorkspace *workspace,
                                              MetaWindow    *window);
 void           meta_workspace_remove_window (MetaWorkspace *workspace,
                                              MetaWindow    *window);
+void           meta_workspace_update_window_hints (MetaWorkspace *workspace);
 void           meta_workspace_relocate_windows (MetaWorkspace *workspace,
                                                 MetaWorkspace *new_home);
 void           meta_workspace_activate_with_focus (MetaWorkspace *workspace,

@@ -331,8 +331,20 @@ void deepin_fixed_move (DeepinFixed  *fixed,
     }
 }
 
-    static void
-deepin_fixed_set_child_property (GtkContainer *container,
+void deepin_fixed_raise(DeepinFixed *fixed, GtkWidget *widget)
+{
+    DeepinFixedPrivate* priv = fixed->priv;
+    DeepinFixedChild* child = get_child(fixed, widget);
+
+    g_return_if_fail (DEEPIN_IS_FIXED (fixed));
+    g_return_if_fail (gtk_widget_get_parent (child->widget) == GTK_WIDGET (fixed));
+
+    gint id = g_list_index(priv->children, child);
+    priv->children = g_list_remove(priv->children, child);
+    priv->children = g_list_append(priv->children, child);
+}
+
+static void deepin_fixed_set_child_property (GtkContainer *container,
         GtkWidget    *child,
         guint         property_id,
         const GValue *value,
@@ -400,6 +412,7 @@ deepin_fixed_realize (GtkWidget *widget)
         GTK_WIDGET_CLASS (deepin_fixed_parent_class)->realize (widget);
     else
     {
+        g_message("%s: alloc window", __func__);
         gtk_widget_set_realized (widget, TRUE);
 
         gtk_widget_get_allocation (widget, &allocation);
@@ -412,7 +425,11 @@ deepin_fixed_realize (GtkWidget *widget)
         attributes.wclass = GDK_INPUT_OUTPUT;
         attributes.visual = gtk_widget_get_visual (widget);
         attributes.event_mask = gtk_widget_get_events (widget);
-        attributes.event_mask |= GDK_EXPOSURE_MASK | GDK_BUTTON_PRESS_MASK;
+        attributes.event_mask |= GDK_EXPOSURE_MASK 
+            | GDK_BUTTON_PRESS_MASK 
+            | GDK_BUTTON_RELEASE_MASK 
+            | GDK_ENTER_NOTIFY_MASK
+            | GDK_LEAVE_NOTIFY_MASK;
 
         attributes_mask = GDK_WA_X | GDK_WA_Y | GDK_WA_VISUAL;
 
