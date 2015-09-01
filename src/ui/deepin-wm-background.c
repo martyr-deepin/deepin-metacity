@@ -67,7 +67,9 @@ static void _hide_close_button(DeepinWMBackground* self)
 
     if (priv->close_button) {
         gtk_widget_set_opacity(priv->close_button, 0.0);
-        gtk_widget_hide(priv->close_button);
+        deepin_fixed_move(DEEPIN_FIXED(priv->fixed), priv->close_button,
+                -100, -100,
+                FALSE);
     }
 }
 
@@ -88,7 +90,6 @@ static void _move_close_button_for(DeepinWMBackground* self,
             x + alloc.width/2,
             y - alloc.height/2,
             FALSE);
-    gtk_widget_show(priv->close_button);
 }
 
 static gint find_by_meta_workspace(gconstpointer a, gconstpointer b)
@@ -109,13 +110,26 @@ static DeepinShadowWorkspace* _find_workspace(GList* l, MetaWorkspace* next)
     return (DeepinShadowWorkspace*)tmp->data;
 }
 
+static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer user_data);
     
 static void relayout(DeepinWMBackground* self)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
+    gboolean adder_renewed = FALSE;
+
     if (!_show_adder(priv->screen) && priv->adder) {
         gtk_container_remove(GTK_CONTAINER(priv->fixed), GTK_WIDGET(priv->adder));
         priv->adder = NULL;
+
+    } else if (_show_adder(priv->screen) && !priv->adder) {
+        priv->adder = (DeepinWorkspaceAdder*)deepin_workspace_adder_new();
+        gtk_widget_set_size_request(GTK_WIDGET(priv->adder), 
+                priv->thumb_width, priv->thumb_height);
+        g_signal_connect(GTK_WIDGET(priv->adder), 
+                "button-release-event", (GCallback)on_adder_pressed, self);
+        gtk_widget_show(GTK_WIDGET(priv->adder));
+
+        adder_renewed = TRUE;
     }
 
     GList *l = priv->screen->workspaces;
@@ -163,9 +177,13 @@ static void relayout(DeepinWMBackground* self)
         int x = thumb_x + i * (priv->thumb_width + thumb_spacing);
         int y = thumb_y + (priv->thumb_height - WORKSPACE_NAME_HEIGHT - WORKSPACE_NAME_DISTANCE)/2;
 
-        deepin_fixed_move(DEEPIN_FIXED(priv->fixed), (GtkWidget*)priv->adder,
-                x + priv->thumb_width/2, y,
-                TRUE);
+        if (adder_renewed) {
+            deepin_fixed_put(DEEPIN_FIXED(priv->fixed), (GtkWidget*)priv->adder,
+                    x + priv->thumb_width/2, y);
+        } else {
+            deepin_fixed_move(DEEPIN_FIXED(priv->fixed), (GtkWidget*)priv->adder,
+                    x + priv->thumb_width/2, y, TRUE);
+        }
 
     }
 }
@@ -203,9 +221,6 @@ static gboolean on_close_button_clicked(GtkWidget* widget,
 
     meta_screen_remove_workspace(priv->screen, workspace);
 
-    priv->hover_ws = NULL;
-    g_idle_add(delayed_relayout, self);
-
     if (need_switch_active) {
         MetaWorkspace* next_ws = priv->screen->active_workspace;
         priv->active_workspace = _find_workspace(priv->worskpaces, next_ws);
@@ -216,6 +231,9 @@ static gboolean on_close_button_clicked(GtkWidget* widget,
         deepin_shadow_workspace_set_current(priv->active_workspace, TRUE);
         deepin_shadow_workspace_set_current(current_thumb, TRUE);
     }
+
+    priv->hover_ws = NULL;
+    g_idle_add(delayed_relayout, self);
 
     return TRUE;
 }
