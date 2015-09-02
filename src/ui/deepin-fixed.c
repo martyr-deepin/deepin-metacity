@@ -34,6 +34,14 @@ struct _DeepinFixedPrivate
     int  animation_duration;
 };
 
+enum
+{
+    SIGNAL_MOVE_FINISHED,
+    N_SIGNALS
+};
+
+static guint signals[N_SIGNALS];
+
 static void deepin_fixed_move_internal (DeepinFixed      *fixed,
         DeepinFixedChild *child,
         gint           x,
@@ -41,8 +49,13 @@ static void deepin_fixed_move_internal (DeepinFixed      *fixed,
 
 static void deepin_fixed_end_animation(DeepinFixed* self, ChildAnimationInfo* ai)
 {
-    g_assert(ai->animation == TRUE);
     g_assert(ai->tick_id != 0);
+
+    DeepinFixedChild* child = ai->child;
+
+    g_signal_emit(self, signals[SIGNAL_MOVE_FINISHED], 0, child);
+    child->ai = NULL;
+    deepin_fixed_move_internal(self, child, ai->target_x, ai->target_y);
 
     gtk_widget_remove_tick_callback(GTK_WIDGET(self), ai->tick_id);
 }
@@ -97,8 +110,6 @@ static void deepin_fixed_prepare_animation(DeepinFixed* self, ChildAnimationInfo
 
     ai->tick_id = gtk_widget_add_tick_callback(GTK_WIDGET(self),
             (GtkTickCallback)on_tick_callback, ai, g_free);
-
-    ai->animation = TRUE;
 }
 
 enum {
@@ -189,16 +200,21 @@ deepin_fixed_class_init (DeepinFixedClass *class)
                 ("Y position of child widget"),
                 G_MININT, G_MAXINT, 0,
                 G_PARAM_READWRITE));
+
+    signals[SIGNAL_MOVE_FINISHED] = g_signal_new ("move-finished",
+            DEEPIN_TYPE_FIXED,
+            G_SIGNAL_RUN_LAST,
+            0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 1, G_TYPE_POINTER);
 }
 
-    static GType
-deepin_fixed_child_type (GtkContainer *container)
+static GType deepin_fixed_child_type (GtkContainer *container)
 {
     return GTK_TYPE_WIDGET;
 }
 
-    static void
-deepin_fixed_init (DeepinFixed *fixed)
+static void deepin_fixed_init (DeepinFixed *fixed)
 {
     fixed->priv = (DeepinFixedPrivate*)deepin_fixed_get_instance_private (fixed);
 
@@ -215,15 +231,13 @@ deepin_fixed_init (DeepinFixed *fixed)
  *
  * Returns: a new #DeepinFixed.
  */
-    GtkWidget*
-deepin_fixed_new ()
+GtkWidget* deepin_fixed_new ()
 {
     DeepinFixed* fixed = (DeepinFixed*)g_object_new (DEEPIN_TYPE_FIXED, NULL);
     return (GtkWidget*)fixed;
 }
 
-    static DeepinFixedChild*
-get_child (DeepinFixed  *fixed,
+static DeepinFixedChild* get_child (DeepinFixed  *fixed,
         GtkWidget *widget)
 {
     DeepinFixedPrivate *priv = fixed->priv;
@@ -251,8 +265,7 @@ get_child (DeepinFixed  *fixed,
  *
  * Adds a widget to a #DeepinFixed container at the given position.
  */
-    void
-deepin_fixed_put (DeepinFixed  *fixed,
+void deepin_fixed_put (DeepinFixed  *fixed,
         GtkWidget *widget,
         gint       x,
         gint       y)
@@ -267,6 +280,7 @@ deepin_fixed_put (DeepinFixed  *fixed,
     child_info->widget = widget;
     child_info->x = x;
     child_info->y = y;
+    child_info->ai = NULL;
 
     gtk_widget_set_parent (widget, GTK_WIDGET (fixed));
 
@@ -317,17 +331,24 @@ void deepin_fixed_move (DeepinFixed  *fixed,
         gint       y,
         gboolean   animate)
 {
+    DeepinFixedChild* child = get_child(fixed, widget);
+    if (child->ai) {
+        deepin_fixed_end_animation(fixed, child->ai);
+    } 
+
     if (animate) {
         ChildAnimationInfo* ai = g_new0(ChildAnimationInfo, 1);
-        ai->child = get_child(fixed, widget);
+        ai->child = child;
         ai->target_x = x;
         ai->target_y = y;
         ai->old_x = ai->child->x;
         ai->old_y = ai->child->y;
 
+        child->ai = ai;
         deepin_fixed_prepare_animation(fixed, ai);
+
     } else {
-        deepin_fixed_move_internal (fixed, get_child (fixed, widget), x, y);
+        deepin_fixed_move_internal (fixed, child, x, y);
     }
 }
 
@@ -375,8 +396,7 @@ static void deepin_fixed_set_child_property (GtkContainer *container,
     }
 }
 
-    static void
-deepin_fixed_get_child_property (GtkContainer *container,
+static void deepin_fixed_get_child_property (GtkContainer *container,
         GtkWidget    *child,
         guint         property_id,
         GValue       *value,
@@ -400,8 +420,7 @@ deepin_fixed_get_child_property (GtkContainer *container,
     }
 }
 
-    static void
-deepin_fixed_realize (GtkWidget *widget)
+static void deepin_fixed_realize (GtkWidget *widget)
 {
     GtkAllocation allocation;
     GdkWindow *window;
@@ -443,8 +462,7 @@ deepin_fixed_realize (GtkWidget *widget)
     }
 }
 
-    static void
-deepin_fixed_get_preferred_width (GtkWidget *widget,
+static void deepin_fixed_get_preferred_width (GtkWidget *widget,
         gint      *minimum,
         gint      *natural)
 {
@@ -465,8 +483,7 @@ deepin_fixed_get_preferred_width (GtkWidget *widget,
     *minimum = *natural = box_width;
 }
 
-    static void
-deepin_fixed_get_preferred_height (GtkWidget *widget,
+static void deepin_fixed_get_preferred_height (GtkWidget *widget,
         gint      *minimum,
         gint      *natural)
 {
@@ -484,8 +501,7 @@ deepin_fixed_get_preferred_height (GtkWidget *widget,
     *minimum = *natural = box_height;
 }
 
-    static void
-deepin_fixed_size_allocate (GtkWidget     *widget,
+static void deepin_fixed_size_allocate (GtkWidget     *widget,
         GtkAllocation *allocation)
 {
     DeepinFixed *fixed = DEEPIN_FIXED (widget);
@@ -529,15 +545,13 @@ deepin_fixed_size_allocate (GtkWidget     *widget,
     }
 }
 
-    static void
-deepin_fixed_add (GtkContainer *container,
+static void deepin_fixed_add (GtkContainer *container,
         GtkWidget    *widget)
 {
     deepin_fixed_put (DEEPIN_FIXED (container), widget, 0, 0);
 }
 
-    static void
-deepin_fixed_remove (GtkContainer *container,
+static void deepin_fixed_remove (GtkContainer *container,
         GtkWidget    *widget)
 {
     DeepinFixed *fixed = DEEPIN_FIXED (container);

@@ -86,6 +86,7 @@ struct _DeepinFixedChild
   GtkWidget *widget;
   gint x;
   gint y;
+  ChildAnimationInfo* ai;
 };
 
 

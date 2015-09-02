@@ -18,6 +18,7 @@
  */
 
 #include <config.h>
+#include <stdlib.h>
 #include <gdk/gdkx.h>
 #include <prefs.h>
 #include "deepin-wm-background.h"
@@ -35,6 +36,8 @@ struct _DeepinWMBackgroundPrivate
     GdkScreen* gscreen;
 
     gint disposed: 1;
+    gint switching_workspace: 1;
+
     GtkWidget* fixed;
 
     DeepinShadowWorkspace* active_workspace;
@@ -256,7 +259,7 @@ static gboolean on_close_button_leaved(GtkWidget* widget,
         GtkAllocation alloc;
         gtk_widget_get_allocation(GTK_WIDGET(priv->hover_ws), &alloc);
 
-        GdkRectangle r = {alloc.x, alloc.y, alloc.width, alloc.height};
+        GdkRectangle r = {alloc.x, alloc.y, alloc.width, priv->thumb_height};
         if (x > r.x && x < r.x + r.width && y > r.y && y < r.y + r.height) {
             return FALSE;
         }
@@ -354,6 +357,27 @@ static void deepin_wm_background_class_init (DeepinWMBackgroundClass *klass)
     object_class->finalize = deepin_wm_background_finalize;
 }
 
+static void toggle_workspace_frozen(DeepinShadowWorkspace* ws, DeepinWMBackground* self)
+{
+    deepin_shadow_workspace_set_frozen(ws, 
+            !deepin_shadow_workspace_get_is_freezed(ws));
+}
+
+static int _move_count = 0;
+static void on_workspace_move_finished(DeepinFixed* fixed,
+        DeepinFixedChild* child, DeepinWMBackground* self)
+{
+    DeepinWMBackgroundPrivate* priv = self->priv;
+
+    _move_count--;
+    if (priv->switching_workspace && _move_count == 0) {
+        g_message("%s: switch done", __func__);
+        priv->switching_workspace = FALSE;
+        g_list_foreach(priv->worskpace_thumbs, (GFunc)toggle_workspace_frozen, self);
+        g_list_foreach(priv->worskpaces, (GFunc)toggle_workspace_frozen, self);
+    }
+}
+
 void deepin_wm_background_switch_workspace(DeepinWMBackground* self, 
         MetaWorkspace* next)
 {
@@ -373,6 +397,11 @@ void deepin_wm_background_switch_workspace(DeepinWMBackground* self,
     deepin_shadow_workspace_set_current(next_thumb, TRUE);
 
     priv->active_workspace = next_ws;
+    priv->switching_workspace = TRUE;
+
+    g_list_foreach(priv->worskpace_thumbs, (GFunc)toggle_workspace_frozen, self);
+    g_list_foreach(priv->worskpaces, (GFunc)toggle_workspace_frozen, self);
+    _move_count = 0;
 
     GdkRectangle geom;
     gint monitor_index = gdk_screen_get_monitor_at_window(priv->gscreen,
@@ -386,8 +415,12 @@ void deepin_wm_background_switch_workspace(DeepinWMBackground* self,
     GList* l = priv->worskpaces;
     while (l) {
         gint x = (geom.width - priv->width) / 2 +  (i - current_pos) * (priv->width + pad);
+        gboolean animate = abs(i-current_pos) <= 1;
+        if (animate) _move_count++;
+
         deepin_fixed_move(DEEPIN_FIXED(priv->fixed), (GtkWidget*)l->data,
-                x + priv->width/2, priv->top_offset + priv->height/2, TRUE);
+                x + priv->width/2, priv->top_offset + priv->height/2, 
+                animate);
 
         i++;
         l = l->next;
@@ -472,6 +505,8 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
             
     priv->fixed = deepin_fixed_new();
     gtk_container_add(GTK_CONTAINER(self), priv->fixed);
+    g_signal_connect(G_OBJECT(priv->fixed), "move-finished",
+            (GCallback)on_workspace_move_finished, self);
 
     priv->top_offset = (int)(geom.height * FLOW_CLONE_TOP_OFFSET_PERCENT);
     priv->bottom_offset = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);

@@ -26,6 +26,7 @@
 #include <cairo-xlib.h>
 
 #include "../core/workspace.h"
+#include "boxes.h"
 #include "deepin-cloned-widget.h"
 #include "compositor.h"
 #include "deepin-design.h"
@@ -64,6 +65,8 @@ struct _DeepinShadowWorkspacePrivate
     GtkWidget* entry;
     GtkWidget* close_button; /* for focused clone */
     MetaDeepinClonedWidget* window_need_focused;
+
+    cairo_pattern_t* snapshot;
 };
 
 typedef struct _ClonedPrivateInfo
@@ -606,18 +609,49 @@ static void _draw_round_box(cairo_t* cr, gint width, gint height, double radius)
     cairo_close_path(cr);
 }
 
-/* FIXME: no need to draw when do moving animation, just a snapshot */
 static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
         cairo_t *cr)
 {
     DeepinShadowWorkspace *fixed = DEEPIN_SHADOW_WORKSPACE (widget);
     DeepinShadowWorkspacePrivate *priv = fixed->priv;
 
+    GdkRectangle r;
+    gdk_cairo_get_clip_rectangle(cr, &r);
+
     GtkAllocation req;
     gtk_widget_get_allocation(widget, &req);
 
+    /*g_message("%s: ws(%s(%s)) clip (%d, %d, %d, %d) alloc (%d, %d, %d, %d)",*/
+            /*__func__, */
+            /*meta_workspace_get_name(priv->workspace),*/
+            /*(priv->thumb_mode ? "thumb": ""),*/
+            /*r.x, r.y, r.width, r.height,*/
+            /*req.x, req.y, req.width, req.height);*/
+
+    gboolean do_snapshot_draw = FALSE;
+
+    if (priv->freeze) {
+        MetaRectangle bound = {req.x, req.y, req.width, req.height};
+        MetaRectangle clip = {r.x, r.y, r.width, r.height};
+
+        g_message("%s: ws(%s(%s)) frozen", __func__, 
+                meta_workspace_get_name(priv->workspace),
+                (priv->thumb_mode ? "thumb": ""));
+        if (priv->snapshot) {
+            cairo_set_source(cr, priv->snapshot);
+            cairo_paint(cr);
+            return TRUE; 
+
+        } else if (meta_rectangle_could_fit_rect(&clip, &bound)) {
+            g_message("%s: frozen, do a full render", __func__);
+            cairo_push_group(cr);
+            do_snapshot_draw = TRUE;
+        }
+    }
+
     GtkStyleContext* context = gtk_widget_get_style_context(widget);
 
+    cairo_save(cr);
     if (priv->thumb_mode) {
 
         /* FIXME: why can not get borders */
@@ -639,8 +673,16 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
             deepin_background_cache_get_surface(priv->scale), 0, 0);
     cairo_paint(cr);
 
-    cairo_reset_clip(cr);
-    return GTK_WIDGET_CLASS(deepin_shadow_workspace_parent_class)->draw(widget, cr);
+    cairo_restore(cr);
+    GTK_WIDGET_CLASS(deepin_shadow_workspace_parent_class)->draw(
+            widget, cr);
+
+    if (do_snapshot_draw) {
+        priv->snapshot = cairo_pop_group(cr);
+        cairo_set_source(cr, priv->snapshot);
+        cairo_paint(cr);
+    }
+    return TRUE;
 }
 
 static void union_with_clip (GtkWidget *widget,
@@ -738,7 +780,6 @@ static void deepin_shadow_workspace_realize (GtkWidget *widget)
     priv->event_window = gdk_window_new (window,
             &attributes, attributes_mask);
     gtk_widget_register_window (widget, priv->event_window);
-    gdk_window_lower(priv->event_window);
 }
 
 static void deepin_shadow_workspace_unrealize (GtkWidget *widget)
@@ -763,7 +804,7 @@ static void deepin_shadow_workspace_map (GtkWidget *widget)
     GTK_WIDGET_CLASS (deepin_shadow_workspace_parent_class)->map (widget);
 
     if (priv->event_window)
-        gdk_window_show_unraised(priv->event_window);
+        gdk_window_show(priv->event_window);
 }
 
 static void deepin_shadow_workspace_unmap (GtkWidget *widget)
@@ -1390,5 +1431,26 @@ gboolean deepin_shadow_workspace_get_is_current(DeepinShadowWorkspace* self)
 GdkWindow* deepin_shadow_workspace_get_event_window(DeepinShadowWorkspace* self)
 {
     return self->priv->event_window;
+}
+
+void deepin_shadow_workspace_set_frozen(DeepinShadowWorkspace* self,
+        gboolean val)
+{
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+    gboolean old = priv->freeze;
+    if (old == val) return;
+
+    if (old && priv->snapshot) {
+        cairo_pattern_destroy(priv->snapshot);
+        priv->snapshot = NULL;
+    }
+
+    priv->freeze = val;
+    /*gtk_widget_queue_draw(GTK_WIDGET(self));*/
+}
+
+gboolean deepin_shadow_workspace_get_is_freezed(DeepinShadowWorkspace* self)
+{
+    return self->priv->freeze;
 }
 
