@@ -37,6 +37,7 @@ struct _DeepinFixedPrivate
 enum
 {
     SIGNAL_MOVE_FINISHED,
+    SIGNAL_MOVE_CANCELLED,
     N_SIGNALS
 };
 
@@ -207,6 +208,13 @@ deepin_fixed_class_init (DeepinFixedClass *class)
             0,
             NULL, NULL, NULL,
             G_TYPE_NONE, 1, G_TYPE_POINTER);
+
+    signals[SIGNAL_MOVE_CANCELLED] = g_signal_new ("move-cancelled",
+            DEEPIN_TYPE_FIXED,
+            G_SIGNAL_RUN_LAST,
+            0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 1, G_TYPE_POINTER);
 }
 
 static GType deepin_fixed_child_type (GtkContainer *container)
@@ -349,6 +357,40 @@ void deepin_fixed_move (DeepinFixed  *fixed,
 
     } else {
         deepin_fixed_move_internal (fixed, child, x, y);
+    }
+}
+
+static void deepin_fixed_cancel_animation_internal(DeepinFixed* fixed,
+        DeepinFixedChild* child)
+{
+    if (child->ai) {
+        ChildAnimationInfo* ai = child->ai;
+        g_assert(ai->tick_id != 0);
+
+        g_signal_emit(fixed, signals[SIGNAL_MOVE_CANCELLED], 0, child);
+        child->ai = NULL;
+        deepin_fixed_move_internal(fixed, child, ai->target_x, ai->target_y);
+
+        gtk_widget_remove_tick_callback(GTK_WIDGET(fixed), ai->tick_id);
+    } 
+}
+
+void deepin_fixed_cancel_pending_animation(DeepinFixed *fixed,
+                                        GtkWidget *widget)
+{
+    DeepinFixedPrivate* priv = fixed->priv;
+    if (widget == NULL) {
+        DeepinFixedChild *child;
+        GList *children;
+
+        for(children = priv->children; children; children = children->next) {
+            child = (DeepinFixedChild*)children->data;
+            deepin_fixed_cancel_animation_internal(fixed, child);
+        }
+
+    } else {
+        DeepinFixedChild* child = get_child(fixed, widget);
+        deepin_fixed_cancel_animation_internal(fixed, child);
     }
 }
 

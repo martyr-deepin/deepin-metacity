@@ -212,7 +212,7 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
 
     GdkRectangle r;
     gdk_cairo_get_clip_rectangle(cr, &r);
-    g_message("%s: clip (%d, %d, %d, %d)", __func__, r.x, r.y, r.width, r.height);
+    /*g_message("%s: clip (%d, %d, %d, %d)", __func__, r.x, r.y, r.width, r.height);*/
 
     GtkStyleContext* context = gtk_widget_get_style_context (widget);
 

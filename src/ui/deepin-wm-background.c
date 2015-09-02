@@ -37,6 +37,9 @@ struct _DeepinWMBackgroundPrivate
 
     gint disposed: 1;
     gint switching_workspace: 1;
+    gint interrupted_switching: 1; /* cascading wokspace switching happens.
+                                      which means press and hold ws switching 
+                                      key */
 
     GtkWidget* fixed;
 
@@ -357,10 +360,10 @@ static void deepin_wm_background_class_init (DeepinWMBackgroundClass *klass)
     object_class->finalize = deepin_wm_background_finalize;
 }
 
-static void toggle_workspace_frozen(DeepinShadowWorkspace* ws, DeepinWMBackground* self)
+static void toggle_workspace_frozen(DeepinShadowWorkspace* ws, gpointer data)
 {
-    deepin_shadow_workspace_set_frozen(ws, 
-            !deepin_shadow_workspace_get_is_freezed(ws));
+    gboolean val = GPOINTER_TO_INT(data);
+    deepin_shadow_workspace_set_frozen(ws, val);
 }
 
 static int _move_count = 0;
@@ -372,9 +375,21 @@ static void on_workspace_move_finished(DeepinFixed* fixed,
     _move_count--;
     if (priv->switching_workspace && _move_count == 0) {
         g_message("%s: switch done", __func__);
+        priv->interrupted_switching = FALSE;
         priv->switching_workspace = FALSE;
-        g_list_foreach(priv->worskpace_thumbs, (GFunc)toggle_workspace_frozen, self);
-        g_list_foreach(priv->worskpaces, (GFunc)toggle_workspace_frozen, self);
+
+        gint freeze = FALSE;
+        g_list_foreach(priv->worskpace_thumbs,
+                (GFunc)toggle_workspace_frozen,
+                GINT_TO_POINTER(freeze));
+
+        g_list_foreach(priv->worskpaces,
+                (GFunc)toggle_workspace_frozen,
+                GINT_TO_POINTER(freeze));
+
+        meta_workspace_activate(
+                deepin_shadow_workspace_get_workspace(priv->active_workspace), 
+                gtk_get_current_event_time());
     }
 }
 
@@ -399,8 +414,11 @@ void deepin_wm_background_switch_workspace(DeepinWMBackground* self,
     priv->active_workspace = next_ws;
     priv->switching_workspace = TRUE;
 
-    g_list_foreach(priv->worskpace_thumbs, (GFunc)toggle_workspace_frozen, self);
-    g_list_foreach(priv->worskpaces, (GFunc)toggle_workspace_frozen, self);
+    gint freeze = TRUE;
+    g_list_foreach(priv->worskpace_thumbs, (GFunc)toggle_workspace_frozen, 
+            GINT_TO_POINTER(freeze));
+    g_list_foreach(priv->worskpaces, (GFunc)toggle_workspace_frozen,
+            GINT_TO_POINTER(freeze));
     _move_count = 0;
 
     GdkRectangle geom;
@@ -488,7 +506,6 @@ static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer use
     g_idle_add(delayed_relayout, self);
 
     // activate it and do animation
-    meta_workspace_activate(new_ws, gtk_get_current_event_time());
     deepin_wm_background_switch_workspace(self, new_ws);
     return TRUE;
 }
@@ -685,7 +702,11 @@ void deepin_wm_background_handle_event(DeepinWMBackground* self, XEvent* event,
                 return;
             }
 
-            meta_workspace_activate(next, event->xkey.time);
+            if (priv->switching_workspace) {
+                g_message("interrupt workspace switching");
+                priv->interrupted_switching = TRUE;
+            }
+            deepin_fixed_cancel_pending_animation(DEEPIN_FIXED(priv->fixed), NULL);
             deepin_wm_background_switch_workspace(self, next);
         }
 

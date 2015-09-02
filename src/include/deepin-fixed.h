@@ -111,6 +111,13 @@ void       deepin_fixed_move              (DeepinFixed       *fixed,
 void       deepin_fixed_raise            (DeepinFixed       *fixed,
                                         GtkWidget      *widget);
 
+/* if widget == NULL, cancel all pending animations, 
+ * this will suppress emission of move-finished signal,
+ * but send move-cancelled instead
+ * */
+void       deepin_fixed_cancel_pending_animation (DeepinFixed       *fixed,
+                                        GtkWidget      *widget);
+
 G_END_DECLS
 
 #endif
