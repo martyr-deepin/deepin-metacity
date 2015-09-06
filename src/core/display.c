@@ -2428,6 +2428,12 @@ event_get_modified_window (MetaDisplay *display,
           return sev->window;
         }
 
+      if (META_DISPLAY_HAS_DAMAGE(display) &&
+          event->type == (display->damage_event_base + XDamageNotify)) 
+        {
+            XDamageNotifyEvent* dnev = (XDamageNotifyEvent*) event;
+            return dnev->drawable;
+        }
       return None;
     }
 }

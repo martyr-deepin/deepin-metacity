@@ -38,6 +38,7 @@ static DeepinWindowSurfaceManager* _the_manager = NULL;
 struct _DeepinWindowSurfaceManagerPrivate
 {
     GHashTable* windows;
+    GList* pending_refresh; /* MetaWindow that has pending damages */
 };
 
 enum
@@ -62,6 +63,7 @@ static void deepin_window_surface_manager_finalize (GObject *object)
 {
     DeepinWindowSurfaceManager* self = DEEPIN_WINDOW_SURFACE_MANAGER(object);
     g_hash_table_unref(self->priv->windows);
+    g_list_free(self->priv->pending_refresh);
 
 	G_OBJECT_CLASS (deepin_window_surface_manager_parent_class)->finalize (object);
 }
@@ -189,17 +191,23 @@ void deepin_window_surface_manager_remove_window(MetaWindow* window)
     }
 }
 
-/* FIXME: how to find if need flush for any of window (expose event?) */
 void deepin_window_surface_manager_flush()
 {
     DeepinWindowSurfaceManager* self = deepin_window_surface_manager_get();
+    DeepinWindowSurfaceManagerPrivate* priv = self->priv;
+
     GList* l = g_hash_table_get_keys(self->priv->windows);
 
-    g_hash_table_remove_all(self->priv->windows);
     for (GList* t = l; t; t = t->next) {
-        deepin_window_surface_manager_get_surface((MetaWindow*)t->data, 1.0);
+        MetaWindow* win = (MetaWindow*)t->data;
+        if (g_list_find(priv->pending_refresh, win)) {
+            g_hash_table_remove(priv->windows, win);
+            deepin_window_surface_manager_get_surface((MetaWindow*)t->data, 1.0);
+        }
     }
     g_list_free(l);
+    g_list_free(priv->pending_refresh);
+    priv->pending_refresh = NULL;
 }
 
 static void on_window_removed(DeepinMessageHub* hub, MetaWindow* window, 
@@ -208,13 +216,27 @@ static void on_window_removed(DeepinMessageHub* hub, MetaWindow* window,
     deepin_window_surface_manager_remove_window(window);
 }
 
+static void on_window_damaged(DeepinMessageHub* hub, MetaWindow* window, 
+        gpointer data)
+{
+    DeepinWindowSurfaceManager* self = deepin_window_surface_manager_get();
+    DeepinWindowSurfaceManagerPrivate* priv = self->priv;
+
+    if (!g_list_find(priv->pending_refresh, window)) {
+        priv->pending_refresh = g_list_append(priv->pending_refresh, 
+                window);
+    }
+}
+
 DeepinWindowSurfaceManager* deepin_window_surface_manager_get(void)
 {
     if (!_the_manager) {
         _the_manager = (DeepinWindowSurfaceManager*)g_object_new(
                 DEEPIN_TYPE_WINDOW_SURFACE_MANAGER, NULL);
+
         g_object_connect(G_OBJECT(deepin_message_hub_get()), 
                 "signal::window-removed", on_window_removed, NULL,
+                "signal::window-damaged", on_window_damaged, NULL,
                 NULL);
     }
     return _the_manager;

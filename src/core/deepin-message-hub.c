@@ -17,6 +17,8 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
+#include <string.h>
 #include "deepin-message-hub.h"
 #include "window-private.h"
 
@@ -24,7 +26,7 @@ static DeepinMessageHub* _the_hub = NULL;
 
 struct _DeepinMessageHubPrivate
 {
-    guint diposed: 1;
+    guint disposed: 1;
 };
 
 
@@ -32,6 +34,7 @@ enum
 {
     SIGNAL_WINDOW_REMOVED,
     SIGNAL_WINDOW_ADDED,
+    SIGNAL_WINDOW_DAMAGED,
     SIGNAL_DESKTOP_CHANGED,
     SIGNAL_SCREEN_RESIZED,
     SIGNAL_ABOUT_TO_CHANGE_WORKSPACE,
@@ -69,6 +72,32 @@ void deepin_message_hub_window_removed(MetaWindow* window)
 {
     g_message("%s: %s", __func__, window->desc);
     g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_WINDOW_REMOVED], 0, window);
+}
+
+//FIXME: my god, some windows constantly send damage ...
+void deepin_message_hub_window_damaged(MetaWindow* window, XRectangle* rects, int n)
+{
+    gboolean surface_need_update = FALSE;
+    if (window->type == META_WINDOW_NORMAL) {
+        MetaRectangle bound;
+        meta_window_get_input_rect(window, &bound);
+
+        for (int i = 0; i < n; i++) {
+            double sx = (double)rects[i].width / bound.width,
+                   sy = (double)rects[i].height / bound.height;
+            if (sx > 0.15 && sy > 0.15) {
+                g_message("big enougth (%d,%d)", rects[i].width, rects[i].height);
+                surface_need_update = TRUE;
+                break;
+            }
+        }
+    }
+
+    if (surface_need_update) {
+        g_message("%s: %s", __func__, window->desc);
+        g_signal_emit(deepin_message_hub_get(),
+                signals[SIGNAL_WINDOW_DAMAGED], 0, window);
+    }
 }
 
 void deepin_message_hub_desktop_changed()
@@ -114,6 +143,12 @@ static void deepin_message_hub_class_init (DeepinMessageHubClass *klass)
             G_TYPE_NONE, 1, G_TYPE_POINTER);
 
     signals[SIGNAL_WINDOW_ADDED] = g_signal_new ("window-added",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 1, G_TYPE_POINTER);
+
+    signals[SIGNAL_WINDOW_DAMAGED] = g_signal_new ("window-damaged",
             G_OBJECT_CLASS_TYPE (klass),
             G_SIGNAL_RUN_LAST, 0,
             NULL, NULL, NULL,

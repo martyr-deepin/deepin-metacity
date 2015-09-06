@@ -20,8 +20,10 @@
 #ifndef _DEEPIN_MESSAGE_HUB_H_
 #define _DEEPIN_MESSAGE_HUB_H_
 
+#include <config.h>
 #include <gtk/gtk.h>
 #include "types.h"
+#include "boxes.h"
 #include "../core/workspace.h"
 
 G_BEGIN_DECLS
@@ -57,6 +59,7 @@ DeepinMessageHub* deepin_message_hub_get();
 
 void deepin_message_hub_window_removed(MetaWindow*);
 void deepin_message_hub_window_added(MetaWindow*);
+void deepin_message_hub_window_damaged(MetaWindow*, XRectangle*, int);
 void deepin_message_hub_desktop_changed();
 void deepin_message_hub_screen_resized(MetaScreen* screen);
 void deepin_message_hub_window_about_to_change_workspace(MetaWindow*, MetaWorkspace*);

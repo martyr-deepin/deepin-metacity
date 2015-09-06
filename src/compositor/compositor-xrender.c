@@ -48,6 +48,8 @@
 #include <X11/extensions/Xfixes.h>
 #include <X11/extensions/Xrender.h>
 
+#include "deepin-message-hub.h"
+
 #define USE_IDLE_REPAINT 1
 
 typedef enum _MetaCompWindowType
@@ -1614,6 +1616,19 @@ repair_win (MetaCompWindow *cw)
     }
 
   meta_error_trap_pop (display, FALSE);
+  
+  if (cw->window != NULL && !cw->window->unmanaging && parts) {
+      Display *xdisplay = meta_display_get_xdisplay (display);
+      int nrects;
+      XRectangle *rects;
+      XRectangle bounds;
+
+      rects = XFixesFetchRegionAndBounds (xdisplay, parts, &nrects, &bounds);
+      if (nrects > 0) {
+          deepin_message_hub_window_damaged(cw->window, rects, nrects);
+      }
+      XFree (rects);
+  }
 
   dump_xserver_region ("repair_win", display, parts);
   add_damage (screen, parts);
@@ -2499,10 +2514,10 @@ process_damage (MetaCompositorXRender *compositor,
 
   repair_win (cw);
 
-#ifdef USE_IDLE_REPAINT
-  if (event->more == FALSE)
-    add_repair (compositor->display);
-#endif
+/*#ifdef USE_IDLE_REPAINT*/
+  /*if (event->more == FALSE)*/
+    /*add_repair (compositor->display);*/
+/*#endif*/
 }
 
 static void

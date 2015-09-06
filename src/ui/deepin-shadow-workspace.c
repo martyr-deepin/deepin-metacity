@@ -780,6 +780,7 @@ static void deepin_shadow_workspace_realize (GtkWidget *widget)
     priv->event_window = gdk_window_new (window,
             &attributes, attributes_mask);
     gtk_widget_register_window (widget, priv->event_window);
+    gdk_window_lower(priv->event_window);
 }
 
 static void deepin_shadow_workspace_unrealize (GtkWidget *widget)
@@ -804,7 +805,7 @@ static void deepin_shadow_workspace_map (GtkWidget *widget)
     GTK_WIDGET_CLASS (deepin_shadow_workspace_parent_class)->map (widget);
 
     if (priv->event_window)
-        gdk_window_show(priv->event_window);
+        gdk_window_show_unraised(priv->event_window);
 }
 
 static void deepin_shadow_workspace_unmap (GtkWidget *widget)
