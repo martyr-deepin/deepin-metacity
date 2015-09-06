@@ -1521,11 +1521,12 @@ implement_showing (MetaWindow *window,
 
           meta_window_get_outer_rect (window, &window_rect);
 
-          meta_effect_run_minimize (window,
-                                    &window_rect,
-                                    &icon_rect,
-                                    finish_minimize,
-                                    window);
+          finish_minimize (window);
+          /*meta_effect_run_minimize (window,*/
+                                    /*&window_rect,*/
+                                    /*&icon_rect,*/
+                                    /*finish_minimize,*/
+                                    /*window);*/
         }
       else
         {
