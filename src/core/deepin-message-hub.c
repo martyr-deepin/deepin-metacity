@@ -77,7 +77,11 @@ void deepin_message_hub_window_removed(MetaWindow* window)
 //FIXME: my god, some windows constantly send damage ...
 void deepin_message_hub_window_damaged(MetaWindow* window, XRectangle* rects, int n)
 {
+    if (window == NULL || window->unmanaging || window->withdrawn)
+        return;
+
     gboolean surface_need_update = FALSE;
+
     if (window->type == META_WINDOW_NORMAL) {
         MetaRectangle bound;
         meta_window_get_input_rect(window, &bound);

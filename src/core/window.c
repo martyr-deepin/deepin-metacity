@@ -237,6 +237,7 @@ meta_window_new (MetaDisplay *display,
   meta_error_trap_pop (display, FALSE);
   meta_display_ungrab (display);
 
+  if (window) deepin_message_hub_window_added(window);
   return window;
 }
 
@@ -832,7 +833,6 @@ meta_window_new_with_attrs (MetaDisplay       *display,
 
   window->constructing = FALSE;
 
-  deepin_message_hub_window_added(window);
   return window;
 }
 

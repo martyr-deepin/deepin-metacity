@@ -152,6 +152,7 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
   x = (w - cairo_image_surface_get_width(priv->scaled)) / 2.0,
   y = (h - cairo_image_surface_get_height(priv->scaled)) / 2.0;
   cairo_set_source_surface(cr, priv->scaled, x, y);
+  /*cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_FAST);*/
   cairo_paint(cr);
 
   return TRUE;
@@ -261,6 +262,7 @@ static void meta_deepin_tab_widget_update_image(MetaDeepinTabWidget* self)
         cairo_t* cr = cairo_create(priv->scaled);
         cairo_scale(cr, priv->scale, priv->scale);
         cairo_set_source_surface(cr, priv->orig_thumb, 0, 0);
+        /*cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_FAST);*/
         cairo_paint(cr);
         cairo_destroy(cr);
     }

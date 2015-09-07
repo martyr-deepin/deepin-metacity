@@ -214,6 +214,7 @@ cairo_surface_t* deepin_background_cache_get_surface(double scale)
     sci->surface = surf;
     priv->caches = g_list_append(priv->caches, sci);
 
+    g_message("%s: create scaled(%f) background", __func__, scale);
     return sci->surface;
 }
 

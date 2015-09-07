@@ -2077,6 +2077,8 @@ process_tab_grab (MetaDisplay *display,
           meta_topic (META_DEBUG_KEYBINDINGS,
                       "Activating target window\n");
 
+          meta_screen_unshow_desktop(screen);
+
           meta_topic (META_DEBUG_FOCUS, "Activating %s due to tab popup "
                       "selection and turning mouse_mode off\n",
                       target_window->desc);

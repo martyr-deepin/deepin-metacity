@@ -90,4 +90,7 @@ MetaWindow* meta_deepin_cloned_widget_get_window(MetaDeepinClonedWidget*);
 
 GdkWindow* meta_deepin_cloned_widget_get_event_window(MetaDeepinClonedWidget*);
 
+/* sensitive makes clone responsive to events */
+void meta_deepin_cloned_widget_set_sensitive(MetaDeepinClonedWidget*, gboolean);
+
 #endif

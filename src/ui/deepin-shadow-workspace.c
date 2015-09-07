@@ -609,6 +609,32 @@ static void _draw_round_box(cairo_t* cr, gint width, gint height, double radius)
     cairo_close_path(cr);
 }
 
+static void _collect_and_clipping(GtkWidget* widget, cairo_t* cr, 
+        cairo_region_t** preg)
+{
+    DeepinShadowWorkspace *fixed = DEEPIN_SHADOW_WORKSPACE (widget);
+    DeepinShadowWorkspacePrivate *priv = fixed->priv;
+
+    GtkRequisition req;
+    gtk_widget_get_preferred_size(widget, &req, NULL);
+
+    cairo_rectangle_int_t r = {0, 0, req.width, req.height};
+    cairo_region_t* reg = cairo_region_create_rectangle(&r);
+
+
+    for (int i = 0; i < priv->clones->len; i++) {
+        MetaDeepinClonedWidget* clone = g_ptr_array_index(priv->clones, i);
+
+        gtk_widget_get_allocation(GTK_WIDGET(clone), &r);
+        cairo_region_subtract_rectangle(reg, &r);
+    }
+
+    gdk_cairo_region(cr, reg);
+    cairo_clip(cr);
+
+    *preg = reg;
+}
+
 static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
         cairo_t *cr)
 {
@@ -669,9 +695,20 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
         gtk_render_background(context, cr, 0, 0, req.width, req.height);
     }
 
+    cairo_save(cr);
+    cairo_region_t* reg = NULL;
+    
     cairo_set_source_surface(cr,
             deepin_background_cache_get_surface(priv->scale), 0, 0);
+
+    if (priv->animating && !priv->ready) {
+        _collect_and_clipping(widget, cr, &reg);
+    }
+
     cairo_paint(cr);
+
+    if (reg) cairo_region_destroy(reg);
+    cairo_restore(cr);
 
     cairo_restore(cr);
     GTK_WIDGET_CLASS(deepin_shadow_workspace_parent_class)->draw(

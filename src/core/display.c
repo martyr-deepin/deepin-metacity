@@ -1959,7 +1959,7 @@ event_callback (XEvent   *event,
                               "Window %s withdrawn\n",
                               window->desc);
 
-                  meta_effect_run_close (window, NULL, NULL);
+                  /*meta_effect_run_close (window, NULL, NULL);*/
 
                   /* Unmanage withdrawn window */
                   window->withdrawn = TRUE;
@@ -2645,9 +2645,8 @@ meta_spew_event (MetaDisplay *display,
     return;
 
   /* filter overnumerous events */
-  /*if (event->type == Expose || event->type == MotionNotify ||*/
-      /*event->type == NoExpose)*/
-  if (event->type == MotionNotify || event->type == NoExpose)
+  if (event->type == Expose || event->type == MotionNotify ||
+      event->type == NoExpose)
     return;
 
   switch (event->type)

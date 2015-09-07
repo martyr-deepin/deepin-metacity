@@ -173,6 +173,8 @@ static void do_choose_window (MetaDisplay    *display,
                 deepin_tab_popup_select (screen->tab_popup,
                         (MetaTabEntryKey) initial_selection->xwindow);
                 deepin_tab_popup_set_showing (screen->tab_popup, TRUE);
+                g_message("%s", __func__);
+                meta_screen_show_desktop(screen, event->xkey.time);
             }
         }
     }

@@ -1333,6 +1333,11 @@ paint_windows (MetaScreen   *screen,
 
       if (cw->mode == WINDOW_SOLID)
         {
+          if (cw->window && (cw->window->minimized || cw->window->hidden))
+            {
+              continue;
+            }
+
           int x, y, wid, hei;
 
           x = cw->attrs.x;
@@ -1377,6 +1382,10 @@ paint_windows (MetaScreen   *screen,
   for (index = last; index; index = index->prev)
     {
       cw = (MetaCompWindow *) index->data;
+      if (cw->window && (cw->window->minimized || cw->window->hidden)) 
+        {
+          continue;
+        }
 
       if (cw->picture)
         {
@@ -1617,7 +1626,11 @@ repair_win (MetaCompWindow *cw)
 
   meta_error_trap_pop (display, FALSE);
   
-  if (cw->window != NULL && !cw->window->unmanaging && parts) {
+  dump_xserver_region ("repair_win", display, parts);
+  add_damage (screen, parts);
+  cw->damaged = TRUE;
+
+  if (parts) {
       Display *xdisplay = meta_display_get_xdisplay (display);
       int nrects;
       XRectangle *rects;
@@ -1629,10 +1642,6 @@ repair_win (MetaCompWindow *cw)
       }
       XFree (rects);
   }
-
-  dump_xserver_region ("repair_win", display, parts);
-  add_damage (screen, parts);
-  cw->damaged = TRUE;
 }
 
 static void

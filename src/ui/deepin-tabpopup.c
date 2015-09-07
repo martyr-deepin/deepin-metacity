@@ -32,6 +32,7 @@
 #include "deepin-design.h"
 #include "deepin-switch-previewer.h"
 #include "deepin-window-surface-manager.h"
+#include "deepin-desktop-background.h"
 
 static DeepinTabEntry* deepin_tab_entry_new (const MetaTabEntry *entry, gint                screen_width)
 {

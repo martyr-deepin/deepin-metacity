@@ -221,6 +221,9 @@ static void on_window_damaged(DeepinMessageHub* hub, MetaWindow* window,
 {
     DeepinWindowSurfaceManager* self = deepin_window_surface_manager_get();
     DeepinWindowSurfaceManagerPrivate* priv = self->priv;
+    if (!g_hash_table_contains(priv->windows, window)) {
+        return;
+    }
 
     if (!g_list_find(priv->pending_refresh, window)) {
         priv->pending_refresh = g_list_append(priv->pending_refresh, 

@@ -52,8 +52,6 @@ static void deepin_desktop_background_finalize (GObject *object)
 /* FIXME: change wallpaper according to workspace change */
 static gboolean deepin_desktop_background_real_draw(GtkWidget *widget, cairo_t* cr)
 {
-    DeepinDesktopBackground* self = DEEPIN_DESKTOP_BACKGROUND(widget);
-
     cairo_set_source_surface(cr,
             deepin_background_cache_get_surface(1.0), 0, 0);
     cairo_paint(cr);
