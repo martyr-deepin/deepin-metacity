@@ -606,6 +606,7 @@ static void _draw_round_box(cairo_t* cr, gint width, gint height, double radius)
     angle2 = 180.0 * (M_PI/180.0);
     cairo_arc (cr, xc, yc, radius, angle1, angle2);
 
+    cairo_set_antialias(cr, CAIRO_ANTIALIAS_DEFAULT);
     cairo_close_path(cr);
 }
 
@@ -625,7 +626,11 @@ static void _collect_and_clipping(GtkWidget* widget, cairo_t* cr,
     for (int i = 0; i < priv->clones->len; i++) {
         MetaDeepinClonedWidget* clone = g_ptr_array_index(priv->clones, i);
 
+        double sx = 1.0, sy = 1.0;
         gtk_widget_get_allocation(GTK_WIDGET(clone), &r);
+        meta_deepin_cloned_widget_get_scale(GTK_WIDGET(clone), &sx, &sy);
+        r.x += r.width * (1-sx)/2; r.y += r.height * (1-sy)/2;
+        r.width *= sx; r.height *= sy;
         cairo_region_subtract_rectangle(reg, &r);
     }
 
@@ -664,6 +669,7 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
                 meta_workspace_get_name(priv->workspace),
                 (priv->thumb_mode ? "thumb": ""));
         if (priv->snapshot) {
+            cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
             cairo_set_source(cr, priv->snapshot);
             cairo_paint(cr);
             return TRUE; 
@@ -678,6 +684,12 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
     GtkStyleContext* context = gtk_widget_get_style_context(widget);
 
     cairo_save(cr);
+    cairo_region_t* reg = NULL;
+    if (priv->animating && !priv->ready) {
+        cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
+        _collect_and_clipping(widget, cr, &reg);
+    }
+
     if (priv->thumb_mode) {
 
         /* FIXME: why can not get borders */
@@ -695,22 +707,14 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
         gtk_render_background(context, cr, 0, 0, req.width, req.height);
     }
 
-    cairo_save(cr);
-    cairo_region_t* reg = NULL;
-    
     cairo_set_source_surface(cr,
             deepin_background_cache_get_surface(priv->scale), 0, 0);
 
-    if (priv->animating && !priv->ready) {
-        _collect_and_clipping(widget, cr, &reg);
-    }
-
     cairo_paint(cr);
 
+    cairo_restore(cr);
     if (reg) cairo_region_destroy(reg);
-    cairo_restore(cr);
-
-    cairo_restore(cr);
+    
     GTK_WIDGET_CLASS(deepin_shadow_workspace_parent_class)->draw(
             widget, cr);
 

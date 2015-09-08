@@ -212,7 +212,7 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
 
     /*GdkRectangle r;*/
     /*gdk_cairo_get_clip_rectangle(cr, &r);*/
-    /*g_message("%s: (%s) ", __func__, priv->meta_window->desc);*/
+    g_message("%s: (%s) ", __func__, priv->meta_window->desc);
 
     GtkStyleContext* context = gtk_widget_get_style_context (widget);
 
@@ -311,6 +311,7 @@ static void meta_deepin_cloned_widget_end_animation(MetaDeepinClonedWidget* self
     priv->scale_y = priv->ai.scale_y;
     priv->angle = priv->ai.angle;
     priv->blur_radius = priv->ai.blur_radius;
+    priv->alpha = priv->ai.alpha;
 
     gtk_widget_queue_draw(GTK_WIDGET(self));
 
@@ -325,7 +326,8 @@ static gboolean on_tick_callback(MetaDeepinClonedWidget* self, GdkFrameClock* cl
     gint64 now = gdk_frame_clock_get_frame_time(clock);
 
     gdouble duration = (now - priv->last_time) / 1000000.0;
-    if (priv->last_time != priv->start_time && duration < 0.05) return G_SOURCE_CONTINUE;
+    if (priv->last_time != priv->start_time && duration < 0.033) 
+        return G_SOURCE_CONTINUE;
     priv->last_time = now;
 
     gdouble t = 1.0;
@@ -815,8 +817,14 @@ void meta_deepin_cloned_widget_set_scale_y(MetaDeepinClonedWidget* self, gdouble
 void meta_deepin_cloned_widget_get_scale(MetaDeepinClonedWidget* self,
         gdouble* sx, gdouble* sy)
 {
-    if (sx) *sx = self->priv->scale_x;
-    if (sy) *sy = self->priv->scale_y;
+    MetaDeepinClonedWidgetPrivate* priv = self->priv;
+
+    gdouble pos = priv->animation ? priv->current_pos : 1.0;
+    gdouble px = priv->ai.scale_x * pos + priv->scale_x * (1.0 - pos);
+    gdouble py = priv->ai.scale_y * pos + priv->scale_y * (1.0 - pos);
+
+    if (sx) *sx = px;
+    if (sy) *sy = py;
 }
 
 void meta_deepin_cloned_widget_set_rotate(MetaDeepinClonedWidget* self, gdouble angle)
@@ -835,7 +843,9 @@ void meta_deepin_cloned_widget_set_rotate(MetaDeepinClonedWidget* self, gdouble 
 
 gdouble meta_deepin_cloned_widget_get_rotate(MetaDeepinClonedWidget* self)
 {
-    return self->priv->angle;
+    MetaDeepinClonedWidgetPrivate* priv = self->priv;
+    gdouble pos = priv->animation ? priv->current_pos : 1.0;
+    return priv->ai.angle * pos + priv->angle * (1.0 - pos);
 }
 
 void meta_deepin_cloned_widget_translate(MetaDeepinClonedWidget* self,
@@ -848,8 +858,14 @@ void meta_deepin_cloned_widget_translate(MetaDeepinClonedWidget* self,
 void meta_deepin_cloned_widget_get_translate(MetaDeepinClonedWidget* self,
         gdouble* tx, gdouble* ty)
 {
-    if (tx) *tx = self->priv->tx;
-    if (ty) *ty = self->priv->ty;
+    MetaDeepinClonedWidgetPrivate* priv = self->priv;
+    gdouble pos = priv->animation ? priv->current_pos : 1.0;
+
+    gdouble px = priv->ai.tx * pos + priv->tx * (1.0 - pos);
+    gdouble py = priv->ai.ty * pos + priv->ty * (1.0 - pos);
+
+    if (tx) *tx = px;
+    if (ty) *ty = py;
 }
 
 void meta_deepin_cloned_widget_translate_x(MetaDeepinClonedWidget* self, gdouble tx)
@@ -911,6 +927,20 @@ void meta_deepin_cloned_widget_set_size(MetaDeepinClonedWidget* self,
     /* reset */
     priv->scale_x = 1.0;
     priv->scale_y = 1.0;
+    priv->alpha = 1.0;
+    priv->angle = 0.0;
+    priv->tx = 0;
+    priv->ty = 0;
+    priv->blur_radius = 0;
+
+    priv->ai.tx = priv->tx;
+    priv->ai.ty = priv->ty;
+    priv->ai.scale_x = priv->scale_x;
+    priv->ai.scale_y = priv->scale_y;
+    priv->ai.angle = priv->angle;
+    priv->ai.blur_radius = priv->blur_radius;
+
+    g_assert(priv->animation == FALSE);
 
     gtk_widget_queue_resize(GTK_WIDGET(self));
 }
@@ -967,7 +997,11 @@ void meta_deepin_cloned_widget_set_alpha(MetaDeepinClonedWidget* self, gdouble v
 
 gdouble meta_deepin_cloned_widget_get_alpha(MetaDeepinClonedWidget* self)
 {
-    return self->priv->alpha;
+    MetaDeepinClonedWidgetPrivate* priv = self->priv;
+
+    gdouble pos = priv->animation ? priv->current_pos : 1.0;
+    gdouble alpha = priv->ai.alpha * pos + priv->alpha * (1.0 - pos);
+    return alpha;
 }
 
 MetaWindow* meta_deepin_cloned_widget_get_window(MetaDeepinClonedWidget* self)

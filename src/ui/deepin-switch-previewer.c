@@ -497,6 +497,7 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
     MetaDeepinSwitchPreviewerPrivate *priv = self->priv;
 
     cairo_save(cr);
+    cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
     cairo_set_source_surface(cr,
             deepin_background_cache_get_surface(1.0), 0, 0);
 
@@ -508,9 +509,18 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
 
     if (priv->current_preview 
             && meta_deepin_cloned_widget_get_alpha(priv->current_preview) > 0.1) {
-        double sx = 1.0, sy = 1.0;
+        double sx = SCALE_FACTOR, sy = SCALE_FACTOR;
         gtk_widget_get_allocation(GTK_WIDGET(priv->current_preview), &r);
-        meta_deepin_cloned_widget_get_scale(priv->current_preview, &sx, &sy);
+        r.x += r.width * (1-sx)/2; r.y += r.height * (1-sy)/2;
+        r.width *= sx; r.height *= sy;
+        cairo_region_subtract_rectangle(reg, &r);
+    }
+
+    if (priv->prev_preview 
+            && meta_deepin_cloned_widget_get_alpha(priv->prev_preview) > 0.4) {
+        double sx = SCALE_FACTOR, sy = SCALE_FACTOR;
+        gtk_widget_get_allocation(GTK_WIDGET(priv->prev_preview), &r);
+        r.x += r.width * (1-sx)/2; r.y += r.height * (1-sy)/2;
         r.width *= sx; r.height *= sy;
         cairo_region_subtract_rectangle(reg, &r);
     }

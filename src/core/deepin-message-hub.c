@@ -90,7 +90,7 @@ void deepin_message_hub_window_damaged(MetaWindow* window, XRectangle* rects, in
             double sx = (double)rects[i].width / bound.width,
                    sy = (double)rects[i].height / bound.height;
             if (sx > 0.15 && sy > 0.15) {
-                g_message("big enougth (%d,%d)", rects[i].width, rects[i].height);
+                g_message("big enough (%d,%d)", rects[i].width, rects[i].height);
                 surface_need_update = TRUE;
                 break;
             }

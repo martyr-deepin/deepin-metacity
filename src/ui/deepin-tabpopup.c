@@ -94,12 +94,16 @@ static DeepinTabEntry* deepin_tab_entry_new (const MetaTabEntry *entry, gint    
 
     cairo_surface_t* surface = cairo_image_surface_create(
             CAIRO_FORMAT_ARGB32, RECT_PREFER_WIDTH, RECT_PREFER_HEIGHT);
+
     cairo_t* cr = cairo_create(surface);
-    cairo_save(cr);
-    cairo_scale(cr, sx, sy);
-    cairo_set_source_surface(cr, ref, 0, 0);
-    cairo_paint(cr);
-    cairo_restore(cr);
+
+    if (ref) {
+        cairo_save(cr);
+        cairo_scale(cr, sx, sy);
+        cairo_set_source_surface(cr, ref, 0, 0);
+        cairo_paint(cr);
+        cairo_restore(cr);
+    }
 
 #define ICON_SIZE 48
     GdkPixbuf* scaled = gdk_pixbuf_scale_simple (window->icon,
