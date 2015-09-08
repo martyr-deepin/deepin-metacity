@@ -506,7 +506,8 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
     cairo_rectangle_int_t r = {0, 0, req.width, req.height};
     cairo_region_t* reg = cairo_region_create_rectangle(&r);
 
-    if (meta_deepin_cloned_widget_get_alpha(priv->current_preview) > 0.1) {
+    if (priv->current_preview 
+            && meta_deepin_cloned_widget_get_alpha(priv->current_preview) > 0.1) {
         double sx = 1.0, sy = 1.0;
         gtk_widget_get_allocation(GTK_WIDGET(priv->current_preview), &r);
         meta_deepin_cloned_widget_get_scale(priv->current_preview, &sx, &sy);
