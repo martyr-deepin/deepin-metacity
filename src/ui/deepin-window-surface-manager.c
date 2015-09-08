@@ -23,6 +23,7 @@
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
 #include <cairo-xlib.h>
+#include "errors.h"
 #include "../core/window-private.h"
 #include "compositor.h"
 #include "deepin-design.h"
@@ -102,21 +103,26 @@ static cairo_surface_t* get_window_surface(MetaWindow* window)
 
     if (pixmap == None) return NULL;
 
-    Display *display;
+    cairo_surface_t *surface = NULL;
+
+    MetaScreen *screen = window->screen;
+    MetaDisplay *display = meta_screen_get_display (screen);
+    Display *xdisplay = meta_display_get_xdisplay (display);
+
     Window root;
     int x, y;
     unsigned int width, height, border, depth;
-    GdkVisual *visual;
-    cairo_surface_t *surface;
 
-    display = GDK_DISPLAY_XDISPLAY (gdk_display_get_default ());
-
-    if (!XGetGeometry(display, pixmap, &root, &x, &y, &width, &height, &border, &depth))
+    if (!XGetGeometry(xdisplay, pixmap, &root, &x, &y, &width, &height, &border, &depth))
         return NULL;
 
+    GdkVisual* visual;
     visual = gdk_screen_get_rgba_visual (gdk_screen_get_default());
-    surface = cairo_xlib_surface_create (display, pixmap,
-            GDK_VISUAL_XVISUAL (visual), width, height);
+    if (!visual || depth != 32)
+        visual = gdk_screen_get_system_visual (gdk_screen_get_default());
+
+    surface = cairo_xlib_surface_create(xdisplay, pixmap,
+            GDK_VISUAL_XVISUAL(visual), width, height);
 
     return surface;
 }
@@ -125,7 +131,6 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
         double scale)
 {
     DeepinWindowSurfaceManager* self = deepin_window_surface_manager_get();
-
 
     GTree* t = (GTree*)g_hash_table_lookup(self->priv->windows, window);
     if (!t) {
@@ -139,21 +144,38 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
     cairo_surface_t* ref = (cairo_surface_t*)g_tree_lookup(t, s);
     if (!ref) {
         ref = get_window_surface(window);
+        if (!ref) {
+            g_free(s);
+            return NULL;
+        }
+
         MetaRectangle r, r2;
         meta_window_get_input_rect(window, &r);
         meta_window_get_outer_rect(window, &r2);
 
         cairo_surface_t* ret = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
                 r2.width, r2.height);
+
+        meta_error_trap_push (window->display);
+
         cairo_t* cr = cairo_create(ret);
         cairo_set_source_surface(cr, ref, r.x - r2.x, r.y - r2.y);
         cairo_paint(cr);
         cairo_destroy(cr);
         cairo_surface_destroy(ref);
-        ref = ret;
-        g_message("%s: clip visible rect", window->desc);
 
-        g_tree_insert(t, s, ref);
+        int error_code = meta_error_trap_pop_with_return (window->display, FALSE);
+        if (error_code != 0) {
+            g_message("draw surface error %d", error_code);
+            g_free(s);
+            cairo_surface_destroy(ret);
+            return NULL;
+
+        } else {
+            ref = ret;
+            g_message("%s: clip visible rect", window->desc);
+            g_tree_insert(t, s, ref);
+        }
     }
 
     if (scale == 1.0) return ref;
