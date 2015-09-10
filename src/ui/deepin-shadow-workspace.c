@@ -487,12 +487,12 @@ static void _remove_cloned_widget(DeepinShadowWorkspace* self,
         MetaDeepinClonedWidget* clone)
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
-    if (!priv->ready || !priv->clones) return;
-    g_debug("%s", __func__);
     
     MetaWindow* window = meta_deepin_cloned_widget_get_window(clone);
     g_ptr_array_remove(priv->clones, clone);
     gtk_container_remove(GTK_CONTAINER(self), (GtkWidget*)clone);
+
+    g_debug("%s remove clone for %s", __func__, window->desc);
 
     if (priv->hovered_clone == clone) {
         priv->hovered_clone = NULL;
@@ -508,13 +508,13 @@ static void on_window_removed(DeepinMessageHub* hub, MetaWindow* window,
 {
     DeepinShadowWorkspace* self = DEEPIN_SHADOW_WORKSPACE(data);
     DeepinShadowWorkspacePrivate* priv = self->priv;
-    if (!priv->ready || !priv->clones) return;
+    if (!priv->clones) return;
 
     for (gint i = 0; i < priv->clones->len; i++) {
         MetaDeepinClonedWidget* clone = g_ptr_array_index(priv->clones, i);
         if (meta_deepin_cloned_widget_get_window(clone) == window) {
-            g_debug("%s remove clone for %s", __func__, window->desc);
             _remove_cloned_widget(self, clone);
+            break;
         }
     }
 }
