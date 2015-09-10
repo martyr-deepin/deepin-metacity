@@ -72,6 +72,7 @@ typedef struct _MetaDeepinClonedWidgetPrivate
     int render_background: 1;
     int render_frame: 1;
     int mouse_over: 1;
+    int dragging: 1;
 
     MetaWindow* meta_window;
     cairo_surface_t* snapshot;
@@ -678,13 +679,19 @@ static void on_drag_begin(GtkWidget* widget, GdkDragContext *context,
 
     gtk_widget_set_opacity(widget, 0.0);
     cairo_surface_destroy(dest);
+
+    priv->dragging = TRUE;
 }
 
 static void on_drag_end(GtkWidget* widget, GdkDragContext *context,
                gpointer user_data)
 {
     g_debug("%s", __func__);
+    MetaDeepinClonedWidgetPrivate* priv = META_DEEPIN_CLONED_WIDGET(widget)->priv;
     gtk_widget_set_opacity(widget, 1.0);
+
+    priv->dragging = FALSE;
+
     //HACK: drag broken the grab, need to restore here
     deepin_message_hub_drag_end();
 }
@@ -1017,6 +1024,11 @@ void meta_deepin_cloned_widget_get_size(MetaDeepinClonedWidget* self,
 gboolean meta_deepin_cloned_widget_is_mouse_over(MetaDeepinClonedWidget* self)
 {
     return self->priv->mouse_over;
+}
+
+gboolean meta_deepin_cloned_widget_is_dragging(MetaDeepinClonedWidget* self)
+{
+    return self->priv->dragging;
 }
 
 GdkWindow* meta_deepin_cloned_widget_get_event_window(MetaDeepinClonedWidget* self)

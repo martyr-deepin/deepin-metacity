@@ -55,6 +55,7 @@ void meta_deepin_cloned_widget_select(MetaDeepinClonedWidget *);
 void meta_deepin_cloned_widget_unselect(MetaDeepinClonedWidget *);
 
 gboolean meta_deepin_cloned_widget_is_mouse_over(MetaDeepinClonedWidget*);
+gboolean meta_deepin_cloned_widget_is_dragging(MetaDeepinClonedWidget*);
 
 /* for animation */
 void meta_deepin_cloned_widget_set_scale(MetaDeepinClonedWidget*, gdouble, gdouble);

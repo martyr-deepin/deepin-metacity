@@ -293,6 +293,25 @@ static void _create_close_button(DeepinWMBackground* self)
             NULL);
 }
 
+static gboolean on_workspace_thumb_released(DeepinShadowWorkspace* ws_thumb,
+               GdkEvent* event, gpointer user_data)
+{
+    g_debug("%s", __func__);
+    DeepinWMBackground* self = (DeepinWMBackground*)user_data;
+    DeepinWMBackgroundPrivate* priv = self->priv;
+    
+    if (priv->switching_workspace) {
+        return TRUE;
+    }
+
+    if (priv->active_workspace != ws_thumb) {
+        MetaWorkspace* next = deepin_shadow_workspace_get_workspace(ws_thumb);
+        deepin_fixed_cancel_pending_animation(DEEPIN_FIXED(priv->fixed), NULL);
+        deepin_wm_background_switch_workspace(self, next);
+    } 
+    return TRUE;
+}
+
 static gboolean on_workspace_thumb_leaved(DeepinShadowWorkspace* ws_thumb,
                GdkEvent* event, gpointer data)
 {
@@ -487,6 +506,7 @@ static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer use
         g_object_connect(G_OBJECT(dsw), 
                 "signal::enter-notify-event", on_workspace_thumb_entered, self,
                 "signal::leave-notify-event", on_workspace_thumb_leaved, self,
+                "signal::button-release-event", on_workspace_thumb_released, self,
                 NULL);
 
         gtk_widget_show(GTK_WIDGET(dsw));
@@ -574,6 +594,7 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
             g_object_connect(G_OBJECT(dsw), 
                     "signal::enter-notify-event", on_workspace_thumb_entered, self,
                     "signal::leave-notify-event", on_workspace_thumb_leaved, self,
+                    "signal::button-release-event", on_workspace_thumb_released, self,
                     NULL);
 
             priv->worskpace_thumbs = g_list_append(priv->worskpace_thumbs, dsw);

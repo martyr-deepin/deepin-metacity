@@ -1024,6 +1024,34 @@ static gboolean on_deepin_cloned_widget_entered(MetaDeepinClonedWidget* cloned,
     return TRUE;
 }
 
+static gboolean on_idle_quit(DeepinShadowWorkspace* self)
+{
+    meta_display_end_grab_op(self->priv->workspace->screen->display, 
+            gtk_get_current_event_time());
+    return G_SOURCE_REMOVE;
+}
+
+static gboolean on_deepin_cloned_widget_released(MetaDeepinClonedWidget* cloned,
+               GdkEvent* event, gpointer data)
+{
+    DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
+    g_debug("%s", __func__);
+    if (!self->priv->ready) return FALSE;
+
+    if (meta_deepin_cloned_widget_is_dragging(cloned)) {
+        // stop here, so workspace won't get event
+        return TRUE;
+    }
+
+    MetaWindow* mw = meta_deepin_cloned_widget_get_window(cloned);
+    if (mw->workspace != mw->screen->active_workspace) {
+        meta_workspace_activate(mw->workspace, gdk_event_get_time(event));
+    }
+    meta_window_activate(mw, gdk_event_get_time(event));
+    g_idle_add((GSourceFunc)on_idle_quit, self);
+    return TRUE;
+}
+
 static gboolean on_close_button_clicked(GtkWidget* widget,
                GdkEvent* event, gpointer data)
 {
@@ -1089,6 +1117,7 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
             g_object_connect(G_OBJECT(widget),
                     "signal::enter-notify-event", on_deepin_cloned_widget_entered, self,
                     "signal::leave-notify-event", on_deepin_cloned_widget_leaved, self,
+                    "signal::button-release-event", on_deepin_cloned_widget_released, self,
                     NULL);
         }
 
@@ -1126,10 +1155,22 @@ static void on_deepin_shadow_workspace_show(DeepinShadowWorkspace* self, gpointe
     g_idle_add((GSourceFunc)on_idle, self);
 }
 
-static gboolean on_deepin_shadow_workspace_pressed(DeepinShadowWorkspace* self,
+static gboolean on_deepin_shadow_workspace_released(DeepinShadowWorkspace* self,
                GdkEvent* event, gpointer user_data)
 {
-    g_debug("%s: %s", __func__, meta_workspace_get_name(self->priv->workspace));
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+    g_debug("%s: ws %s(%s)", __func__, meta_workspace_get_name(priv->workspace),
+            priv->thumb_mode ? "thumb":"normal");
+
+    if (!priv->ready || priv->hovered_clone) return TRUE;
+
+    if (!priv->thumb_mode) {
+        g_idle_add((GSourceFunc)on_idle_quit, self);
+        return TRUE;
+    }
+    
+    //TODO: do workspace change if the pressed is not current
+    //bubble up to parent to determine what to do
     return FALSE;
 }
 
@@ -1175,6 +1216,7 @@ static void on_window_change_workspace(DeepinMessageHub* hub, MetaWindow* window
         g_object_connect(G_OBJECT(widget),
                 "signal::enter-notify-event", on_deepin_cloned_widget_entered, self,
                 "signal::leave-notify-event", on_deepin_cloned_widget_leaved, self,
+                "signal::button-release-event", on_deepin_cloned_widget_released, self,
                 NULL);
         gtk_widget_show(widget);
         g_idle_add((GSourceFunc)on_idle, self);
@@ -1194,7 +1236,6 @@ static void on_drag_data_received(GtkWidget* widget, GdkDragContext* context,
 
     const guchar* raw_data = gtk_selection_data_get_data(data);
     if (raw_data) {
-        /*gpointer p = (gpointer)*(long*)raw_data;*/
         gpointer p = (gpointer)atol(raw_data);
         MetaDeepinClonedWidget* target_clone = META_DEEPIN_CLONED_WIDGET(p);
         MetaWindow* meta_win = meta_deepin_cloned_widget_get_window(target_clone);
@@ -1262,7 +1303,7 @@ GtkWidget* deepin_shadow_workspace_new(void)
     g_object_connect(G_OBJECT(self),
             "signal::event", on_deepin_shadow_workspace_event, NULL,
             "signal::show", on_deepin_shadow_workspace_show, NULL,
-            "signal::button-press-event", on_deepin_shadow_workspace_pressed, NULL,
+            "signal::button-release-event", on_deepin_shadow_workspace_released, NULL,
             "signal::motion-notify-event", on_deepin_shadow_workspace_motion, NULL,
             "signal::drag-data-received", on_drag_data_received, NULL, 
             "signal::drag-drop", on_drag_drop, NULL, 
