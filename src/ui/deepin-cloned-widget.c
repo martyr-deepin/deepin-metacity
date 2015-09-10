@@ -430,13 +430,6 @@ static void meta_deepin_cloned_widget_size_allocate(GtkWidget* widget,
     gtk_widget_set_clip(widget, &expanded);
 }
 
-static gboolean on_deepin_cloned_widget_pressed(MetaDeepinClonedWidget* self,
-               GdkEvent* event, gpointer user_data)
-{
-    g_debug("%s", __func__);
-    return FALSE;
-}
-
 static void meta_deepin_cloned_widget_init (MetaDeepinClonedWidget *self)
 {
     MetaDeepinClonedWidgetPrivate* priv = self->priv =
@@ -457,10 +450,6 @@ static void meta_deepin_cloned_widget_init (MetaDeepinClonedWidget *self)
 
     gtk_widget_set_sensitive(GTK_WIDGET(self), TRUE);
     gtk_widget_set_has_window(GTK_WIDGET(self), FALSE);
-
-    g_object_connect(G_OBJECT(self), 
-            "signal::button-press-event", on_deepin_cloned_widget_pressed, NULL,
-            NULL);
 }
 
 static void meta_deepin_cloned_widget_realize (GtkWidget *widget)
@@ -673,16 +662,18 @@ static void on_drag_begin(GtkWidget* widget, GdkDragContext *context,
     gint w = cairo_image_surface_get_width(priv->snapshot); 
     gint h = cairo_image_surface_get_height(priv->snapshot); 
 
-    cairo_surface_t* dest = cairo_image_surface_create(CAIRO_FORMAT_RGB24, w, h);
-
     float sx = RECT_PREFER_WIDTH / (float)w;
+    w *= sx; 
+    h *= sx;
+    cairo_surface_t* dest = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, w, h);
+
     cairo_t* cr2 = cairo_create(dest);
     cairo_scale(cr2, sx, sx);
     cairo_set_source_surface(cr2, priv->snapshot, 0, 0);
-    cairo_paint_with_alpha(cr2, 0.6);
+    cairo_paint_with_alpha(cr2, 0.7);
     cairo_destroy(cr2);
 
-    cairo_surface_set_device_offset(dest, -w * sx/2 , -h * sx/2);
+    cairo_surface_set_device_offset(dest, -w/2 , -h/2);
     gtk_drag_set_icon_surface(context, dest);
 
     gtk_widget_set_opacity(widget, 0.0);
