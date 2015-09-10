@@ -497,33 +497,36 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
     MetaDeepinSwitchPreviewerPrivate *priv = self->priv;
 
     cairo_save(cr);
-    cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
     cairo_set_source_surface(cr,
             deepin_background_cache_get_surface(1.0), 0, 0);
+
+    cairo_reset_clip(cr);
 
     GtkRequisition req;
     gtk_widget_get_preferred_size(widget, &req, NULL);
 
+    cairo_rectangle_int_t cur_rect;
     cairo_rectangle_int_t r = {0, 0, req.width, req.height};
     cairo_region_t* reg = cairo_region_create_rectangle(&r);
 
     if (priv->current_preview 
-            && meta_deepin_cloned_widget_get_alpha(priv->current_preview) > 0.1) {
+            && meta_deepin_cloned_widget_get_alpha(priv->current_preview) > 0.2) {
         double sx = SCALE_FACTOR, sy = SCALE_FACTOR;
         gtk_widget_get_allocation(GTK_WIDGET(priv->current_preview), &r);
         r.x += r.width * (1-sx)/2; r.y += r.height * (1-sy)/2;
         r.width *= sx; r.height *= sy;
+        cur_rect = r;
         cairo_region_subtract_rectangle(reg, &r);
     }
 
-    if (priv->prev_preview 
-            && meta_deepin_cloned_widget_get_alpha(priv->prev_preview) > 0.4) {
-        double sx = SCALE_FACTOR, sy = SCALE_FACTOR;
-        gtk_widget_get_allocation(GTK_WIDGET(priv->prev_preview), &r);
-        r.x += r.width * (1-sx)/2; r.y += r.height * (1-sy)/2;
-        r.width *= sx; r.height *= sy;
-        cairo_region_subtract_rectangle(reg, &r);
-    }
+    /*if (priv->prev_preview */
+            /*&& meta_deepin_cloned_widget_get_alpha(priv->prev_preview) > 0.4) {*/
+        /*double sx = SCALE_FACTOR, sy = SCALE_FACTOR;*/
+        /*gtk_widget_get_allocation(GTK_WIDGET(priv->prev_preview), &r);*/
+        /*r.x += r.width * (1-sx)/2; r.y += r.height * (1-sy)/2;*/
+        /*r.width *= sx; r.height *= sy;*/
+        /*cairo_region_subtract_rectangle(reg, &r);*/
+    /*}*/
 
     gdk_cairo_region(cr, reg);
     cairo_clip(cr);
@@ -537,8 +540,21 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
     cairo_region_destroy(reg);
     cairo_restore(cr);
 
-    if (priv->prev_preview)
-        gtk_container_propagate_draw(GTK_CONTAINER(self), GTK_WIDGET(priv->prev_preview), cr);
+    if (priv->prev_preview) {
+        cairo_save(cr);
+
+        gtk_widget_get_allocation(GTK_WIDGET(priv->prev_preview), &r);
+        cairo_region_t* reg = cairo_region_create_rectangle(&r);
+        cairo_region_subtract_rectangle(reg, &cur_rect);
+        gdk_cairo_region(cr, reg);
+        cairo_clip(cr);
+
+        gtk_container_propagate_draw(GTK_CONTAINER(self),
+                GTK_WIDGET(priv->prev_preview), cr);
+
+        cairo_restore(cr);
+        cairo_region_destroy(reg);
+    }
 
     gtk_container_propagate_draw(GTK_CONTAINER(self), GTK_WIDGET(priv->current_preview), cr);
     return TRUE;

@@ -673,8 +673,6 @@ GtkWidget* deepin_wm_background_new(MetaScreen* screen)
     gtk_window_set_default_size(GTK_WINDOW(widget), w, h);
     gtk_widget_realize (widget);
 
-    gtk_widget_add_events(widget, GDK_ALL_EVENTS_MASK);
-
     g_object_connect(G_OBJECT(widget),
             "signal::event", on_deepin_wm_background_event, NULL,
             NULL);

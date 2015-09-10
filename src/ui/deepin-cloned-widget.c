@@ -212,7 +212,7 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
 
     /*GdkRectangle r;*/
     /*gdk_cairo_get_clip_rectangle(cr, &r);*/
-    g_message("%s: (%s) ", __func__, priv->meta_window->desc);
+    /*g_message("%s: (%s) ", __func__, priv->meta_window->desc);*/
 
     GtkStyleContext* context = gtk_widget_get_style_context (widget);
 
@@ -326,7 +326,7 @@ static gboolean on_tick_callback(MetaDeepinClonedWidget* self, GdkFrameClock* cl
     gint64 now = gdk_frame_clock_get_frame_time(clock);
 
     gdouble duration = (now - priv->last_time) / 1000000.0;
-    if (priv->last_time != priv->start_time && duration < 0.033) 
+    if (priv->last_time != priv->start_time && duration < 0.048) 
         return G_SOURCE_CONTINUE;
     priv->last_time = now;
 
@@ -456,7 +456,6 @@ static void meta_deepin_cloned_widget_init (MetaDeepinClonedWidget *self)
             GTK_STATE_FLAG_NORMAL);
 
     gtk_widget_set_sensitive(GTK_WIDGET(self), TRUE);
-    gtk_widget_set_events(GTK_WIDGET(self), GDK_ALL_EVENTS_MASK);
     gtk_widget_set_has_window(GTK_WIDGET(self), FALSE);
 
     g_object_connect(G_OBJECT(self), 

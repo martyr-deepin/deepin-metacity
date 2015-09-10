@@ -526,7 +526,6 @@ static void deepin_shadow_workspace_init (DeepinShadowWorkspace *self)
 
     self->priv->scale = 1.0;
     gtk_widget_set_sensitive(GTK_WIDGET(self), TRUE);
-    gtk_widget_set_events(GTK_WIDGET(self), GDK_ALL_EVENTS_MASK);
     gtk_widget_set_has_window(GTK_WIDGET(self), FALSE);
 }
 
@@ -613,15 +612,16 @@ static void _draw_round_box(cairo_t* cr, gint width, gint height, double radius)
 static void _collect_and_clipping(GtkWidget* widget, cairo_t* cr, 
         cairo_region_t** preg)
 {
+    cairo_reset_clip(cr);
+
     DeepinShadowWorkspace *fixed = DEEPIN_SHADOW_WORKSPACE (widget);
     DeepinShadowWorkspacePrivate *priv = fixed->priv;
 
-    GtkRequisition req;
-    gtk_widget_get_preferred_size(widget, &req, NULL);
+    cairo_rectangle_int_t parent_alloc; 
+    gtk_widget_get_allocation(GTK_WIDGET(widget), &parent_alloc);
 
-    cairo_rectangle_int_t r = {0, 0, req.width, req.height};
+    cairo_rectangle_int_t r = {0, 0, parent_alloc.width, parent_alloc.height};
     cairo_region_t* reg = cairo_region_create_rectangle(&r);
-
 
     for (int i = 0; i < priv->clones->len; i++) {
         MetaDeepinClonedWidget* clone = g_ptr_array_index(priv->clones, i);
@@ -629,7 +629,8 @@ static void _collect_and_clipping(GtkWidget* widget, cairo_t* cr,
         double sx = 1.0, sy = 1.0;
         gtk_widget_get_allocation(GTK_WIDGET(clone), &r);
         meta_deepin_cloned_widget_get_scale(GTK_WIDGET(clone), &sx, &sy);
-        r.x += r.width * (1-sx)/2; r.y += r.height * (1-sy)/2;
+        r.x += r.width * (1-sx)/2 - parent_alloc.x;
+        r.y += r.height * (1-sy)/2 - parent_alloc.y;
         r.width *= sx; r.height *= sy;
         cairo_region_subtract_rectangle(reg, &r);
     }
@@ -669,7 +670,6 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
                 meta_workspace_get_name(priv->workspace),
                 (priv->thumb_mode ? "thumb": ""));
         if (priv->snapshot) {
-            cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
             cairo_set_source(cr, priv->snapshot);
             cairo_paint(cr);
             return TRUE; 
@@ -685,8 +685,8 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
 
     cairo_save(cr);
     cairo_region_t* reg = NULL;
+
     if (priv->animating && !priv->ready) {
-        cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
         _collect_and_clipping(widget, cr, &reg);
     }
 
@@ -964,7 +964,6 @@ static void _create_entry(DeepinShadowWorkspace* self)
             (priv->fixed_width - alloc.width)/2, 
             priv->fixed_height + WORKSPACE_NAME_DISTANCE + alloc.height/2);
 
-    gtk_widget_add_events(w, GDK_ENTER_NOTIFY_MASK|GDK_LEAVE_NOTIFY_MASK);
     g_object_connect(G_OBJECT(w),
             "signal::button-press-event", on_entry_pressed, self,
             "signal::focus-out-event", on_entry_focus_out, self,

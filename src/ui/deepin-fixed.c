@@ -70,7 +70,7 @@ static gboolean on_tick_callback(DeepinFixed* self, GdkFrameClock* clock,
     gint64 now = gdk_frame_clock_get_frame_time(clock);
 
     gdouble duration = (now - ai->last_time) / 1000000.0;
-    if (ai->last_time != ai->start_time && duration < 0.03) return G_SOURCE_CONTINUE;
+    if (ai->last_time != ai->start_time && duration < 0.048) return G_SOURCE_CONTINUE;
     ai->last_time = now;
 
     gdouble t = 1.0;
