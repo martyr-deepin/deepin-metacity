@@ -138,7 +138,7 @@ static void on_window_placed(MetaDeepinClonedWidget* clone, gpointer data)
     req.width *= info->init_scale;
     req.height *= info->init_scale;
 
-    g_message("%s: scale down to %f, %d, %d", __func__, info->init_scale,
+    g_debug("%s: scale down to %f, %d, %d", __func__, info->init_scale,
             req.width, req.height);
 
     meta_deepin_cloned_widget_set_size(clone, req.width, req.height);
@@ -488,7 +488,7 @@ static void _remove_cloned_widget(DeepinShadowWorkspace* self,
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
     if (!priv->ready || !priv->clones) return;
-    g_message("%s", __func__);
+    g_debug("%s", __func__);
     
     MetaWindow* window = meta_deepin_cloned_widget_get_window(clone);
     g_ptr_array_remove(priv->clones, clone);
@@ -513,7 +513,7 @@ static void on_window_removed(DeepinMessageHub* hub, MetaWindow* window,
     for (gint i = 0; i < priv->clones->len; i++) {
         MetaDeepinClonedWidget* clone = g_ptr_array_index(priv->clones, i);
         if (meta_deepin_cloned_widget_get_window(clone) == window) {
-            g_message("%s remove clone for %s", __func__, window->desc);
+            g_debug("%s remove clone for %s", __func__, window->desc);
             _remove_cloned_widget(self, clone);
         }
     }
@@ -653,7 +653,7 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
     GtkAllocation req;
     gtk_widget_get_allocation(widget, &req);
 
-    /*g_message("%s: ws(%s(%s)) clip (%d, %d, %d, %d) alloc (%d, %d, %d, %d)",*/
+    /*g_debug("%s: ws(%s(%s)) clip (%d, %d, %d, %d) alloc (%d, %d, %d, %d)",*/
             /*__func__, */
             /*meta_workspace_get_name(priv->workspace),*/
             /*(priv->thumb_mode ? "thumb": ""),*/
@@ -666,7 +666,7 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
         MetaRectangle bound = {req.x, req.y, req.width, req.height};
         MetaRectangle clip = {r.x, r.y, r.width, r.height};
 
-        g_message("%s: ws(%s(%s)) frozen", __func__, 
+        g_debug("%s: ws(%s(%s)) frozen", __func__, 
                 meta_workspace_get_name(priv->workspace),
                 (priv->thumb_mode ? "thumb": ""));
         if (priv->snapshot) {
@@ -675,7 +675,7 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
             return TRUE; 
 
         } else if (meta_rectangle_could_fit_rect(&clip, &bound)) {
-            g_message("%s: frozen, do a full render", __func__);
+            g_debug("%s: frozen, do a full render", __func__);
             cairo_push_group(cr);
             do_snapshot_draw = TRUE;
         }
@@ -886,7 +886,7 @@ static gboolean on_entry_pressed(GtkWidget* entry,
     GdkEventButton evb = event->button;
 
     if (!gtk_widget_has_grab(entry)) {
-        g_message("%s: grab", __func__);
+        g_debug("%s: grab", __func__);
         gtk_grab_add(entry);
         gtk_entry_grab_focus_without_selecting(GTK_ENTRY(entry));
 
@@ -897,7 +897,7 @@ static gboolean on_entry_pressed(GtkWidget* entry,
 
         GdkRectangle r = {alloc.x, alloc.y, alloc.width, alloc.height};
         if (x <= r.x || x >= r.x + r.width || y <= r.y || y >= r.y + r.height) {
-            g_message("%s: ungrab and replay", __func__);
+            g_debug("%s: ungrab and replay", __func__);
             /* hack: when click out side of entry, loose grab and replay click,
              * incase some other entry was clicked and cannot get event */
             if (gtk_widget_has_grab(entry)) {
@@ -946,7 +946,7 @@ static gboolean on_entry_key_pressed(GtkWidget* entry,
 static gboolean on_entry_focus_out(GtkWidget* entry,
                GdkEvent* event, gpointer user_data)
 {
-    g_message("%s", __func__);
+    g_debug("%s", __func__);
     return FALSE;
 }
 
@@ -1027,7 +1027,7 @@ static gboolean on_deepin_cloned_widget_entered(MetaDeepinClonedWidget* cloned,
 static gboolean on_close_button_clicked(GtkWidget* widget,
                GdkEvent* event, gpointer data)
 {
-    g_message("%s", __func__);
+    g_debug("%s", __func__);
     DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
     DeepinShadowWorkspacePrivate* priv = self->priv;
 
@@ -1050,7 +1050,7 @@ static gboolean on_close_button_clicked(GtkWidget* widget,
 static gboolean on_close_button_leaved(GtkWidget* widget,
                GdkEvent* event, gpointer data)
 {
-    g_message("%s", __func__);
+    g_debug("%s", __func__);
     DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
 
     if (!self->priv->hovered_clone) return FALSE;
@@ -1129,14 +1129,14 @@ static void on_deepin_shadow_workspace_show(DeepinShadowWorkspace* self, gpointe
 static gboolean on_deepin_shadow_workspace_pressed(DeepinShadowWorkspace* self,
                GdkEvent* event, gpointer user_data)
 {
-    g_message("%s: %s", __func__, meta_workspace_get_name(self->priv->workspace));
+    g_debug("%s: %s", __func__, meta_workspace_get_name(self->priv->workspace));
     return FALSE;
 }
 
 static gboolean on_deepin_shadow_workspace_motion(DeepinShadowWorkspace* self,
                GdkEvent* event, gpointer user_data)
 {
-    /*g_message("%s: %s at (%f, %f)", __func__,*/
+    /*g_debug("%s: %s at (%f, %f)", __func__,*/
             /*meta_workspace_get_name(self->priv->workspace),*/
             /*event->motion.x, event->motion.y);*/
     return FALSE;
@@ -1147,13 +1147,13 @@ static void on_window_change_workspace(DeepinMessageHub* hub, MetaWindow* window
 {
     DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)user_data;
     DeepinShadowWorkspacePrivate* priv = self->priv;
-    g_message("%s: ws %s(%s)", __func__, meta_workspace_get_name(priv->workspace),
+    g_debug("%s: ws %s(%s)", __func__, meta_workspace_get_name(priv->workspace),
             priv->thumb_mode ? "thumb":"normal");
 
     if (!priv->ready || !priv->clones) return;
     
     if (priv->workspace == new_workspace) { // dest workspace
-        g_message("%s: add window", __func__);
+        g_debug("%s: add window", __func__);
         //add window
         GtkWidget* widget = meta_deepin_cloned_widget_new(window);
         gtk_widget_set_sensitive(widget, TRUE);
@@ -1190,7 +1190,7 @@ static void on_drag_data_received(GtkWidget* widget, GdkDragContext* context,
 {
     DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)widget;
     DeepinShadowWorkspacePrivate* priv = self->priv;
-    g_message("%s: x %d, y %d", __func__, x, y);
+    g_debug("%s: x %d, y %d", __func__, x, y);
 
     const guchar* raw_data = gtk_selection_data_get_data(data);
     if (raw_data) {
@@ -1198,7 +1198,7 @@ static void on_drag_data_received(GtkWidget* widget, GdkDragContext* context,
         gpointer p = (gpointer)atol(raw_data);
         MetaDeepinClonedWidget* target_clone = META_DEEPIN_CLONED_WIDGET(p);
         MetaWindow* meta_win = meta_deepin_cloned_widget_get_window(target_clone);
-        g_message("%s: get %x", __func__, target_clone);
+        g_debug("%s: get %x", __func__, target_clone);
         if (meta_win->on_all_workspaces) {
             gtk_drag_finish(context, FALSE, FALSE, time);
             return;
@@ -1210,7 +1210,7 @@ static void on_drag_data_received(GtkWidget* widget, GdkDragContext* context,
             MetaDeepinClonedWidget* clone = g_ptr_array_index(priv->clones, i);
 
             if (meta_deepin_cloned_widget_get_window(clone) == meta_win) {
-                g_message("cancel drop on the same workspace");
+                g_debug("cancel drop on the same workspace");
                 gtk_drag_finish(context, FALSE, FALSE, time);
                 return;
             }
@@ -1226,14 +1226,14 @@ static void on_drag_data_received(GtkWidget* widget, GdkDragContext* context,
 static gboolean on_drag_drop(GtkWidget* widget, GdkDragContext* context,
                gint x, gint y, guint time, gpointer user_data)
 {
-    g_message("%s", __func__);
+    g_debug("%s", __func__);
     return FALSE;
 }
 
 static gboolean on_deepin_shadow_workspace_event(DeepinShadowWorkspace* self,
         GdkEvent* ev, gpointer data)
 {
-    /*g_message("%s", __func__);*/
+    /*g_debug("%s", __func__);*/
     return FALSE;
 }
 
@@ -1427,7 +1427,7 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
     if (keysym == XK_Tab
             || action == META_KEYBINDING_ACTION_SWITCH_APPLICATIONS
             || action == META_KEYBINDING_ACTION_SWITCH_APPLICATIONS_BACKWARD) {
-        g_message("tabbing inside expose windows");
+        g_debug("tabbing inside expose windows");
         if (keysym == XK_Tab)
             backward = event->xkey.state & ShiftMask;
         else
@@ -1450,7 +1450,7 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
         GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(display->xdisplay);
         GdkWindow* win = gdk_x11_window_lookup_for_display(gdisplay, event->xbutton.window);
 
-        g_message("%s button press on %x", __func__, event->xbutton.window);
+        g_debug("%s button press on %x", __func__, event->xbutton.window);
     }
 }
 

@@ -473,7 +473,7 @@ static void deepin_fixed_realize (GtkWidget *widget)
         GTK_WIDGET_CLASS (deepin_fixed_parent_class)->realize (widget);
     else
     {
-        g_message("%s: alloc window", __func__);
+        g_debug("%s: alloc window", __func__);
         gtk_widget_set_realized (widget, TRUE);
 
         gtk_widget_get_allocation (widget, &allocation);
