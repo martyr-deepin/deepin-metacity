@@ -103,18 +103,9 @@ static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
             goto _cleanup;
         }
 
-        if (!gdk_pixbuf_get_has_alpha(pixbuf)) {
-            GdkPixbuf* orig = pixbuf;
-            pixbuf = gdk_pixbuf_add_alpha(orig, FALSE, 0, 0, 0);
-            g_object_unref(orig);
-        }
-
         g_assert(!priv->background);
 
         priv->background = gdk_cairo_surface_create_from_pixbuf(pixbuf, 1.0, NULL);
-        if (cairo_image_surface_get_format(priv->background) != CAIRO_FORMAT_ARGB32) {
-            g_warning("%s: surface is not argb", __func__);
-        }
     }
 
 _cleanup:
@@ -201,7 +192,8 @@ cairo_surface_t* deepin_background_cache_get_surface(double scale)
     }
     
     gint w = scale * priv->fixed_width, h = scale * priv->fixed_height;
-    cairo_surface_t* surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
+    cairo_surface_t* surf = cairo_image_surface_create(
+            cairo_image_surface_get_format(priv->background),
             w, h);
     cairo_t* cr = cairo_create(surf);
     cairo_scale(cr, scale, scale);

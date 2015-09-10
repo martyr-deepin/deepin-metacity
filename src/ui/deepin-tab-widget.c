@@ -257,12 +257,11 @@ static void meta_deepin_tab_widget_update_image(MetaDeepinTabWidget* self)
             cairo_surface_destroy(priv->scaled);
         }
 
-        priv->scaled = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
+        priv->scaled = cairo_image_surface_create(CAIRO_FORMAT_RGB24,
                 req.width, req.height);
         cairo_t* cr = cairo_create(priv->scaled);
         cairo_scale(cr, priv->scale, priv->scale);
         cairo_set_source_surface(cr, priv->orig_thumb, 0, 0);
-        /*cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_FAST);*/
         cairo_paint(cr);
         cairo_destroy(cr);
     }

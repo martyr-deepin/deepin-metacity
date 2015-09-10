@@ -269,7 +269,7 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
         x = cairo_image_surface_get_width(priv->snapshot) / 2.0,
           y = cairo_image_surface_get_height(priv->snapshot) / 2.0;
 
-        cairo_surface_t* dest = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
+        cairo_surface_t* dest = cairo_image_surface_create(CAIRO_FORMAT_RGB24,
                 cairo_image_surface_get_width(priv->snapshot),
                 cairo_image_surface_get_height(priv->snapshot));
 
@@ -673,7 +673,7 @@ static void on_drag_begin(GtkWidget* widget, GdkDragContext *context,
     gint w = cairo_image_surface_get_width(priv->snapshot); 
     gint h = cairo_image_surface_get_height(priv->snapshot); 
 
-    cairo_surface_t* dest = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, w, h);
+    cairo_surface_t* dest = cairo_image_surface_create(CAIRO_FORMAT_RGB24, w, h);
 
     float sx = RECT_PREFER_WIDTH / (float)w;
     cairo_t* cr2 = cairo_create(dest);

@@ -149,11 +149,14 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
             return NULL;
         }
 
+        gboolean keep_alpha = window->type == META_WINDOW_DESKTOP;
+
         MetaRectangle r, r2;
         meta_window_get_input_rect(window, &r);
         meta_window_get_outer_rect(window, &r2);
 
-        cairo_surface_t* ret = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
+        cairo_surface_t* ret = cairo_image_surface_create(
+                keep_alpha ? CAIRO_FORMAT_ARGB32 : CAIRO_FORMAT_RGB24,
                 r2.width, r2.height);
 
         meta_error_trap_push (window->display);
@@ -184,7 +187,7 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
     if (!surface) {
         double width = cairo_image_surface_get_width(ref) * scale;
         double height = cairo_image_surface_get_height(ref) * scale;
-        surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
+        surface = cairo_image_surface_create(cairo_image_surface_get_format(ref),
                 width, height);
         cairo_t* cr = cairo_create(surface);
         cairo_scale(cr, scale, scale);

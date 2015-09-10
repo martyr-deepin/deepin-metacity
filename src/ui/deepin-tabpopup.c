@@ -93,7 +93,7 @@ static DeepinTabEntry* deepin_tab_entry_new (const MetaTabEntry *entry, gint    
     double sy = RECT_PREFER_HEIGHT / (double)te->rect.height;
 
     cairo_surface_t* surface = cairo_image_surface_create(
-            CAIRO_FORMAT_ARGB32, RECT_PREFER_WIDTH, RECT_PREFER_HEIGHT);
+            CAIRO_FORMAT_RGB24, RECT_PREFER_WIDTH, RECT_PREFER_HEIGHT);
 
     cairo_t* cr = cairo_create(surface);
 

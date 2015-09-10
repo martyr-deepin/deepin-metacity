@@ -505,7 +505,7 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
     GtkRequisition req;
     gtk_widget_get_preferred_size(widget, &req, NULL);
 
-    cairo_rectangle_int_t cur_rect;
+    cairo_rectangle_int_t cur_rect = {0, 0, 0, 0};
     cairo_rectangle_int_t r = {0, 0, req.width, req.height};
     cairo_region_t* reg = cairo_region_create_rectangle(&r);
 
@@ -518,15 +518,6 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
         cur_rect = r;
         cairo_region_subtract_rectangle(reg, &r);
     }
-
-    /*if (priv->prev_preview */
-            /*&& meta_deepin_cloned_widget_get_alpha(priv->prev_preview) > 0.4) {*/
-        /*double sx = SCALE_FACTOR, sy = SCALE_FACTOR;*/
-        /*gtk_widget_get_allocation(GTK_WIDGET(priv->prev_preview), &r);*/
-        /*r.x += r.width * (1-sx)/2; r.y += r.height * (1-sy)/2;*/
-        /*r.width *= sx; r.height *= sy;*/
-        /*cairo_region_subtract_rectangle(reg, &r);*/
-    /*}*/
 
     gdk_cairo_region(cr, reg);
     cairo_clip(cr);
@@ -543,17 +534,20 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
     if (priv->prev_preview) {
         cairo_save(cr);
 
-        gtk_widget_get_allocation(GTK_WIDGET(priv->prev_preview), &r);
-        cairo_region_t* reg = cairo_region_create_rectangle(&r);
-        cairo_region_subtract_rectangle(reg, &cur_rect);
-        gdk_cairo_region(cr, reg);
-        cairo_clip(cr);
+        cairo_region_t* reg = NULL;
+        if (priv->current_preview) {
+            gtk_widget_get_allocation(GTK_WIDGET(priv->prev_preview), &r);
+            reg = cairo_region_create_rectangle(&r);
+            cairo_region_subtract_rectangle(reg, &cur_rect);
+            gdk_cairo_region(cr, reg);
+            cairo_clip(cr);
+        }
 
         gtk_container_propagate_draw(GTK_CONTAINER(self),
                 GTK_WIDGET(priv->prev_preview), cr);
 
         cairo_restore(cr);
-        cairo_region_destroy(reg);
+        if (reg) cairo_region_destroy(reg);
     }
 
     gtk_container_propagate_draw(GTK_CONTAINER(self), GTK_WIDGET(priv->current_preview), cr);
