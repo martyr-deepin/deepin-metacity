@@ -39,6 +39,7 @@
 #include "compositor.h"
 #include "deepin-desktop-background.h"
 #include "deepin-wm-background.h"
+#include "deepin-message-hub.h"
 
 #ifdef HAVE_SOLARIS_XINERAMA
 #include <X11/extensions/xinerama.h>
@@ -1294,45 +1295,6 @@ meta_screen_update_cursor (MetaScreen *screen)
   XFreeCursor (screen->display->xdisplay, xcursor);
 }
 
-#define MAX_PREVIEW_WIDTH RECT_PREFER_WIDTH
-#define MAX_PREVIEW_HEIGHT RECT_PREFER_HEIGHT
-
-static GdkPixbuf *
-get_window_pixbuf (MetaWindow *window,
-                   int        *width,
-                   int        *height)
-{
-  Pixmap pmap;
-  GdkPixbuf *pixbuf, *scaled;
-  double ratio;
-
-  pmap = meta_compositor_get_window_pixmap (window->display->compositor,
-                                            window);
-  if (pmap == None)
-    return NULL;
-
-  pixbuf = meta_ui_get_pixbuf_from_pixmap (pmap);
-  if (pixbuf == NULL) 
-    return NULL;
-
-  *width = gdk_pixbuf_get_width (pixbuf);
-  *height = gdk_pixbuf_get_height (pixbuf);
-
-  if (*width <= MAX_PREVIEW_WIDTH && *height <= MAX_PREVIEW_HEIGHT) {
-      return pixbuf;
-  }
-
-  ratio = MAX(((double) *width) / MAX_PREVIEW_WIDTH,
-          ((double) *height) / MAX_PREVIEW_HEIGHT);
-  *height = (int) (((double) *height) / ratio);
-  *width = (int) (((double) *width) / ratio);
-
-  scaled = gdk_pixbuf_scale_simple (pixbuf, *width, *height,
-                                    GDK_INTERP_BILINEAR);
-  g_object_unref (pixbuf);
-  return scaled;
-}
-                                         
 void
 meta_screen_ensure_tab_popup (MetaScreen      *screen,
                               MetaTabList      list_type,
@@ -1365,56 +1327,12 @@ meta_screen_ensure_tab_popup (MetaScreen      *screen,
     {
       MetaWindow *window;
       MetaRectangle r;
-      GdkPixbuf *win_pixbuf;
-      int width, height;
 
       window = tmp->data;
       
       entries[i].key = (MetaTabEntryKey) window->xwindow;
       entries[i].title = window->title;
 
-      /* disable this for performance */
-#if 0
-      win_pixbuf = NULL;
-      if (meta_prefs_get_alt_tab_thumbnails ())
-        win_pixbuf = get_window_pixbuf (window, &width, &height);
-
-      if (win_pixbuf == NULL)
-        entries[i].icon = g_object_ref (window->icon);
-      else
-        {
-          GdkPixbuf *scaled;
-          int icon_width, icon_height, t_width, t_height;
-
-#define ICON_SIZE 48
-
-          scaled = gdk_pixbuf_scale_simple (window->icon,
-                                            ICON_SIZE, ICON_SIZE,
-                                            GDK_INTERP_BILINEAR);
-
-          icon_width = gdk_pixbuf_get_width (scaled);
-          icon_height = gdk_pixbuf_get_height (scaled);
-
-          t_width = RECT_PREFER_WIDTH;
-          t_height = RECT_PREFER_HEIGHT;
-
-          entries[i].icon = gdk_pixbuf_new (GDK_COLORSPACE_RGB, TRUE, 8,
-                                            t_width, t_height);
-          gdk_pixbuf_fill (entries[i].icon, 0x00000000);
-          gdk_pixbuf_copy_area (win_pixbuf, 0, 0, width, height,
-                                entries[i].icon,
-                                (t_width - width)/2, (t_height - height)/2);
-          g_object_unref (win_pixbuf);
-          gdk_pixbuf_composite (scaled, entries[i].icon,
-                                (t_width - icon_width)/2, t_height - icon_height,
-                                icon_width, icon_height,
-                                (t_width - icon_width)/2, t_height - icon_height,
-                                1.0, 1.0, GDK_INTERP_BILINEAR, 255);
-
-          g_object_unref (scaled);
-        }
-#endif
-                                
       entries[i].blank = FALSE;
       entries[i].hidden = !meta_window_showing_on_its_workspace (window);
       entries[i].demands_attention = window->wm_state_demands_attention;
@@ -1451,9 +1369,6 @@ meta_screen_ensure_tab_popup (MetaScreen      *screen,
 
   screen->tab_popup = deepin_tab_popup_new (entries, screen->number, len);
 
-  /*for (i = 0; i < len; i++)*/
-    /*g_object_unref (entries[i].icon);*/
-
   g_free (entries);
 
   g_list_free (tab_list);
@@ -1469,6 +1384,7 @@ meta_screen_ensure_previewing_workspace (MetaScreen* screen)
     return;
 
   screen->ws_previewer = deepin_wm_background_new(screen);
+  gtk_widget_set_app_paintable(GTK_WIDGET(screen->ws_previewer), TRUE);
 }
 
 void meta_screen_ensure_exposing_windows (MetaScreen* screen)
@@ -1478,6 +1394,7 @@ void meta_screen_ensure_exposing_windows (MetaScreen* screen)
     return;
 
   screen->exposing_windows_popup = gtk_window_new(GTK_WINDOW_POPUP);
+  gtk_widget_set_app_paintable(GTK_WIDGET(screen->exposing_windows_popup), TRUE);
   gtk_window_set_default_size(GTK_WINDOW(screen->exposing_windows_popup), 
           screen->rect.width, screen->rect.height);
 }

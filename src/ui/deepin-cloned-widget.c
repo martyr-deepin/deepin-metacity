@@ -451,6 +451,7 @@ static void meta_deepin_cloned_widget_init (MetaDeepinClonedWidget *self)
 
     gtk_widget_set_sensitive(GTK_WIDGET(self), TRUE);
     gtk_widget_set_has_window(GTK_WIDGET(self), FALSE);
+    gtk_widget_set_app_paintable(GTK_WIDGET(self), TRUE);
 }
 
 static void meta_deepin_cloned_widget_realize (GtkWidget *widget)

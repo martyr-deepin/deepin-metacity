@@ -667,8 +667,6 @@ static gboolean on_deepin_wm_background_event(DeepinWMBackground* self,
         default: break;
     }
 
-    /*if (priv->active_workspace && gtk_widget_get_realized(priv->active_workspace))*/
-        /*return gtk_widget_event(GTK_WIDGET(priv->active_workspace), ev);*/
     return FALSE;
 }
 
