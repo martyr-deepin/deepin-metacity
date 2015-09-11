@@ -577,7 +577,8 @@ static void deepin_shadow_workspace_get_preferred_height (GtkWidget *widget,
 
     *minimum = *natural = self->priv->fixed_height;
     if (self->priv->thumb_mode) {
-        *minimum = *natural = self->priv->fixed_height + WORKSPACE_NAME_HEIGHT + WORKSPACE_NAME_DISTANCE;
+        *minimum = *natural = self->priv->fixed_height + WORKSPACE_NAME_HEIGHT
+            + WORKSPACE_NAME_DISTANCE + NAME_SHAPE_PADDING;
     }
 }
 

@@ -62,6 +62,9 @@ struct _DeepinWMBackgroundPrivate
 
 G_DEFINE_TYPE (DeepinWMBackground, deepin_wm_background, GTK_TYPE_WINDOW);
 
+#define THUMB_HEIGHT (priv->thumb_height + WORKSPACE_NAME_HEIGHT \
+        + WORKSPACE_NAME_DISTANCE + NAME_SHAPE_PADDING)
+
 static gboolean _show_adder(MetaScreen* screen)
 {
     return meta_screen_get_n_workspaces(screen) < MAX_WORKSPACE_NUM;
@@ -172,7 +175,7 @@ static void relayout(DeepinWMBackground* self)
     while (l) {
         int x = thumb_x + i * (priv->thumb_width + thumb_spacing);
         deepin_fixed_move(DEEPIN_FIXED(priv->fixed), (GtkWidget*)l->data,
-                x + priv->thumb_width/2, thumb_y + priv->thumb_height/2,
+                x + priv->thumb_width/2, thumb_y + THUMB_HEIGHT/2,
                 TRUE);
 
         i++;
@@ -181,7 +184,7 @@ static void relayout(DeepinWMBackground* self)
 
     if (priv->adder) {
         int x = thumb_x + i * (priv->thumb_width + thumb_spacing);
-        int y = thumb_y + (priv->thumb_height - WORKSPACE_NAME_HEIGHT - WORKSPACE_NAME_DISTANCE)/2;
+        int y = thumb_y + priv->thumb_height/2;
 
         if (adder_renewed) {
             deepin_fixed_put(DEEPIN_FIXED(priv->fixed), (GtkWidget*)priv->adder,
@@ -519,7 +522,8 @@ static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer use
 
         int x = thumb_x + i * (priv->thumb_width + thumb_spacing);
         deepin_fixed_put(DEEPIN_FIXED(priv->fixed), (GtkWidget*)dsw,
-                x + priv->thumb_width/2, thumb_y + priv->thumb_height/2);
+                x + priv->thumb_width/2, 
+                thumb_y + THUMB_HEIGHT/2);
     }
 
 
@@ -633,7 +637,8 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
     while (l) {
         int x = thumb_x + i * (priv->thumb_width + thumb_spacing);
         deepin_fixed_put(DEEPIN_FIXED(priv->fixed), (GtkWidget*)l->data,
-                x + priv->thumb_width/2, thumb_y + priv->thumb_height/2);
+                x + priv->thumb_width/2,
+                thumb_y + THUMB_HEIGHT/2);
 
         i++;
         l = l->next;
@@ -643,7 +648,7 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
         int x = thumb_x + i * (priv->thumb_width + thumb_spacing);
         deepin_fixed_put(DEEPIN_FIXED(priv->fixed), (GtkWidget*)priv->adder,
                 x + priv->thumb_width/2,
-                thumb_y + (priv->thumb_height - WORKSPACE_NAME_HEIGHT - WORKSPACE_NAME_DISTANCE)/2);
+                thumb_y + priv->thumb_height/2);
     }
 
     _create_close_button(self);
