@@ -882,6 +882,22 @@ static void deepin_shadow_workspace_class_init (DeepinShadowWorkspaceClass *klas
     object_class->finalize = deepin_shadow_workspace_finalize;
 }
 
+static gboolean on_idle_focus_out_entry(GtkWidget* entry)
+{
+    GdkEvent *fevent = gdk_event_new (GDK_FOCUS_CHANGE);
+    fevent->focus_change.type = GDK_FOCUS_CHANGE;
+    fevent->focus_change.in = FALSE;
+    fevent->focus_change.window = gtk_widget_get_window(entry);
+    if (fevent->focus_change.window != NULL)
+        g_object_ref (fevent->focus_change.window);
+
+    gtk_widget_send_focus_change(entry, fevent);
+
+    gdk_event_free (fevent);
+
+    return G_SOURCE_REMOVE;
+}
+
 static gboolean on_entry_pressed(GtkWidget* entry,
                GdkEvent* event, gpointer user_data)
 {
@@ -904,9 +920,14 @@ static gboolean on_entry_pressed(GtkWidget* entry,
              * incase some other entry was clicked and cannot get event */
             if (gtk_widget_has_grab(entry)) {
                 gtk_grab_remove(entry);
+                gtk_editable_select_region(GTK_EDITABLE(entry), 0, 0);
+                g_idle_add((GSourceFunc)on_idle_focus_out_entry, entry);
+
                 GdkEvent* copy = gtk_get_current_event();
                 gdk_event_put(copy);
                 gdk_event_free(copy);
+
+                return TRUE;
             }
         }
     }
@@ -1154,6 +1175,12 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
 
 static void on_deepin_shadow_workspace_show(DeepinShadowWorkspace* self, gpointer data)
 {
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+    if (priv->thumb_mode && priv->entry) {
+        if (priv->selected) gtk_widget_grab_focus(priv->entry);
+        /*gtk_entry_reset_im_context(GTK_ENTRY(priv->entry));*/
+        /*gtk_editable_select_region(GTK_EDITABLE(priv->entry), 0, 0);*/
+    }
     g_idle_add((GSourceFunc)on_idle, self);
 }
 
@@ -1357,7 +1384,11 @@ void deepin_shadow_workspace_set_current(DeepinShadowWorkspace* self,
     gtk_style_context_set_state(gtk_widget_get_style_context(GTK_WIDGET(self)), state);
     if (priv->entry) {
         gtk_style_context_set_state(
-                gtk_widget_get_style_context(GTK_WIDGET(priv->entry)), state);
+                gtk_widget_get_style_context(priv->entry), state);
+        if (!val && gtk_editable_get_selection_bounds(GTK_EDITABLE(priv->entry), NULL, NULL)) {
+            gtk_entry_reset_im_context(GTK_ENTRY(priv->entry));
+            gtk_editable_select_region(GTK_EDITABLE(priv->entry), 0, 0);
+        }
     }
     gtk_widget_queue_draw(GTK_WIDGET(self));
 }
