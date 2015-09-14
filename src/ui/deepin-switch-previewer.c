@@ -509,14 +509,20 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
     cairo_rectangle_int_t r = {0, 0, req.width, req.height};
     cairo_region_t* reg = cairo_region_create_rectangle(&r);
 
-    if (priv->current_preview 
+    if (priv->current_preview) {
+        MetaWindow* meta_win = meta_deepin_cloned_widget_get_window(
+                priv->current_preview);
+
+        if (meta_win->type != META_WINDOW_DESKTOP
             && meta_deepin_cloned_widget_get_alpha(priv->current_preview) > 0.2) {
-        double sx = SCALE_FACTOR, sy = SCALE_FACTOR;
-        gtk_widget_get_allocation(GTK_WIDGET(priv->current_preview), &r);
-        r.x += r.width * (1-sx)/2; r.y += r.height * (1-sy)/2;
-        r.width *= sx; r.height *= sy;
-        cur_rect = r;
-        cairo_region_subtract_rectangle(reg, &r);
+
+            double sx = SCALE_FACTOR, sy = SCALE_FACTOR;
+            gtk_widget_get_allocation(GTK_WIDGET(priv->current_preview), &r);
+            r.x += r.width * (1-sx)/2; r.y += r.height * (1-sy)/2;
+            r.width *= sx; r.height *= sy;
+            cur_rect = r;
+            cairo_region_subtract_rectangle(reg, &r);
+        }
     }
 
     gdk_cairo_region(cr, reg);
@@ -574,23 +580,29 @@ void meta_deepin_switch_previewer_select(MetaDeepinSwitchPreviewer* self,
     if (w) {
         if (priv->current_preview) {
             priv->prev_preview = priv->current_preview;
-            meta_deepin_cloned_widget_set_scale(priv->current_preview, 1.0, 1.0);
-            meta_deepin_cloned_widget_set_alpha(priv->current_preview, 1.0);
-
-            meta_deepin_cloned_widget_push_state(priv->current_preview);
+            MetaWindow* meta_win = meta_deepin_cloned_widget_get_window(
+                    priv->prev_preview);
+            if (meta_win->type != META_WINDOW_DESKTOP) {
+                meta_deepin_cloned_widget_set_scale(priv->current_preview, 1.0, 1.0);
+                meta_deepin_cloned_widget_set_alpha(priv->current_preview, 1.0);
+                meta_deepin_cloned_widget_push_state(priv->current_preview);
+            }
             meta_deepin_cloned_widget_set_scale(priv->current_preview, SCALE_FACTOR, SCALE_FACTOR);
             meta_deepin_cloned_widget_set_alpha(priv->current_preview, 0.0);
+
             meta_deepin_cloned_widget_unselect(priv->current_preview);
         } 
 
         priv->current_preview = w;
-        
-        meta_deepin_cloned_widget_set_scale(w, SCALE_FACTOR, SCALE_FACTOR);
-        meta_deepin_cloned_widget_set_alpha(w, 0.0);
-
-        meta_deepin_cloned_widget_push_state(w);
+        MetaWindow* meta_win = meta_deepin_cloned_widget_get_window(w);
+        if (meta_win->type != META_WINDOW_DESKTOP) {
+            meta_deepin_cloned_widget_set_scale(w, SCALE_FACTOR, SCALE_FACTOR);
+            meta_deepin_cloned_widget_set_alpha(w, 0.0);
+            meta_deepin_cloned_widget_push_state(w);
+        }
         meta_deepin_cloned_widget_set_scale(w, 1.0, 1.0);
         meta_deepin_cloned_widget_set_alpha(w, 1.0);
+
         meta_deepin_cloned_widget_select(w);
     }
 }

@@ -130,11 +130,6 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
   gdouble x, y, w = req.width, h = req.height;
 
   gdouble w2 = w / 2.0, h2 = h / 2.0;
-  if (priv->selected) {
-      gtk_style_context_set_state (context, GTK_STATE_FLAG_SELECTED);
-  } else {
-      gtk_style_context_set_state (context, gtk_widget_get_state_flags (widget));
-  }
 
   cairo_save(cr);
   gdouble pos = priv->animation ? priv->current_pos : 1.0;
@@ -148,11 +143,9 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
   gtk_render_background(context, cr, -w2, -h2, w, h);
   cairo_restore(cr);
 
-  cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
   x = (w - cairo_image_surface_get_width(priv->scaled)) / 2.0,
   y = (h - cairo_image_surface_get_height(priv->scaled)) / 2.0;
   cairo_set_source_surface(cr, priv->scaled, x, y);
-  /*cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_FAST);*/
   cairo_paint(cr);
 
   return TRUE;
@@ -257,7 +250,8 @@ static void meta_deepin_tab_widget_update_image(MetaDeepinTabWidget* self)
             cairo_surface_destroy(priv->scaled);
         }
 
-        priv->scaled = cairo_image_surface_create(CAIRO_FORMAT_RGB24,
+        priv->scaled = cairo_image_surface_create(
+                cairo_image_surface_get_format(priv->orig_thumb),
                 req.width, req.height);
         cairo_t* cr = cairo_create(priv->scaled);
         cairo_scale(cr, priv->scale, priv->scale);
@@ -359,6 +353,9 @@ void meta_deepin_tab_widget_select (MetaDeepinTabWidget *self)
 {
     MetaDeepinTabWidgetPrivate* priv = self->priv;
     priv->selected = TRUE;
+    GtkStyleContext* context = gtk_widget_get_style_context (self);
+    gtk_style_context_set_state (context, GTK_STATE_FLAG_SELECTED);
+
     meta_deepin_tab_widget_prepare_animation(self, priv->selected);
     gtk_widget_queue_draw (GTK_WIDGET (self));
 }
@@ -367,6 +364,9 @@ void meta_deepin_tab_widget_unselect (MetaDeepinTabWidget *self)
 {
     MetaDeepinTabWidgetPrivate* priv = self->priv;
     priv->selected = FALSE;
+    GtkStyleContext* context = gtk_widget_get_style_context (self);
+    gtk_style_context_set_state (context, GTK_STATE_FLAG_NORMAL);
+
     meta_deepin_tab_widget_prepare_animation(self, priv->selected);
     gtk_widget_queue_draw (GTK_WIDGET (self));
 }

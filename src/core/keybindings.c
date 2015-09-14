@@ -2077,13 +2077,18 @@ process_tab_grab (MetaDisplay *display,
           meta_topic (META_DEBUG_KEYBINDINGS,
                       "Activating target window\n");
 
-          meta_screen_unshow_desktop(screen);
-
           meta_topic (META_DEBUG_FOCUS, "Activating %s due to tab popup "
                       "selection and turning mouse_mode off\n",
                       target_window->desc);
           display->mouse_mode = FALSE;
-          meta_window_activate (target_window, event->xkey.time);
+
+          if (target_window->type != META_WINDOW_DESKTOP) {
+              meta_screen_unshow_desktop(screen);
+              meta_window_activate (target_window, event->xkey.time);
+
+          } else if (!screen->active_workspace->showing_desktop) {
+              meta_screen_show_desktop(screen, event->xkey.time);
+          }
 
           meta_topic (META_DEBUG_KEYBINDINGS,
                       "Ending grab early so we can focus the target window\n");

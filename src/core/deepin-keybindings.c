@@ -107,6 +107,16 @@ static MetaGrabOp tab_op_from_tab_type (MetaTabList type)
     return 0;
 }
 
+static void _activate_selection_or_desktop(MetaWindow* target, guint32 timestamp)
+{
+    if (target->type != META_WINDOW_DESKTOP) {
+        meta_window_activate (target, timestamp);
+
+    } else {
+        meta_screen_show_desktop(target->screen, timestamp);
+    }
+}
+
 static void do_choose_window (MetaDisplay    *display,
         MetaScreen     *screen,
         MetaWindow     *event_window,
@@ -144,7 +154,8 @@ static void do_choose_window (MetaDisplay    *display,
                     "switch/cycle windows with no modifiers\n",
                     initial_selection->desc);
             display->mouse_mode = FALSE;
-            meta_window_activate (initial_selection, event->xkey.time);
+            _activate_selection_or_desktop(initial_selection, event->xkey.time);
+
         } else if (meta_display_begin_grab_op (display,
                     screen,
                     NULL,
@@ -168,12 +179,12 @@ static void do_choose_window (MetaDisplay    *display,
                         initial_selection->desc);
                 meta_display_end_grab_op (display, event->xkey.time);
                 display->mouse_mode = FALSE;
-                meta_window_activate (initial_selection, event->xkey.time);
+                _activate_selection_or_desktop(initial_selection, event->xkey.time);
             } else {
                 deepin_tab_popup_select (screen->tab_popup,
                         (MetaTabEntryKey) initial_selection->xwindow);
                 deepin_tab_popup_set_showing (screen->tab_popup, TRUE);
-                g_message("%s", __func__);
+                g_debug("%s", __func__);
                 meta_screen_show_desktop(screen, event->xkey.time);
             }
         }
@@ -217,7 +228,7 @@ static void _do_grab(MetaScreen* screen, GtkWidget* w, gboolean grab_keyboard)
                 GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK,
                 NULL, gtk_get_current_event_time());
         if (ret != GDK_GRAB_SUCCESS) {
-            g_message("%s: grab keyboard failed", __func__);
+            g_debug("%s: grab keyboard failed", __func__);
         }
     }
 
@@ -227,13 +238,13 @@ static void _do_grab(MetaScreen* screen, GtkWidget* w, gboolean grab_keyboard)
             GDK_ENTER_NOTIFY_MASK| GDK_FOCUS_CHANGE_MASK,
             NULL, gtk_get_current_event_time());
     if (ret != GDK_GRAB_SUCCESS) {
-        g_message("%s: grab failed", __func__);
+        g_debug("%s: grab failed", __func__);
     }
 }
 
 static void on_drag_end(DeepinMessageHub* hub, GtkWidget* top)
 {
-    g_message("on drag done, regrab");
+    g_debug("on drag done, regrab");
     MetaDisplay* display = meta_get_display();
     _do_grab(display->active_screen, top, TRUE);
 }
@@ -242,7 +253,7 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
         MetaWindow *window, XEvent *event,
         MetaKeyBinding *binding, gpointer user_data)
 {
-    g_message("%s", __func__);
+    g_debug("%s", __func__);
     unsigned int grab_mask = binding->mask;
     if (meta_display_begin_grab_op (display,
                 screen,
@@ -266,7 +277,7 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
              * release event. Must end grab before we can switch
              * spaces.
              */
-            g_message("not grabbed_before_release");
+            g_debug("not grabbed_before_release");
             meta_display_end_grab_op (display, event->xkey.time);
             return;
         }
@@ -288,7 +299,7 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
         MetaWindow *window, XEvent *event,
         MetaKeyBinding *binding, gpointer user_data)
 {
-    g_message("%s", __func__);
+    g_debug("%s", __func__);
     unsigned int grab_mask = binding->mask;
     if (meta_display_begin_grab_op (display,
                 screen,
@@ -312,7 +323,7 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
              * release event. Must end grab before we can switch
              * spaces.
              */
-            g_message("not grabbed_before_release");
+            g_debug("not grabbed_before_release");
             meta_display_end_grab_op (display, event->xkey.time);
             return;
         }
@@ -344,13 +355,13 @@ static void handle_workspace_switch(MetaDisplay *display, MetaScreen *screen,
 
     MetaKeyBindingAction action = meta_prefs_get_keybinding_action(binding->name);
     if (action == META_KEYBINDING_ACTION_WORKSPACE_RIGHT) {
-        g_message("%s: to right", __func__);
+        g_debug("%s: to right", __func__);
         workspace = meta_workspace_get_neighbor (screen->active_workspace, 
                 META_MOTION_RIGHT);
     } else if (action == META_KEYBINDING_ACTION_WORKSPACE_LEFT) {
         workspace = meta_workspace_get_neighbor (screen->active_workspace, 
                 META_MOTION_LEFT);
-        g_message("%s: to left", __func__);
+        g_debug("%s: to left", __func__);
     }
 
     if (workspace) {

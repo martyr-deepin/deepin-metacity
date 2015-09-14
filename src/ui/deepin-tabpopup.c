@@ -32,9 +32,10 @@
 #include "deepin-design.h"
 #include "deepin-switch-previewer.h"
 #include "deepin-window-surface-manager.h"
+#include "deepin-background-cache.h"
 #include "deepin-desktop-background.h"
 
-static DeepinTabEntry* deepin_tab_entry_new (const MetaTabEntry *entry, gint                screen_width)
+static DeepinTabEntry* deepin_tab_entry_new (const MetaTabEntry *entry)
 {
     DeepinTabEntry *te;
 
@@ -92,31 +93,41 @@ static DeepinTabEntry* deepin_tab_entry_new (const MetaTabEntry *entry, gint    
     double sx = RECT_PREFER_WIDTH / (double)te->rect.width;
     double sy = RECT_PREFER_HEIGHT / (double)te->rect.height;
 
+    cairo_format_t format = ref ? cairo_image_surface_get_format(ref) 
+        : CAIRO_FORMAT_RGB24;
     cairo_surface_t* surface = cairo_image_surface_create(
-            CAIRO_FORMAT_RGB24, RECT_PREFER_WIDTH, RECT_PREFER_HEIGHT);
+            format, RECT_PREFER_WIDTH, RECT_PREFER_HEIGHT);
 
     cairo_t* cr = cairo_create(surface);
 
     if (ref) {
         cairo_save(cr);
         cairo_scale(cr, sx, sy);
+        if (window->type == META_WINDOW_DESKTOP) {
+            cairo_set_source_surface(cr,
+                    deepin_background_cache_get_surface(1.0), 0, 0);
+            cairo_paint(cr);
+        }
         cairo_set_source_surface(cr, ref, 0, 0);
         cairo_paint(cr);
         cairo_restore(cr);
     }
 
+    if (window->type != META_WINDOW_DESKTOP) {
 #define ICON_SIZE 48
-    GdkPixbuf* scaled = gdk_pixbuf_scale_simple (window->icon,
-            ICON_SIZE, ICON_SIZE, GDK_INTERP_BILINEAR);
-    double icon_width = gdk_pixbuf_get_width (scaled);
-    double icon_height = gdk_pixbuf_get_height (scaled);
+        GdkPixbuf* scaled = gdk_pixbuf_scale_simple (window->icon,
+                ICON_SIZE, ICON_SIZE, GDK_INTERP_BILINEAR);
+        double icon_width = gdk_pixbuf_get_width (scaled);
+        double icon_height = gdk_pixbuf_get_height (scaled);
 
-    gdk_cairo_set_source_pixbuf(cr, scaled,
-            (RECT_PREFER_WIDTH - icon_width)/2.0,
-            (RECT_PREFER_HEIGHT - icon_height));
-    cairo_paint(cr);
+        gdk_cairo_set_source_pixbuf(cr, scaled,
+                (RECT_PREFER_WIDTH - icon_width)/2.0,
+                (RECT_PREFER_HEIGHT - icon_height));
+        cairo_paint(cr);
 
-    g_object_unref(scaled);
+        g_object_unref(scaled);
+    }
+
     cairo_destroy(cr);
 
     te->icon = surface;
@@ -136,6 +147,39 @@ static void deepin_tab_popup_setup_style(DeepinTabPopup* popup)
         }
         tmp = tmp->next;
     }
+}
+
+static MetaTabEntry* _desktop_entry(DeepinTabPopup* popup)
+{
+    MetaTabEntry* entry = g_new0(MetaTabEntry, 1);
+
+    MetaDisplay* display = meta_get_display();
+
+    MetaWindow *window = NULL;
+    MetaRectangle r;
+
+    GSList* l = meta_display_list_windows(display);
+    for (GSList* t = l; t; t = t->next) {
+        MetaWindow* win = (MetaWindow*)t->data;
+        if (win->type == META_WINDOW_DESKTOP) {
+            window = win;
+            break;
+        }
+    }
+    g_slist_free(l);
+    if (!window) return NULL;
+
+    entry->key = (MetaTabEntryKey) window->xwindow;
+    entry->title = window->title;
+
+    entry->blank = FALSE;
+    entry->hidden = !meta_window_showing_on_its_workspace (window);
+    entry->demands_attention = window->wm_state_demands_attention;
+
+    meta_window_get_outer_rect (window, &r);
+    entry->rect = r;
+
+    return entry;
 }
 
 DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
@@ -201,8 +245,18 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
     screen_width = gdk_screen_get_width (screen);
     max_width = screen_width - POPUP_SCREEN_PADDING * 2 - POPUP_PADDING * 2;
     for (i = 0; i < entry_count; ++i) {
-        DeepinTabEntry* new_entry = deepin_tab_entry_new (&entries[i], screen_width);
+        DeepinTabEntry* new_entry = deepin_tab_entry_new (&entries[i]);
         popup->entries = g_list_prepend (popup->entries, new_entry);
+    }
+
+    {
+        // desktop entry
+        MetaTabEntry* tmp = _desktop_entry(popup);
+        DeepinTabEntry* new_entry = deepin_tab_entry_new(tmp);
+        popup->entries = g_list_prepend (popup->entries, new_entry);
+        g_free(tmp);
+
+        entry_count++;
     }
 
     popup->entries = g_list_reverse (popup->entries);
@@ -224,14 +278,10 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
     int left = 0, top = 0;
     tmp = popup->entries;
     while (tmp) {
-        GtkWidget *w;
-
         DeepinTabEntry *te = (DeepinTabEntry*)tmp->data;
 
-        if (!te->blank) {
-            w = meta_deepin_tab_widget_new(te->icon);
-            meta_deepin_tab_widget_set_scale(META_DEEPIN_TAB_WIDGET(w), item_scale);
-        }
+        GtkWidget* w = meta_deepin_tab_widget_new(te->icon);
+        meta_deepin_tab_widget_set_scale(META_DEEPIN_TAB_WIDGET(w), item_scale);
 
         te->widget = w;
         deepin_fixed_put(DEEPIN_FIXED(grid), w, 

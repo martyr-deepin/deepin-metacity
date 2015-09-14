@@ -226,6 +226,10 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
     _style_get_borders(context, &borders);
     /*w += borders.left + borders.right;*/
 
+    if (priv->meta_window->type == META_WINDOW_DESKTOP) {
+        return TRUE;
+    }
+
 /*#define META_UI_DEBUG*/
 #ifdef META_UI_DEBUG
     cairo_set_source_rgb(cr, 1, 0, 0);
