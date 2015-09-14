@@ -1228,7 +1228,9 @@ static void on_window_change_workspace(DeepinMessageHub* hub, MetaWindow* window
     if (!priv->ready || !priv->clones) return;
     
     if (priv->workspace == new_workspace) { // dest workspace
+        if (window->type != META_WINDOW_NORMAL) return;
         g_debug("%s: add window", __func__);
+
         //add window
         GtkWidget* widget = meta_deepin_cloned_widget_new(window);
         gtk_widget_set_sensitive(widget, TRUE);

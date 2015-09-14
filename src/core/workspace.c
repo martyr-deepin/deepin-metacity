@@ -297,9 +297,9 @@ meta_workspace_relocate_windows (MetaWorkspace *workspace,
     {
       MetaWindow *window = tmp->data;
 
-      meta_window_change_workspace(window, new_home);
-      /*meta_workspace_remove_window (workspace, window);*/
-      /*meta_workspace_add_window (new_home, window);*/
+      deepin_message_hub_window_about_to_change_workspace(window, new_home);
+      meta_workspace_remove_window (workspace, window);
+      meta_workspace_add_window (new_home, window);
 
       tmp = tmp->next;
     }

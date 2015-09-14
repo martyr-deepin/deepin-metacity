@@ -2946,7 +2946,6 @@ meta_screen_remove_workspace (MetaScreen *screen,
     GList         *l;
     MetaWorkspace *neighbour = NULL;
     GList         *next = NULL;
-    int            index;
     gboolean       active_index_changed;
     int            new_num;
 
@@ -2982,9 +2981,6 @@ meta_screen_remove_workspace (MetaScreen *screen,
         meta_display_get_current_time_roundtrip (screen->display);
     if (workspace == screen->active_workspace)
         meta_workspace_activate (neighbour, timestamp);
-
-    /* To emit the signal after removing the workspace */
-    index = meta_workspace_index (workspace);
 
     /* This also removes the workspace from the screens list */
     meta_workspace_free (workspace);
