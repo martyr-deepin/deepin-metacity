@@ -72,7 +72,6 @@ static DeepinTabEntry* deepin_tab_entry_new (const MetaTabEntry *entry)
     }
 
     te->widget = NULL;
-    te->icon = NULL;
     te->blank = entry->blank;
 
     te->rect.x = entry->rect.x;
@@ -85,53 +84,6 @@ static DeepinTabEntry* deepin_tab_entry_new (const MetaTabEntry *entry)
     te->inner_rect.width = entry->inner_rect.width;
     te->inner_rect.height = entry->inner_rect.height;
 
-    MetaDisplay* display = meta_get_display();
-    MetaWindow* window = meta_display_lookup_x_window(display, (Window)te->key);
-
-    cairo_surface_t* ref = deepin_window_surface_manager_get_surface(window, 1.0);
-
-    double sx = RECT_PREFER_WIDTH / (double)te->rect.width;
-    double sy = RECT_PREFER_HEIGHT / (double)te->rect.height;
-
-    cairo_format_t format = ref ? cairo_image_surface_get_format(ref) 
-        : CAIRO_FORMAT_RGB24;
-    cairo_surface_t* surface = cairo_image_surface_create(
-            format, RECT_PREFER_WIDTH, RECT_PREFER_HEIGHT);
-
-    cairo_t* cr = cairo_create(surface);
-
-    if (ref) {
-        cairo_save(cr);
-        cairo_scale(cr, sx, sy);
-        if (window->type == META_WINDOW_DESKTOP) {
-            cairo_set_source_surface(cr,
-                    deepin_background_cache_get_surface(1.0), 0, 0);
-            cairo_paint(cr);
-        }
-        cairo_set_source_surface(cr, ref, 0, 0);
-        cairo_paint(cr);
-        cairo_restore(cr);
-    }
-
-    if (window->type != META_WINDOW_DESKTOP) {
-#define ICON_SIZE 48
-        GdkPixbuf* scaled = gdk_pixbuf_scale_simple (window->icon,
-                ICON_SIZE, ICON_SIZE, GDK_INTERP_BILINEAR);
-        double icon_width = gdk_pixbuf_get_width (scaled);
-        double icon_height = gdk_pixbuf_get_height (scaled);
-
-        gdk_cairo_set_source_pixbuf(cr, scaled,
-                (RECT_PREFER_WIDTH - icon_width)/2.0,
-                (RECT_PREFER_HEIGHT - icon_height));
-        cairo_paint(cr);
-
-        g_object_unref(scaled);
-    }
-
-    cairo_destroy(cr);
-
-    te->icon = surface;
-    cairo_surface_reference(te->icon);
     return te;
 }
 
@@ -275,12 +227,15 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
     gtk_widget_set_size_request(GTK_WIDGET(grid), box_width, box_height);
     gtk_container_add (GTK_CONTAINER (popup->window), grid);
 
+    MetaDisplay* display = meta_get_display();
+
     int left = 0, top = 0;
     tmp = popup->entries;
     while (tmp) {
         DeepinTabEntry *te = (DeepinTabEntry*)tmp->data;
 
-        GtkWidget* w = meta_deepin_tab_widget_new(te->icon);
+        MetaWindow* meta_win = meta_display_lookup_x_window(display, (Window)te->key);
+        GtkWidget* w = meta_deepin_tab_widget_new(meta_win);
         meta_deepin_tab_widget_set_scale(META_DEEPIN_TAB_WIDGET(w), item_scale);
 
         te->widget = w;
@@ -314,7 +269,6 @@ static void free_deepin_tab_entry (gpointer data, gpointer user_data)
     te = (DeepinTabEntry*)data;
 
     g_free (te->title);
-    if (te->icon) cairo_surface_destroy (te->icon);
 
     g_free (te);
 }

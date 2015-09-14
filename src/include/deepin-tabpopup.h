@@ -40,7 +40,6 @@ struct _DeepinTabEntry
 {
   DeepinTabEntryKey  key;
   char            *title;
-  cairo_surface_t *icon;
   GtkWidget       *widget;
   GdkRectangle     rect;
   GdkRectangle     inner_rect;

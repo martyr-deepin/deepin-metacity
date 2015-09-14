@@ -21,9 +21,14 @@
 #include <math.h>
 #include <util.h>
 #include <gdk/gdk.h>
+#include "boxes.h"
+#include "../core/window-private.h"
 #include "deepin-tab-widget.h"
 #include "deepin-design.h"
 #include "deepin-ease.h"
+#include "deepin-window-surface-manager.h"
+#include "deepin-background-cache.h"
+#include "deepin-desktop-background.h"
 
 typedef struct _MetaDeepinTabWidgetPrivate
 {
@@ -43,8 +48,8 @@ typedef struct _MetaDeepinTabWidgetPrivate
   guint tick_id;
   int  animation_duration;
 
-  cairo_surface_t* orig_thumb;
-  cairo_surface_t* scaled;
+  cairo_surface_t* icon;
+  MetaWindow* window;
 
   int disposed;
 
@@ -101,9 +106,8 @@ static void meta_deepin_tab_widget_dispose(GObject *object)
     if (priv->disposed) return;
     priv->disposed = TRUE;
 
-    if (priv->scaled) {
-        g_clear_pointer(&priv->scaled, cairo_surface_destroy);
-        g_clear_pointer(&priv->orig_thumb, cairo_surface_destroy);
+    if (priv->icon) {
+        g_clear_pointer(&priv->icon, cairo_surface_destroy);
     }
 
     G_OBJECT_CLASS(meta_deepin_tab_widget_parent_class)->dispose(object);
@@ -143,10 +147,35 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
   gtk_render_background(context, cr, -w2, -h2, w, h);
   cairo_restore(cr);
 
-  x = (w - cairo_image_surface_get_width(priv->scaled)) / 2.0,
-  y = (h - cairo_image_surface_get_height(priv->scaled)) / 2.0;
-  cairo_set_source_surface(cr, priv->scaled, x, y);
+  MetaRectangle r;
+  meta_window_get_outer_rect(priv->window, &r);
+
+  double sx = RECT_PREFER_WIDTH / (double)r.width;
+  double sy = RECT_PREFER_HEIGHT / (double)r.height;
+
+  sx = MIN(sx, sy) * priv->scale;
+
+  if (priv->window->type == META_WINDOW_DESKTOP) {
+      cairo_surface_t* ref = deepin_background_cache_get_surface(sx);
+      x = (w - cairo_image_surface_get_width(ref)) / 2.0,
+        y = (h - cairo_image_surface_get_height(ref)) / 2.0;
+      cairo_set_source_surface(cr, ref, x, y);
+      cairo_paint(cr);
+  }
+
+  cairo_surface_t* ref = deepin_window_surface_manager_get_surface(
+          priv->window, sx);
+  x = (w - cairo_image_surface_get_width(ref)) / 2.0,
+  y = (h - cairo_image_surface_get_height(ref)) / 2.0;
+  cairo_set_source_surface(cr, ref, x, y);
   cairo_paint(cr);
+  
+  if (priv->icon) {
+      x = (w - cairo_image_surface_get_width(priv->icon)) / 2.0,
+        y = (h - cairo_image_surface_get_height(priv->icon)) / 2.0;
+      cairo_set_source_surface(cr, priv->icon, x, y);
+      cairo_paint(cr);
+  }
 
   return TRUE;
 }
@@ -237,30 +266,6 @@ static void meta_deepin_tab_widget_get_preferred_width_for_height(GtkWidget *wid
             widget, height, minimum_width_out, natural_width_out);
 }
 
-static void meta_deepin_tab_widget_update_image(MetaDeepinTabWidget* self)
-{
-    MetaDeepinTabWidgetPrivate* priv = self->priv;
-
-    GtkRequisition req;
-    req.width = fast_round(priv->scale * RECT_PREFER_WIDTH);
-    req.height = fast_round(priv->scale * RECT_PREFER_HEIGHT);
-
-    if (priv->orig_thumb) {
-        if (priv->scaled) {
-            cairo_surface_destroy(priv->scaled);
-        }
-
-        priv->scaled = cairo_image_surface_create(
-                cairo_image_surface_get_format(priv->orig_thumb),
-                req.width, req.height);
-        cairo_t* cr = cairo_create(priv->scaled);
-        cairo_scale(cr, priv->scale, priv->scale);
-        cairo_set_source_surface(cr, priv->orig_thumb, 0, 0);
-        cairo_paint(cr);
-        cairo_destroy(cr);
-    }
-}
-
 static void meta_deepin_tab_widget_size_allocate(GtkWidget* widget, 
         GtkAllocation* allocation)
 {
@@ -313,12 +318,25 @@ static void meta_deepin_tab_widget_class_init (MetaDeepinTabWidgetClass *klass)
 }
 
 GtkWidget *
-meta_deepin_tab_widget_new (cairo_surface_t* icon)
+meta_deepin_tab_widget_new (MetaWindow* window)
 {
   MetaDeepinTabWidget* widget;
 
   widget = (MetaDeepinTabWidget*)g_object_new (META_TYPE_DEEPIN_TAB_WIDGET, NULL);
-  widget->priv->orig_thumb = icon;
+
+  widget->priv->window = window;
+
+  if (window->type != META_WINDOW_DESKTOP) {
+#define ICON_SIZE 48
+
+      GdkPixbuf* scaled = gdk_pixbuf_scale_simple (window->icon,
+              ICON_SIZE, ICON_SIZE, GDK_INTERP_BILINEAR);
+      widget->priv->icon = gdk_cairo_surface_create_from_pixbuf(scaled,
+                1.0, NULL);
+      g_object_unref(scaled);
+
+#undef ICON_SIZE
+  }
 
   return (GtkWidget*)widget;
 }
@@ -384,7 +402,6 @@ void meta_deepin_tab_widget_set_scale(MetaDeepinTabWidget* self, gdouble val)
     priv->real_size.width *= p;
     priv->real_size.height *= p;
 
-    meta_deepin_tab_widget_update_image(self);
     gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
