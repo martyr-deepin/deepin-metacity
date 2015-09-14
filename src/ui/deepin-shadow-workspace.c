@@ -1066,13 +1066,18 @@ static gboolean on_deepin_cloned_widget_released(MetaDeepinClonedWidget* cloned,
         return TRUE;
     }
 
-    MetaWindow* mw = meta_deepin_cloned_widget_get_window(cloned);
-    if (mw->workspace != mw->screen->active_workspace) {
-        meta_workspace_activate(mw->workspace, gdk_event_get_time(event));
+    if (!self->priv->thumb_mode) {
+        MetaWindow* mw = meta_deepin_cloned_widget_get_window(cloned);
+        if (mw->workspace != mw->screen->active_workspace) {
+            meta_workspace_activate(mw->workspace, gdk_event_get_time(event));
+        }
+        meta_window_activate(mw, gdk_event_get_time(event));
+        g_idle_add((GSourceFunc)on_idle_quit, self);
+        return TRUE;
     }
-    meta_window_activate(mw, gdk_event_get_time(event));
-    g_idle_add((GSourceFunc)on_idle_quit, self);
-    return TRUE;
+
+    /* pass to parent workspace */
+    return FALSE;
 }
 
 static gboolean on_close_button_clicked(GtkWidget* widget,
