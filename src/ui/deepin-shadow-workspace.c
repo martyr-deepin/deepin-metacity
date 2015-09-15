@@ -475,6 +475,7 @@ static gboolean on_idle(DeepinShadowWorkspace* self)
 
     if (!self->priv->thumb_mode) {
         if (self->priv->close_button) {
+            deepin_fixed_raise(DEEPIN_FIXED(self), self->priv->close_button);
             _hide_close_button(self);
         }
         calculate_places(self);
@@ -1101,7 +1102,7 @@ static gboolean on_close_button_clicked(GtkWidget* widget,
     _hide_close_button(self);
 
     g_idle_add((GSourceFunc)on_idle, self);
-    return FALSE;
+    return TRUE;
 }
 
 static gboolean on_close_button_leaved(GtkWidget* widget,
