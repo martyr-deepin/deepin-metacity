@@ -165,14 +165,14 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
 
   cairo_surface_t* ref = deepin_window_surface_manager_get_surface(
           priv->window, sx);
-  x = (w - cairo_image_surface_get_width(ref)) / 2.0,
+  x = (w - cairo_image_surface_get_width(ref)) / 2.0;
   y = (h - cairo_image_surface_get_height(ref)) / 2.0;
   cairo_set_source_surface(cr, ref, x, y);
   cairo_paint(cr);
   
   if (priv->icon) {
-      x = (w - cairo_image_surface_get_width(priv->icon)) / 2.0,
-        y = (h - cairo_image_surface_get_height(priv->icon)) / 2.0;
+      x = (w - cairo_image_surface_get_width(priv->icon)) / 2.0;
+      y = (h - cairo_image_surface_get_height(priv->icon));
       cairo_set_source_surface(cr, priv->icon, x, y);
       cairo_paint(cr);
   }
