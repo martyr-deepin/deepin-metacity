@@ -64,6 +64,10 @@ gdouble deepin_shadow_workspace_get_scale(DeepinShadowWorkspace*);
 void deepin_shadow_workspace_set_presentation(DeepinShadowWorkspace*, gboolean);
 void deepin_shadow_workspace_set_current(DeepinShadowWorkspace*, gboolean);
 void deepin_shadow_workspace_set_thumb_mode(DeepinShadowWorkspace*, gboolean);
+/* show all windows of all workspaces on the screen, 
+ * NOTE: this must be set before populate 
+ **/
+void deepin_shadow_workspace_set_show_all_windows(DeepinShadowWorkspace*, gboolean);
 
 /* frozen workspace when do animation makes it faster */
 void deepin_shadow_workspace_set_frozen(DeepinShadowWorkspace*, gboolean);
@@ -71,6 +75,7 @@ void deepin_shadow_workspace_set_frozen(DeepinShadowWorkspace*, gboolean);
 gboolean deepin_shadow_workspace_get_is_thumb_mode(DeepinShadowWorkspace*);
 gboolean deepin_shadow_workspace_get_is_current(DeepinShadowWorkspace*);
 gboolean deepin_shadow_workspace_get_is_freezed(DeepinShadowWorkspace*);
+gboolean deepin_shadow_workspace_get_is_all_window_mode(DeepinShadowWorkspace*);
 
 /* initially, no window is focused on previewing */
 void deepin_shadow_workspace_focus_next(DeepinShadowWorkspace*, gboolean);

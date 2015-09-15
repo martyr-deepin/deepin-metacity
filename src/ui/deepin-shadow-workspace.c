@@ -50,6 +50,7 @@ struct _DeepinShadowWorkspacePrivate
     gint ready: 1; /* if dynamic, this is set after presentation finished, 
                       else, set when window placements are done */
     gint animating: 1; /* placement animation is going on */
+    gint all_window_mode: 1; // used for Super+a
 
     gint fixed_width, fixed_height;
     gdouble scale; 
@@ -1068,7 +1069,7 @@ static gboolean on_deepin_cloned_widget_released(MetaDeepinClonedWidget* cloned,
 
     if (!self->priv->thumb_mode) {
         MetaWindow* mw = meta_deepin_cloned_widget_get_window(cloned);
-        if (mw->workspace != mw->screen->active_workspace) {
+        if (mw->workspace && mw->workspace != mw->screen->active_workspace) {
             meta_workspace_activate(mw->workspace, gdk_event_get_time(event));
         }
         meta_window_activate(mw, gdk_event_get_time(event));
@@ -1122,7 +1123,8 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
 
     if (!priv->clones) priv->clones = g_ptr_array_new();
 
-    GList* ls = meta_stack_list_windows(ws->screen->stack, ws);
+    GList* ls = meta_stack_list_windows(ws->screen->stack,
+            priv->all_window_mode? NULL: ws);
     GList* l = ls;
     while (l) {
         MetaWindow* win = (MetaWindow*)l->data;
@@ -1522,8 +1524,12 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
         } else {
             MetaWindow* mw = meta_deepin_cloned_widget_get_window(clone);
             g_assert(mw != NULL);
+            if (mw->workspace && mw->workspace != priv->workspace) {
+                meta_workspace_activate(mw->workspace, event->xkey.time);
+            }
             meta_window_activate(mw, event->xkey.time);
         }
+
         meta_display_end_grab_op(priv->workspace->screen->display, event->xkey.time);
 
     } else if (event->type == ButtonPress) {
@@ -1574,5 +1580,16 @@ void deepin_shadow_workspace_set_frozen(DeepinShadowWorkspace* self,
 gboolean deepin_shadow_workspace_get_is_freezed(DeepinShadowWorkspace* self)
 {
     return self->priv->freeze;
+}
+
+void deepin_shadow_workspace_set_show_all_windows(DeepinShadowWorkspace* self,
+        gboolean val)
+{
+    self->priv->all_window_mode = val;
+}
+
+gboolean deepin_shadow_workspace_get_is_all_window_mode(DeepinShadowWorkspace* self)
+{
+    return self->priv->all_window_mode;
 }
 

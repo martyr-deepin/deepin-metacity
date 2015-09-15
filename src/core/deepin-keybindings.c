@@ -124,7 +124,7 @@ static void do_choose_window (MetaDisplay    *display,
         MetaKeyBinding *binding,
         gboolean        backward)
 {
-    MetaTabList type = binding->handler->data;
+    MetaTabList type = (MetaTabList)binding->handler->data;
     MetaWindow *initial_selection;
 
     /* reverse direction if shift is down */
@@ -295,11 +295,18 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
     }
 }
 
+enum {
+    EXPOSE_WORKSPACE = 1,
+    EXPOSE_ALL_WINDOWS = 2
+};
+
 static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
         MetaWindow *window, XEvent *event,
         MetaKeyBinding *binding, gpointer user_data)
 {
     g_debug("%s", __func__);
+    int expose_mode = binding->handler->data;
+
     unsigned int grab_mask = binding->mask;
     if (meta_display_begin_grab_op (display,
                 screen,
@@ -333,6 +340,9 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
 
         DeepinShadowWorkspace* active_workspace = 
             (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
+        if (expose_mode == EXPOSE_ALL_WINDOWS) {
+            deepin_shadow_workspace_set_show_all_windows(active_workspace, TRUE);
+        }
         deepin_shadow_workspace_populate(active_workspace, screen->active_workspace);
         deepin_shadow_workspace_set_presentation(active_workspace, TRUE);
         deepin_shadow_workspace_set_current(active_workspace, TRUE);
@@ -379,9 +389,9 @@ void deepin_init_custom_handlers(MetaDisplay* display)
             handle_workspace_switch, NULL, NULL);
 
     deepin_meta_display_add_keybinding(display, "expose-all-windows",
-            META_KEY_BINDING_NONE, handle_expose_windows, 1);
+            META_KEY_BINDING_NONE, handle_expose_windows, EXPOSE_ALL_WINDOWS);
     deepin_meta_display_add_keybinding(display, "expose-windows",
-            META_KEY_BINDING_NONE, handle_expose_windows, 2);
+            META_KEY_BINDING_NONE, handle_expose_windows, EXPOSE_WORKSPACE);
     deepin_meta_display_add_keybinding(display, "preview-workspace",
             META_KEY_BINDING_NONE, handle_preview_workspace, 2);
 }
