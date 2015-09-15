@@ -36,8 +36,6 @@ static void deepin_name_entry_init (DeepinNameEntry *self)
 
 static void deepin_name_entry_finalize (GObject *object)
 {
-	/* TODO: Add deinitalization code here */
-
 	G_OBJECT_CLASS (deepin_name_entry_parent_class)->finalize (object);
 }
 
@@ -53,6 +51,44 @@ static void deepin_name_entry_get_preferred_height (GtkWidget *widget,
     *minimum = *natural = WORKSPACE_NAME_HEIGHT + 2*NAME_SHAPE_PADDING;
 }
 
+static gboolean deepin_name_entry_draw(GtkWidget *widget, cairo_t *cr)
+{
+    DeepinNameEntry* entry = DEEPIN_NAME_ENTRY(widget);
+
+    GtkStateFlags state;
+    GdkRGBA text_color;
+    GtkStyleContext *context;
+
+    GtkAllocation alloc;
+    gtk_widget_get_allocation(widget, &alloc);
+
+    state = gtk_widget_get_state_flags (widget);
+    context = gtk_widget_get_style_context (widget);
+    gtk_style_context_get_color(context, state, &text_color);
+
+    if (!gtk_widget_has_focus(widget)) {
+        gtk_render_background(context, cr, 0, 0, alloc.width, alloc.height);
+
+        GdkRectangle text_area;
+        gtk_entry_get_text_area(GTK_ENTRY(widget), &text_area);
+
+        PangoLayout* layout = pango_layout_copy(
+                gtk_entry_get_layout(GTK_ENTRY(entry)));
+        pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_END);
+        pango_layout_set_alignment(layout, PANGO_ALIGN_CENTER);
+        pango_layout_set_wrap(layout, PANGO_WRAP_CHAR);
+        pango_layout_set_width(layout, text_area.width * PANGO_SCALE);
+
+        cairo_move_to(cr, text_area.x, text_area.y);
+        gdk_cairo_set_source_rgba(cr, &text_color);
+        pango_cairo_show_layout(cr, layout);
+        g_object_unref(layout);
+        return TRUE;
+    }
+
+    return GTK_WIDGET_CLASS(deepin_name_entry_parent_class)->draw(widget, cr);
+}
+
 static void deepin_name_entry_class_init (DeepinNameEntryClass *klass)
 {
 	GObjectClass* object_class = G_OBJECT_CLASS (klass);
@@ -63,9 +99,8 @@ static void deepin_name_entry_class_init (DeepinNameEntryClass *klass)
 	object_class->finalize = deepin_name_entry_finalize;
 
     widget_class->get_preferred_width = deepin_name_entry_get_preferred_width;
-    widget_class->get_preferred_height = deepin_name_entry_get_preferred_height;
-    /*widget_class->size_allocate = deepin_name_entry_size_allocate;*/
-    /*widget_class->draw = deepin_name_entry_draw;*/
+    /*widget_class->get_preferred_height = deepin_name_entry_get_preferred_height;*/
+    widget_class->draw = deepin_name_entry_draw;
 }
 
 GtkWidget* deepin_name_entry_new()

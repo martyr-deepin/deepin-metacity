@@ -64,9 +64,6 @@ struct _DeepinWMBackgroundPrivate
 
 G_DEFINE_TYPE (DeepinWMBackground, deepin_wm_background, GTK_TYPE_WINDOW);
 
-#define THUMB_HEIGHT (priv->thumb_height + WORKSPACE_NAME_HEIGHT \
-        + WORKSPACE_NAME_DISTANCE + NAME_SHAPE_PADDING)
-
 static inline gboolean _show_adder(MetaScreen* screen)
 {
     return meta_screen_get_n_workspaces(screen) < MAX_WORKSPACE_NUM;
@@ -248,8 +245,11 @@ static void relayout(DeepinWMBackground* self)
 
     while (l) {
         int x = thumb_x + i * (priv->thumb_width + thumb_spacing);
+        int real_height = 0;
+        gtk_widget_get_preferred_height((GtkWidget*)l->data, &real_height, NULL);
+
         deepin_fixed_move(DEEPIN_FIXED(priv->fixed), (GtkWidget*)l->data,
-                x + priv->thumb_width/2, thumb_y + THUMB_HEIGHT/2,
+                x + priv->thumb_width/2, thumb_y + real_height/2,
                 TRUE);
 
         _move_count++;
@@ -579,9 +579,12 @@ static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer use
         int thumb_x = (geom.width - count * (priv->thumb_width + thumb_spacing))/2;
 
         int x = thumb_x + i * (priv->thumb_width + thumb_spacing);
+        int real_height = 0;
+        gtk_widget_get_preferred_height((GtkWidget*)dsw, &real_height, NULL);
+
         deepin_fixed_put(DEEPIN_FIXED(priv->fixed), (GtkWidget*)dsw,
                 x + priv->thumb_width/2, 
-                thumb_y + THUMB_HEIGHT/2);
+                thumb_y + real_height/2);
     }
 
     priv->hover_ws = NULL;
@@ -692,10 +695,15 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
     int thumb_x = (geom.width - count * (priv->thumb_width + thumb_spacing))/2;
 
     while (l) {
+        gtk_widget_show((GtkWidget*)l->data);
+
         int x = thumb_x + i * (priv->thumb_width + thumb_spacing);
+        int real_height = 0;
+        gtk_widget_get_preferred_height((GtkWidget*)l->data, &real_height, NULL);
+
         deepin_fixed_put(DEEPIN_FIXED(priv->fixed), (GtkWidget*)l->data,
                 x + priv->thumb_width/2,
-                thumb_y + THUMB_HEIGHT/2);
+                thumb_y + real_height/2);
 
         i++;
         l = l->next;

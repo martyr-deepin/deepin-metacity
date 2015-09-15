@@ -579,7 +579,9 @@ static void deepin_shadow_workspace_get_preferred_height (GtkWidget *widget,
 
     *minimum = *natural = self->priv->fixed_height;
     if (self->priv->thumb_mode) {
-        *minimum = *natural = self->priv->fixed_height + WORKSPACE_NAME_HEIGHT
+        int entry_height = 0;
+        gtk_widget_get_preferred_height(self->priv->entry, &entry_height, NULL);
+        *minimum = *natural = self->priv->fixed_height + entry_height 
             + WORKSPACE_NAME_DISTANCE + NAME_SHAPE_PADDING;
     }
 }
@@ -981,6 +983,8 @@ static void _create_entry(DeepinShadowWorkspace* self)
 
     GtkWidget* w = deepin_name_entry_new();
     gtk_entry_set_text(GTK_ENTRY(w), meta_workspace_get_name(priv->workspace));
+
+    gtk_widget_show(w);
 
     GtkAllocation alloc;
     gtk_widget_get_allocation(w, &alloc);

@@ -73,7 +73,7 @@ static const int WORKSPACE_NAME_HEIGHT = 8;  // will pluse NAME_SHAPE_PADDING * 
 static const int WORKSPACE_NAME_MAX_LENGTH = 32;
 
 // distance between thumbnail workspace clone and workspace name field
-static const int WORKSPACE_NAME_DISTANCE = 16;
+static const int WORKSPACE_NAME_DISTANCE = 26;
 
 // layout spacing for workspace name field
 static const int WORKSPACE_NAME_SPACING = 5;
