@@ -56,7 +56,6 @@ struct _MetaDeepinSwitchPreviewerPrivate
     cairo_surface_t* desktop_surface;
 
     cairo_surface_t* cap_surface;
-    GHashTable* bg_list; /* pre-rendered backgrounds for all active window */
 };
 
 enum {
@@ -130,10 +129,6 @@ static void meta_deepin_switch_previewer_dispose(GObject *object)
         g_clear_pointer(&priv->cap_surface, cairo_surface_destroy);
     }
 
-    if (priv->bg_list) {
-        g_clear_pointer(&priv->bg_list, g_hash_table_unref);
-    }
-
     G_OBJECT_CLASS(meta_deepin_switch_previewer_parent_class)->dispose(object);
 }
 
@@ -190,8 +185,6 @@ static void meta_deepin_switch_previewer_init (MetaDeepinSwitchPreviewer *self)
     gtk_widget_set_has_window (GTK_WIDGET (self), FALSE);
 
     self->priv->children = NULL;
-    self->priv->bg_list = g_hash_table_new_full(g_direct_hash, g_direct_equal,
-            NULL, (GDestroyNotify)cairo_surface_destroy);
 }
 
 GtkWidget* meta_deepin_switch_previewer_new (DeepinTabPopup* popup)

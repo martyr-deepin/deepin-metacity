@@ -179,6 +179,8 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
             g_debug("%s: clip visible rect", window->desc);
             g_tree_insert(t, s, ref);
         }
+    } else {
+        g_free(s);
     }
 
     if (scale == 1.0) return ref;

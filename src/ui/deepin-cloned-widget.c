@@ -172,6 +172,14 @@ static void meta_deepin_cloned_widget_get_property(GObject *object, guint proper
     }
 }
 
+static void on_surface_invalid(DeepinWindowSurfaceManager* manager,
+        MetaWindow* window, MetaDeepinClonedWidget* self)
+{
+    if (window && self->priv->meta_window == window) {
+        self->priv->snapshot = NULL;
+    }
+}
+
 static void meta_deepin_cloned_widget_dispose(GObject *object)
 {
     MetaDeepinClonedWidget *self = META_DEEPIN_CLONED_WIDGET(object);
@@ -179,6 +187,9 @@ static void meta_deepin_cloned_widget_dispose(GObject *object)
 
     priv->meta_window = NULL;
     priv->snapshot = NULL;
+    g_signal_handlers_disconnect_by_data(
+            G_OBJECT(deepin_window_surface_manager_get()), 
+            (gpointer)object);
 
     G_OBJECT_CLASS(meta_deepin_cloned_widget_parent_class)->dispose(object);
 }
@@ -633,14 +644,6 @@ static void meta_deepin_cloned_widget_class_init (MetaDeepinClonedWidgetClass *k
             0,
             NULL, NULL, NULL,
             G_TYPE_NONE, 0, NULL);
-}
-
-static void on_surface_invalid(DeepinWindowSurfaceManager* manager,
-        MetaWindow* window, MetaDeepinClonedWidget* self)
-{
-    if (window && self->priv->meta_window == window) {
-        self->priv->snapshot = NULL;
-    }
 }
 
 static void on_drag_data_get(GtkWidget* widget, GdkDragContext* context,
