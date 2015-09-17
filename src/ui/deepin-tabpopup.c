@@ -204,11 +204,13 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
     {
         // desktop entry
         MetaTabEntry* tmp = _desktop_entry(popup);
-        DeepinTabEntry* new_entry = deepin_tab_entry_new(tmp);
-        popup->entries = g_list_prepend (popup->entries, new_entry);
-        g_free(tmp);
+        if (tmp) {
+            DeepinTabEntry* new_entry = deepin_tab_entry_new(tmp);
+            popup->entries = g_list_prepend (popup->entries, new_entry);
+            g_free(tmp);
 
-        entry_count++;
+            entry_count++;
+        }
     }
 
     popup->entries = g_list_reverse (popup->entries);
