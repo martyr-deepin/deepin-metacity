@@ -23,6 +23,7 @@
 double ease_out_cubic (double t);
 double ease_in_out_quad (double t);
 double ease_out_quad (double t);
+double deepin_linear (double t);
 
 #endif
 

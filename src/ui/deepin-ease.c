@@ -17,6 +17,12 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+
+double deepin_linear (double t)
+{
+    return t;
+}
+
 /* From clutter-easing.c, based on Robert Penner's
  *  * infamous easing equations, MIT license.
  *   */

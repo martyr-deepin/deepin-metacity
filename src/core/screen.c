@@ -40,6 +40,7 @@
 #include "deepin-desktop-background.h"
 #include "deepin-wm-background.h"
 #include "deepin-message-hub.h"
+#include "deepin-workspace-indicator.h"
 
 #ifdef HAVE_SOLARIS_XINERAMA
 #include <X11/extensions/xinerama.h>
@@ -1402,69 +1403,28 @@ void meta_screen_ensure_exposing_windows (MetaScreen* screen)
 void
 meta_screen_ensure_workspace_popup (MetaScreen *screen)
 {
-  MetaTabEntry *entries;
-  int len;
-  int i;
-  MetaWorkspaceLayout layout;
-  int n_workspaces;
-  int current_workspace;
+    if (screen->ws_popup) 
+        return;
 
-  if (screen->ws_popup)
-    return;
+    screen->ws_popup = gtk_window_new(GTK_WINDOW_POPUP);
 
-  current_workspace = meta_workspace_index (screen->active_workspace);
-  n_workspaces = meta_screen_get_n_workspaces (screen);
+    GdkScreen* gscreen = gdk_display_get_screen(
+            gdk_display_get_default(), screen->number);
+    GdkVisual* visual = gdk_screen_get_rgba_visual (gscreen);
+    if (visual)
+        gtk_widget_set_visual(screen->ws_popup, visual);
 
-  meta_screen_calc_workspace_layout (screen, n_workspaces,
-                                     current_workspace, &layout);
+    gtk_window_set_screen(GTK_WINDOW(screen->ws_popup), gscreen);
+    gtk_widget_set_app_paintable(screen->ws_popup, TRUE);
+    gtk_window_set_position(GTK_WINDOW(screen->ws_popup),
+            GTK_WIN_POS_CENTER_ALWAYS);
+    gtk_window_set_resizable(GTK_WINDOW(screen->ws_popup), TRUE);
 
-  len = layout.grid_area;
+    gtk_window_set_keep_above(GTK_WIDGET(screen->ws_popup), TRUE);
+    gtk_window_stick(GTK_WINDOW(screen->ws_popup));
 
-  entries = g_new (MetaTabEntry, len + 1);
-  entries[len].key = NULL;
-  entries[len].title = NULL;
-  entries[len].icon = NULL;
-
-  i = 0;
-  while (i < len)
-    {
-      if (layout.grid[i] >= 0)
-        {
-          MetaWorkspace *workspace;
-
-          workspace = meta_screen_get_workspace_by_index (screen,
-                                                          layout.grid[i]);
-
-          entries[i].key = (MetaTabEntryKey) workspace;
-          entries[i].title = meta_workspace_get_name (workspace);
-          entries[i].icon = NULL;
-          entries[i].blank = FALSE;
-
-          g_assert (entries[i].title != NULL);
-        }
-      else
-        {
-          entries[i].key = NULL;
-          entries[i].title = NULL;
-          entries[i].icon = NULL;
-          entries[i].blank = TRUE;
-        }
-      entries[i].hidden = FALSE;
-      entries[i].demands_attention = FALSE;
-
-      ++i;
-    }
-
-  screen->ws_popup = meta_ui_tab_popup_new (entries,
-                                             screen->number,
-                                             len,
-                                             layout.cols,
-                                             FALSE);
-
-  g_free (entries);
-  meta_screen_free_workspace_layout (&layout);
-
-  /* don't show tab popup, since proper space isn't selected yet */
+    DeepinWorkspaceIndicator* indi = deepin_workspace_indicator_new();
+    gtk_container_add(GTK_CONTAINER(screen->ws_popup), indi);
 }
 
 static gboolean

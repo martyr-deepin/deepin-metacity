@@ -3504,8 +3504,7 @@ meta_display_end_grab_op (MetaDisplay *display,
       display->grab_op == META_GRAB_OP_KEYBOARD_WORKSPACE_SWITCHING)
     {
       if (display->grab_screen->ws_popup) {
-        meta_ui_tab_popup_free (display->grab_screen->ws_popup);
-        display->grab_screen->ws_popup = NULL;
+          gtk_widget_hide(display->grab_screen->ws_popup);
       }
       if (display->grab_screen->tab_popup) {
         deepin_tab_popup_free (display->grab_screen->tab_popup);

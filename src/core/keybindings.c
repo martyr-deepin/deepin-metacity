@@ -38,6 +38,7 @@
 #include "deepin-keybindings.h"
 #include "deepin-wm-background.h"
 #include "deepin-shadow-workspace.h"
+#include "deepin-workspace-indicator.h"
 
 #include <X11/keysym.h>
 #include <string.h>
@@ -2532,40 +2533,19 @@ process_workspace_switch_grab (MetaDisplay *display,
   if (screen != display->grab_screen)
     return FALSE;
 
-  g_return_val_if_fail (screen->tab_popup != NULL, FALSE);
+  g_return_val_if_fail (screen->ws_popup != NULL, FALSE);
+
 
   if (event->type == KeyRelease &&
       end_keyboard_grab (display, event->xkey.keycode))
     {
-      /* We're done, move to the new workspace. */
-      MetaWorkspace *target_workspace;
+        g_debug("%s: end switch", __func__);
+        meta_display_end_grab_op (display, event->xkey.time);
+        meta_workspace_focus_default_window(screen->active_workspace,
+                NULL,
+                event->xkey.time);
 
-      target_workspace =
-        (MetaWorkspace *) meta_ui_tab_popup_get_selected (screen->ws_popup);
-
-      meta_topic (META_DEBUG_KEYBINDINGS,
-                  "Ending workspace tab operation, primary modifier released\n");
-
-      if (target_workspace == screen->active_workspace)
-        {
-          meta_topic (META_DEBUG_KEYBINDINGS,
-                      "Ending grab so we can focus on the target workspace\n");
-          meta_display_end_grab_op (display, event->xkey.time);
-
-          meta_topic (META_DEBUG_KEYBINDINGS,
-                      "Focusing default window on target workspace\n");
-
-          meta_workspace_focus_default_window (target_workspace,
-                                               NULL,
-                                               event->xkey.time);
-
-          return TRUE; /* we already ended the grab */
-        }
-
-      /* Workspace switching should have already occurred on KeyPress */
-      meta_warning ("target_workspace != active_workspace.  Some other event must have occurred.\n");
-
-      return FALSE; /* end grab */
+        return FALSE;
     }
 
   /* don't care about other releases, but eat them, don't end grab */
@@ -2576,70 +2556,42 @@ process_workspace_switch_grab (MetaDisplay *display,
   if (is_modifier (display, event->xkey.keycode))
     return TRUE;
 
-  /* select the next workspace in the tabpopup */
-  workspace =
-    (MetaWorkspace *) meta_ui_tab_popup_get_selected (screen->ws_popup);
+  MetaWorkspace *target_workspace;
+  MetaKeyBindingAction action;
 
-  if (workspace)
-    {
-      MetaWorkspace *target_workspace;
-      MetaKeyBindingAction action;
+  action = display_get_keybinding_action (display,
+          keysym,
+          event->xkey.keycode,
+          display->grab_mask);
 
-      action = display_get_keybinding_action (display,
-                                              keysym,
-                                              event->xkey.keycode,
-                                              display->grab_mask);
-
-      switch (action)
-        {
-        case META_KEYBINDING_ACTION_WORKSPACE_UP:
-          target_workspace = meta_workspace_get_neighbor (workspace,
-                                                          META_MOTION_UP);
+  switch (action)
+  {
+      case META_KEYBINDING_ACTION_WORKSPACE_LEFT:
+          target_workspace = meta_workspace_get_neighbor(screen->active_workspace,
+                  META_MOTION_LEFT);
           break;
 
-        case META_KEYBINDING_ACTION_WORKSPACE_DOWN:
-          target_workspace = meta_workspace_get_neighbor (workspace,
-                                                          META_MOTION_DOWN);
+      case META_KEYBINDING_ACTION_WORKSPACE_RIGHT:
+          target_workspace = meta_workspace_get_neighbor(screen->active_workspace,
+                  META_MOTION_RIGHT);
           break;
 
-        case META_KEYBINDING_ACTION_WORKSPACE_LEFT:
-          target_workspace = meta_workspace_get_neighbor (workspace,
-                                                          META_MOTION_LEFT);
-          break;
-
-        case META_KEYBINDING_ACTION_WORKSPACE_RIGHT:
-          target_workspace = meta_workspace_get_neighbor (workspace,
-                                                          META_MOTION_RIGHT);
-          break;
-
-        default:
+      default:
           target_workspace = NULL;
           break;
-        }
+  }
 
-      if (target_workspace)
-        {
-          meta_ui_tab_popup_select (screen->ws_popup,
-                                    (MetaTabEntryKey) target_workspace);
-          meta_topic (META_DEBUG_KEYBINDINGS,
-                      "Tab key pressed, moving tab focus in popup\n");
+  if (target_workspace)
+  {
+      g_debug("%s: request switch", __func__);
+      GtkWidget* w = gtk_bin_get_child(GTK_BIN(screen->ws_popup));
+      DeepinWorkspaceIndicator* indi = DEEPIN_WORKSPACE_INDICATOR(w);
+      deepin_workspace_indicator_request_workspace_change(indi, target_workspace);
 
-          meta_topic (META_DEBUG_KEYBINDINGS,
-                      "Activating target workspace\n");
+      meta_workspace_activate(target_workspace, event->xkey.time);
+  }
 
-          meta_workspace_activate (target_workspace, event->xkey.time);
-
-          return TRUE; /* we already ended the grab */
-        }
-    }
-
-  /* end grab */
-  meta_topic (META_DEBUG_KEYBINDINGS,
-              "Ending workspace tabbing & focusing default window; uninteresting key pressed\n");
-  workspace =
-    (MetaWorkspace *) meta_ui_tab_popup_get_selected (screen->ws_popup);
-  meta_workspace_focus_default_window (workspace, NULL, event->xkey.time);
-  return FALSE;
+  return TRUE;
 }
 
 static gboolean

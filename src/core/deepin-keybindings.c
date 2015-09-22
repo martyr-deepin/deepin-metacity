@@ -34,6 +34,7 @@
 #include "deepin-window-surface-manager.h"
 #include "deepin-wm-background.h"
 #include "deepin-message-hub.h"
+#include "deepin-workspace-indicator.h"
 
 static unsigned int get_primary_modifier (MetaDisplay *display,
         unsigned int entire_binding_mask)
@@ -361,21 +362,55 @@ static void handle_workspace_switch(MetaDisplay *display, MetaScreen *screen,
         MetaWindow *window, XEvent *event,
         MetaKeyBinding *binding, gpointer user_data)
 {
-    MetaWorkspace* workspace = NULL;
+    gint motion;
+    unsigned int grab_mask;
+
+    /* Don't show the ws switcher if we get just one ws */
+    if (meta_screen_get_n_workspaces(screen) == 1)
+        return;
+
+    if (screen->all_keys_grabbed) return;
 
     MetaKeyBindingAction action = meta_prefs_get_keybinding_action(binding->name);
     if (action == META_KEYBINDING_ACTION_WORKSPACE_RIGHT) {
         g_debug("%s: to right", __func__);
-        workspace = meta_workspace_get_neighbor (screen->active_workspace, 
-                META_MOTION_RIGHT);
+        motion = META_MOTION_RIGHT;
     } else if (action == META_KEYBINDING_ACTION_WORKSPACE_LEFT) {
-        workspace = meta_workspace_get_neighbor (screen->active_workspace, 
-                META_MOTION_LEFT);
+        motion = META_MOTION_LEFT;
         g_debug("%s: to left", __func__);
     }
 
-    if (workspace) {
-        meta_workspace_activate(workspace, event->xkey.time);
+    grab_mask = binding->mask;
+    if (meta_display_begin_grab_op (display,
+                screen,
+                NULL,
+                META_GRAB_OP_KEYBOARD_WORKSPACE_SWITCHING,
+                FALSE,
+                FALSE,
+                0,
+                grab_mask,
+                event->xkey.time,
+                0, 0))
+    {
+        MetaWorkspace *next;
+        gboolean grabbed_before_release;
+
+        next = meta_workspace_get_neighbor(screen->active_workspace, motion);
+
+        grabbed_before_release = primary_modifier_still_pressed (display, grab_mask);
+
+        if (!(next && grabbed_before_release)) {
+            meta_display_end_grab_op (display, event->xkey.time);
+            return;
+        }
+
+        meta_workspace_activate(next, event->xkey.time);
+
+        gtk_widget_show_all(screen->ws_popup);
+        
+        GtkWidget* w = gtk_bin_get_child(GTK_BIN(screen->ws_popup));
+        DeepinWorkspaceIndicator* indi = DEEPIN_WORKSPACE_INDICATOR(w);
+        deepin_workspace_indicator_request_workspace_change(indi, next);
     }
 }
 

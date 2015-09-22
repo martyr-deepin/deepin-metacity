@@ -79,7 +79,7 @@ struct _MetaScreen
   MetaRectangle rect;  /* Size of screen; rect.x & rect.y are always 0 */
   MetaUI *ui;
   DeepinTabPopup *tab_popup;
-  MetaTabPopup *ws_popup;
+  GtkWidget *ws_popup;
   DeepinWMBackground* ws_previewer;
   GtkWidget* exposing_windows_popup;
 
