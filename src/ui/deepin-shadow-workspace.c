@@ -546,6 +546,11 @@ static void deepin_shadow_workspace_finalize (GObject *object)
         priv->clones = NULL;
     }
 
+    if (priv->snapshot) {
+        cairo_pattern_destroy(priv->snapshot);
+        priv->snapshot = NULL;
+    }
+
     G_OBJECT_CLASS (deepin_shadow_workspace_parent_class)->finalize (object);
 }
 
@@ -659,12 +664,10 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
     GtkAllocation req;
     gtk_widget_get_allocation(widget, &req);
 
-    /*g_debug("%s: ws(%s(%s)) clip (%d, %d, %d, %d) alloc (%d, %d, %d, %d)",*/
-            /*__func__, */
+    /*g_debug("%s: ws(%s(%s)) clip (%d, %d, %d, %d)", __func__, */
             /*meta_workspace_get_name(priv->workspace),*/
             /*(priv->thumb_mode ? "thumb": ""),*/
-            /*r.x, r.y, r.width, r.height,*/
-            /*req.x, req.y, req.width, req.height);*/
+            /*r.x, r.y, r.width, r.height);*/
 
     gboolean do_snapshot_draw = FALSE;
 
@@ -1040,14 +1043,16 @@ static gboolean on_deepin_cloned_widget_entered(MetaDeepinClonedWidget* cloned,
                GdkEvent* event, gpointer data)
 {
     DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
-    if (!self->priv->ready) return FALSE;
+    DeepinShadowWorkspacePrivate* priv = self->priv;
 
-    if (!self->priv->thumb_mode) {
-        self->priv->hovered_clone = cloned;
+    if (!priv->ready) return FALSE;
+
+    if (!priv->thumb_mode) {
+        priv->hovered_clone = cloned;
         /* delay show up if is animating */
-        if (!self->priv->animating) {
+        if (!priv->animating && priv->ready) {
             _move_close_button_for(self, cloned);
-            gtk_widget_set_opacity(self->priv->close_button, 1.0);
+            gtk_widget_set_opacity(priv->close_button, 1.0);
         }
     }
     return TRUE;
