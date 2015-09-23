@@ -130,13 +130,17 @@ static gboolean on_tick_callback(GdkFrameClock* clock, DeepinTimeline* self);
 static void deepin_timeline_stop_animation(DeepinTimeline* self, gboolean abort)
 {
     DeepinTimelinePrivate* priv = self->priv;
+    if (priv->delay_id) {
+        g_source_remove(priv->delay_id);
+        priv->delay_id = 0;
+    }
+
+    gdk_frame_clock_end_updating(priv->clock);
+    g_signal_handlers_disconnect_by_func(priv->clock, on_tick_callback, self);
 
     priv->playing = FALSE;
     priv->tick_id = 0;
 
-    g_signal_handlers_disconnect_by_func(priv->clock, on_tick_callback, self);
-
-    gdk_frame_clock_end_updating(priv->clock);
     g_signal_emit(self, signals[SIGNAL_STOPPED], 0);
 }
 

@@ -21,14 +21,15 @@
 #include "deepin-timeline.h"
 #include "deepin-design.h"
 
-static const int FADE_DURATION = 500;
+static const int FADE_DURATION = 200;
 static const int POPUP_TIMEOUT = 200;
 static const int POPUP_MAX_WIDTH = 300;
 
 struct _DeepinWorkspaceIndicatorPrivate
 {
-    MetaWorkspace* target_workspace;
+    int stage; /* 1 = fade in, 2 = fade out */
     DeepinTimeline* timeline;
+    guint timeout_id;
 };
 
 G_DEFINE_TYPE(DeepinWorkspaceIndicator, deepin_workspace_indicator, GTK_TYPE_LABEL);
@@ -50,20 +51,42 @@ static void deepin_workspace_indicator_finalize (GObject *object)
 
 static void on_started(DeepinTimeline* timeline, DeepinWorkspaceIndicator* self)
 {
-    g_debug("%s", __func__);
+    /*g_debug("%s", __func__);*/
+    DeepinWorkspaceIndicatorPrivate *priv = self->priv;
+
+    gtk_widget_set_opacity(GTK_WIDGET(self), priv->stage == 2 ? 1.0: 0.0); 
+}
+
+static gboolean on_popup_timeout(DeepinWorkspaceIndicator* self)
+{
+    /*g_debug("%s", __func__);*/
+    DeepinWorkspaceIndicatorPrivate *priv = self->priv;
+
+    deepin_timeline_start(priv->timeline);
 }
 
 static void on_stopped(DeepinTimeline* timeline, DeepinWorkspaceIndicator* self)
 {
-    g_debug("%s", __func__);
-    gtk_widget_set_opacity(GTK_WIDGET(self), 0.0); 
+    /*g_debug("%s", __func__);*/
+    DeepinWorkspaceIndicatorPrivate *priv = self->priv;
+
+    gtk_widget_set_opacity(GTK_WIDGET(self), priv->stage == 2 ? 0.0: 1.0); 
+
+    if (priv->stage == 1) {
+        priv->stage = 2;
+        priv->timeout_id = g_timeout_add(POPUP_TIMEOUT,
+                (GSourceFunc)on_popup_timeout, self);
+    }
 }
 
 static void on_new_frame(DeepinTimeline* timeline, double pos,
         DeepinWorkspaceIndicator* self)
 {
-    g_debug("%s: pos %f", __func__, pos);
-    gtk_widget_set_opacity(GTK_WIDGET(self), 1.0 - pos); 
+    DeepinWorkspaceIndicatorPrivate *priv = self->priv;
+
+    double t = priv->stage == 2 ? 1.0 - pos : pos;
+    /*g_debug("%s: pos %f", __func__, t);*/
+    gtk_widget_set_opacity(GTK_WIDGET(self), t); 
 }
 
 static void deepin_workspace_indicator_map (GtkWidget *widget)
@@ -75,7 +98,6 @@ static void deepin_workspace_indicator_map (GtkWidget *widget)
 
     priv->timeline = deepin_timeline_new();
     deepin_timeline_set_clock(priv->timeline, gtk_widget_get_frame_clock(widget));
-    deepin_timeline_set_delay(priv->timeline, POPUP_TIMEOUT);
     deepin_timeline_set_duration(priv->timeline, FADE_DURATION);
     deepin_timeline_set_progress_mode(priv->timeline, DEEPIN_EASE_OUT_CUBIC);
 
@@ -115,6 +137,7 @@ GtkWidget* deepin_workspace_indicator_new()
     GtkWidget* w = (GtkWidget*)g_object_new(DEEPIN_TYPE_WORKSPACE_INDICATOR, NULL);
 
     deepin_setup_style_class(w, "deepin-workspace-name");
+    gtk_widget_set_opacity(w, 0.0); 
     return w;
 }
 
@@ -128,12 +151,18 @@ void deepin_workspace_indicator_request_workspace_change(
         deepin_timeline_stop(priv->timeline);
     }
 
-    priv->target_workspace = workspace;
+    if (priv->timeout_id) {
+        g_source_remove(priv->timeout_id);
+        priv->timeout_id = 0;
+    }
+
+    priv->stage = 1;
+
     char* text = g_strdup_printf("%d %s", meta_workspace_index(workspace),
             meta_workspace_get_name(workspace));
     gtk_label_set_text(GTK_LABEL(self), text);
     g_free(text);
-    gtk_widget_set_opacity(GTK_WIDGET(self), 1.0); 
+
     deepin_timeline_start(priv->timeline);
 }
 

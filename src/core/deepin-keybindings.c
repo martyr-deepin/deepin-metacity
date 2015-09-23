@@ -404,13 +404,15 @@ static void handle_workspace_switch(MetaDisplay *display, MetaScreen *screen,
             return;
         }
 
-        meta_workspace_activate(next, event->xkey.time);
+        if (next != screen->active_workspace) {
+            meta_workspace_activate(next, event->xkey.time);
 
-        gtk_widget_show_all(screen->ws_popup);
-        
-        GtkWidget* w = gtk_bin_get_child(GTK_BIN(screen->ws_popup));
-        DeepinWorkspaceIndicator* indi = DEEPIN_WORKSPACE_INDICATOR(w);
-        deepin_workspace_indicator_request_workspace_change(indi, next);
+            gtk_widget_show_all(screen->ws_popup);
+
+            GtkWidget* w = gtk_bin_get_child(GTK_BIN(screen->ws_popup));
+            DeepinWorkspaceIndicator* indi = DEEPIN_WORKSPACE_INDICATOR(w);
+            deepin_workspace_indicator_request_workspace_change(indi, next);
+        }
     }
 }
 
