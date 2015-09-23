@@ -53,9 +53,6 @@ struct _MetaDeepinSwitchPreviewerPrivate
     MetaDeepinClonedWidget* prev_preview;
 
     cairo_surface_t* desktop_surface;
-    cairo_surface_t* dock_surface;
-
-    cairo_surface_t* cap_surface;
 };
 
 enum {
@@ -122,11 +119,7 @@ static void meta_deepin_switch_previewer_dispose(GObject *object)
     MetaDeepinSwitchPreviewerPrivate* priv = self->priv;
 
     if (priv->desktop_surface) {
-        priv->desktop_surface = NULL;
-    }
-
-    if (priv->cap_surface) {
-        g_clear_pointer(&priv->cap_surface, cairo_surface_destroy);
+        g_clear_pointer(&priv->desktop_surface, cairo_surface_destroy);
     }
 
     G_OBJECT_CLASS(meta_deepin_switch_previewer_parent_class)->dispose(object);
@@ -229,19 +222,25 @@ void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self)
     }
 
     if (!priv->desktop_surface) {
+        MetaWindow *desktop_win = NULL, *dock_win = NULL;
+
         GList* windows = priv->active_workspace->mru_list;
         while (windows != NULL) {
             MetaWindow *w = (MetaWindow*)windows->data;
             if (w->screen == priv->screen && w->type == META_WINDOW_DESKTOP) {
-                priv->desktop_surface = deepin_window_surface_manager_get_surface(w, 1.0);
+                desktop_win = w;
             }
 
             if (w->screen == priv->screen && w->type == META_WINDOW_DOCK) {
-                priv->dock_surface = deepin_window_surface_manager_get_surface(w, 1.0);
+                dock_win = w;
             }
 
+            if (desktop_win && dock_win) break;
             windows = windows->next;
         }
+
+        priv->desktop_surface = deepin_window_surface_manager_get_combined_surface(
+                desktop_win, dock_win, 1.0);
     }
 
     gtk_widget_queue_resize(GTK_WIDGET(self));
@@ -490,6 +489,7 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
 {
     MetaDeepinSwitchPreviewer *self = META_DEEPIN_SWITCH_PREVIEWER (widget);
     MetaDeepinSwitchPreviewerPrivate *priv = self->priv;
+    g_debug("%s", __func__);
 
     cairo_save(cr);
     cairo_set_source_surface(cr,
@@ -526,11 +526,6 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
 
     if (priv->desktop_surface) {
         cairo_set_source_surface(cr, priv->desktop_surface, 0, 0);
-        cairo_paint(cr);
-    }
-
-    if (priv->dock_surface) {
-        cairo_set_source_surface(cr, priv->dock_surface, 0, 0);
         cairo_paint(cr);
     }
 

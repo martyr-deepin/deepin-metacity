@@ -207,6 +207,28 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
     return surface;
 }
 
+cairo_surface_t* deepin_window_surface_manager_get_combined_surface(
+        MetaWindow* win1, MetaWindow* win2, double scale)
+{
+    cairo_surface_t* surface1 = deepin_window_surface_manager_get_surface(win1, 1.0);
+    cairo_surface_t* surface2 = deepin_window_surface_manager_get_surface(win2, 1.0);
+
+    cairo_surface_t* ret = cairo_image_surface_create(
+            cairo_image_surface_get_format(surface1),
+            cairo_image_surface_get_width(surface1),
+            cairo_image_surface_get_height(surface1));
+
+    cairo_t *cr = cairo_create(ret);
+    if (scale < 1.0) cairo_scale(cr, scale, scale);
+    cairo_set_source_surface(cr, surface1, 0, 0);
+    cairo_paint(cr);
+    cairo_set_source_surface(cr, surface2, 0, 0);
+    cairo_paint(cr);
+    cairo_destroy(cr);
+
+    return ret;
+}
+
 void deepin_window_surface_manager_remove_window(MetaWindow* window)
 {
     if (!window) return;

@@ -82,18 +82,16 @@ void deepin_message_hub_window_damaged(MetaWindow* window, XRectangle* rects, in
 
     gboolean surface_need_update = FALSE;
 
-    if (window->type == META_WINDOW_NORMAL) {
-        MetaRectangle bound;
-        meta_window_get_input_rect(window, &bound);
+    MetaRectangle bound;
+    meta_window_get_input_rect(window, &bound);
 
-        for (int i = 0; i < n; i++) {
-            double sx = (double)rects[i].width / bound.width,
-                   sy = (double)rects[i].height / bound.height;
-            if (sx > 0.15 && sy > 0.15) {
-                /*g_debug("big enough (%d,%d)", rects[i].width, rects[i].height);*/
-                surface_need_update = TRUE;
-                break;
-            }
+    for (int i = 0; i < n; i++) {
+        double sx = (double)rects[i].width / bound.width,
+               sy = (double)rects[i].height / bound.height;
+        if (sx > 0.15 && sy > 0.15) {
+            /*g_debug("big enough (%d,%d)", rects[i].width, rects[i].height);*/
+            surface_need_update = TRUE;
+            break;
         }
     }
 
