@@ -61,7 +61,8 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow*, double);
 /* get combined surface of two windows, second is over first
  * the returned surafce inherit properties (format and size) of first parameter
  */
-cairo_surface_t* deepin_window_surface_manager_get_combined_surface(MetaWindow*, MetaWindow*, double);
+cairo_surface_t* deepin_window_surface_manager_get_combined_surface(
+        MetaWindow*, MetaWindow*, int, int, double);
 
 /* clear surface for window */
 void deepin_window_surface_manager_remove_window(MetaWindow*);

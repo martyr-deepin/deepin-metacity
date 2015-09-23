@@ -754,8 +754,8 @@ GtkWidget* deepin_wm_background_new(MetaScreen* screen)
     GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(display->xdisplay);
     self->priv->gscreen = gdk_display_get_default_screen(gdisplay);
 
-    GdkVisual* visual = gdk_screen_get_rgba_visual (self->priv->gscreen);
-    if (visual) gtk_widget_set_visual (widget, visual);
+    /*GdkVisual* visual = gdk_screen_get_rgba_visual (self->priv->gscreen);*/
+    /*if (visual) gtk_widget_set_visual (widget, visual);*/
 
     gint w = screen->rect.width, h = screen->rect.height;
     gtk_window_set_position(GTK_WINDOW(widget), GTK_WIN_POS_CENTER_ALWAYS);

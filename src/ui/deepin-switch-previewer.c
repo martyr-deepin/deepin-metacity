@@ -239,8 +239,12 @@ void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self)
             windows = windows->next;
         }
 
+        MetaRectangle r1, r2;
+        meta_window_get_outer_rect(desktop_win, &r1);
+        meta_window_get_outer_rect(dock_win, &r2);
+
         priv->desktop_surface = deepin_window_surface_manager_get_combined_surface(
-                desktop_win, dock_win, 1.0);
+                desktop_win, dock_win, 0, r1.height - r2.height, 1.0);
     }
 
     gtk_widget_queue_resize(GTK_WIDGET(self));
@@ -489,7 +493,6 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
 {
     MetaDeepinSwitchPreviewer *self = META_DEEPIN_SWITCH_PREVIEWER (widget);
     MetaDeepinSwitchPreviewerPrivate *priv = self->priv;
-    g_debug("%s", __func__);
 
     cairo_save(cr);
     cairo_set_source_surface(cr,
