@@ -30,6 +30,8 @@
 #include "deepin-background-cache.h"
 #include "deepin-desktop-background.h"
 
+#define ICON_SIZE 48
+
 typedef struct _MetaDeepinTabWidgetPrivate
 {
   gboolean selected;
@@ -51,7 +53,8 @@ typedef struct _MetaDeepinTabWidgetPrivate
   cairo_surface_t* icon;
   MetaWindow* window;
 
-  int disposed;
+  gint disposed: 1;
+  gint render_thumb: 1; /* if size is too small, do not render it */
 
   GtkRequisition init_size;
   GtkRequisition real_size;
@@ -163,16 +166,29 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
       cairo_paint(cr);
   }
 
-  cairo_surface_t* ref = deepin_window_surface_manager_get_surface(
-          priv->window, sx);
-  x = (w - cairo_image_surface_get_width(ref)) / 2.0;
-  y = (h - cairo_image_surface_get_height(ref)) / 2.0;
-  cairo_set_source_surface(cr, ref, x, y);
-  cairo_paint(cr);
+  if (priv->render_thumb) {
+      cairo_surface_t* ref = deepin_window_surface_manager_get_surface(
+              priv->window, sx);
+      x = (w - cairo_image_surface_get_width(ref)) / 2.0;
+      y = (h - cairo_image_surface_get_height(ref)) / 2.0;
+      cairo_set_source_surface(cr, ref, x, y);
+      cairo_paint(cr);
+  }
   
   if (priv->icon) {
-      x = (w - cairo_image_surface_get_width(priv->icon)) / 2.0;
-      y = (h - cairo_image_surface_get_height(priv->icon));
+      double iw = cairo_image_surface_get_width(priv->icon);
+      double ih = cairo_image_surface_get_height(priv->icon);
+
+      x = (w - iw) / 2.0;
+      y = (h - ih);
+
+      if (w - SWITCHER_ITEM_SHAPE_PADDING*2 < ICON_SIZE) {
+          sx = MIN(w / ICON_SIZE, h / ICON_SIZE);
+          cairo_scale(cr, sx, sx);
+          x = (w - iw * sx) / 2.0;
+          y = h - ih * sx;
+      }
+
       cairo_set_source_surface(cr, priv->icon, x, y);
       cairo_paint(cr);
   }
@@ -284,6 +300,7 @@ static void meta_deepin_tab_widget_init (MetaDeepinTabWidget *self)
   self->priv = (MetaDeepinTabWidgetPrivate*)meta_deepin_tab_widget_get_instance_private (self);
   self->priv->animation_duration = SWITCHER_SELECT_ANIMATION_DURATION;
   self->priv->scale = 1.0;
+  self->priv->render_thumb = TRUE;
   self->priv->real_size.width = SWITCHER_ITEM_PREFER_WIDTH;
   self->priv->real_size.height = SWITCHER_ITEM_PREFER_HEIGHT;
   self->priv->init_size = self->priv->real_size;
@@ -327,15 +344,12 @@ meta_deepin_tab_widget_new (MetaWindow* window)
   widget->priv->window = window;
 
   if (window->type != META_WINDOW_DESKTOP) {
-#define ICON_SIZE 48
 
       GdkPixbuf* scaled = gdk_pixbuf_scale_simple (window->icon,
               ICON_SIZE, ICON_SIZE, GDK_INTERP_BILINEAR);
       widget->priv->icon = gdk_cairo_surface_create_from_pixbuf(scaled,
                 1.0, NULL);
       g_object_unref(scaled);
-
-#undef ICON_SIZE
   }
 
   return (GtkWidget*)widget;
@@ -401,6 +415,8 @@ void meta_deepin_tab_widget_set_scale(MetaDeepinTabWidget* self, gdouble val)
     }
     priv->real_size.width *= p;
     priv->real_size.height *= p;
+
+    priv->render_thumb = (priv->real_size.width > ICON_SIZE * 1.75f);
 
     gtk_widget_queue_draw(GTK_WIDGET(self));
 }
