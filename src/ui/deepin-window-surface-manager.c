@@ -149,7 +149,8 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
             return NULL;
         }
 
-        gboolean keep_alpha = window->type == META_WINDOW_DESKTOP;
+        gboolean keep_alpha = (window->type == META_WINDOW_DESKTOP
+                || window->type == META_WINDOW_DOCK);
 
         MetaRectangle r, r2;
         meta_window_get_input_rect(window, &r);

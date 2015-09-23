@@ -52,8 +52,8 @@ struct _MetaDeepinSwitchPreviewerPrivate
     MetaDeepinClonedWidget* current_preview;
     MetaDeepinClonedWidget* prev_preview;
 
-    MetaWindow* mw_desktop;
     cairo_surface_t* desktop_surface;
+    cairo_surface_t* dock_surface;
 
     cairo_surface_t* cap_surface;
 };
@@ -228,14 +228,16 @@ void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self)
         l = l->next;
     }
 
-    if (!priv->mw_desktop) {
+    if (!priv->desktop_surface) {
         GList* windows = priv->active_workspace->mru_list;
         while (windows != NULL) {
             MetaWindow *w = (MetaWindow*)windows->data;
-            if (w->screen == priv->screen  && w->type == META_WINDOW_DESKTOP) {
-                priv->mw_desktop = w;
+            if (w->screen == priv->screen && w->type == META_WINDOW_DESKTOP) {
                 priv->desktop_surface = deepin_window_surface_manager_get_surface(w, 1.0);
-                break;
+            }
+
+            if (w->screen == priv->screen && w->type == META_WINDOW_DOCK) {
+                priv->dock_surface = deepin_window_surface_manager_get_surface(w, 1.0);
             }
 
             windows = windows->next;
@@ -524,6 +526,11 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
 
     if (priv->desktop_surface) {
         cairo_set_source_surface(cr, priv->desktop_surface, 0, 0);
+        cairo_paint(cr);
+    }
+
+    if (priv->dock_surface) {
+        cairo_set_source_surface(cr, priv->dock_surface, 0, 0);
         cairo_paint(cr);
     }
 
