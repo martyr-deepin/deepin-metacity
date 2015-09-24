@@ -2234,8 +2234,11 @@ process_tab_grab (MetaDisplay *display,
       meta_topic (META_DEBUG_KEYBINDINGS,
                   "Key pressed, moving tab focus in popup\n");
 
-      if (event->xkey.state & ShiftMask)
-        backward = !backward;
+      /* reverse direction according to initial backward state */
+      if (!backward && event->xkey.state & ShiftMask)
+          backward = !backward;
+      else if (backward && !(event->xkey.state & ShiftMask))
+          backward = !backward;
 
       if (backward)
         deepin_tab_popup_backward (screen->tab_popup);

@@ -128,8 +128,10 @@ static void do_choose_window (MetaDisplay    *display,
     MetaTabList type = (MetaTabList)binding->handler->data;
     MetaWindow *initial_selection;
 
-    /* reverse direction if shift is down */
-    if (event->xkey.state & ShiftMask)
+    /* reverse direction according to initial backward state */
+    if (!backward && event->xkey.state & ShiftMask)
+        backward = !backward;
+    else if (backward && !(event->xkey.state & ShiftMask))
         backward = !backward;
 
     initial_selection = meta_display_get_tab_next (display, type,
@@ -197,6 +199,7 @@ static void handle_switch(MetaDisplay *display, MetaScreen *screen,
         MetaKeyBinding *binding, gpointer user_data)
 {
     gint backwards = (binding->handler->flags & META_KEY_BINDING_IS_REVERSED) != 0;
+    g_debug("%s: backwards %d", __func__, backwards);
     do_choose_window (display, screen, window, event, binding, backwards);
 }
 
@@ -289,10 +292,10 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
         gtk_window_move(GTK_WINDOW(screen->ws_previewer), 0, 0);
 
         g_signal_connect(G_OBJECT(deepin_message_hub_get()),
-                "drag-end", on_drag_end, screen->ws_previewer);
+                "drag-end", (GCallback)on_drag_end, screen->ws_previewer);
 
         /* rely on auto ungrab when destroyed */
-        _do_grab(screen, screen->ws_previewer, TRUE);
+        _do_grab(screen, (GtkWidget*)screen->ws_previewer, TRUE);
     }
 }
 
@@ -352,7 +355,7 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
         gtk_widget_show_all(top);
 
         g_signal_connect(G_OBJECT(deepin_message_hub_get()),
-                "drag-end", on_drag_end, top);
+                "drag-end", (GCallback)on_drag_end, top);
 
         _do_grab(screen, top, TRUE);
     }
@@ -378,6 +381,8 @@ static void handle_workspace_switch(MetaDisplay *display, MetaScreen *screen,
     } else if (action == META_KEYBINDING_ACTION_WORKSPACE_LEFT) {
         motion = META_MOTION_LEFT;
         g_debug("%s: to left", __func__);
+    } else {
+        return;
     }
 
     grab_mask = binding->mask;
@@ -420,6 +425,9 @@ void deepin_init_custom_handlers(MetaDisplay* display)
 {
     deepin_meta_override_keybinding_handler("switch-applications",
             handle_switch, NULL, NULL);
+    deepin_meta_override_keybinding_handler("switch-applications-backward",
+            handle_switch, NULL, NULL);
+
     deepin_meta_override_keybinding_handler("switch-to-workspace-right",
             handle_workspace_switch, NULL, NULL);
     deepin_meta_override_keybinding_handler("switch-to-workspace-left",
