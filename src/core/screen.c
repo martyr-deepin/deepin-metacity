@@ -1368,7 +1368,8 @@ meta_screen_ensure_tab_popup (MetaScreen      *screen,
       tmp = tmp->next;
     }
 
-  screen->tab_popup = deepin_tab_popup_new (entries, screen->number, len);
+  screen->tab_popup = deepin_tab_popup_new (entries, screen->number, len,
+          list_type != META_TAB_LIST_GROUP);
 
   g_free (entries);
 

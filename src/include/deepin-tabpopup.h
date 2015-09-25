@@ -58,7 +58,8 @@ struct _DeepinTabPopup
 
 DeepinTabPopup*   deepin_tab_popup_new          (const MetaTabEntry *entries,
                                                 int                 screen_number,
-                                                int                 entry_count);
+                                                int                 entry_count,
+                                                gboolean            show_desktop);
 void            deepin_tab_popup_free         (DeepinTabPopup       *popup);
 void            deepin_tab_popup_set_showing  (DeepinTabPopup       *popup,
                                                 gboolean            showing);

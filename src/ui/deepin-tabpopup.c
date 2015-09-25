@@ -136,7 +136,8 @@ static MetaTabEntry* _desktop_entry(DeepinTabPopup* popup)
 
 DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
         int                 screen_number,
-        int                 entry_count)
+        int                 entry_count,
+        gboolean            show_desktop)
 {
     DeepinTabPopup *popup;
     int i;
@@ -201,7 +202,7 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
         popup->entries = g_list_prepend (popup->entries, new_entry);
     }
 
-    {
+    if (show_desktop && entry_count > 1) {
         // desktop entry
         MetaTabEntry* tmp = _desktop_entry(popup);
         if (tmp) {

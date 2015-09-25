@@ -143,6 +143,7 @@ static void do_choose_window (MetaDisplay    *display,
                 type, screen,
                 screen->active_workspace);
 
+
     meta_topic (META_DEBUG_KEYBINDINGS,
             "Initially selecting window %s\n",
             initial_selection ? initial_selection->desc : "(none)");
@@ -169,6 +170,13 @@ static void do_choose_window (MetaDisplay    *display,
                     binding->mask,
                     event->xkey.time,
                     0, 0)) {
+
+            if (g_list_length(screen->tab_popup->entries) <= 1) {
+                meta_display_end_grab_op (display, event->xkey.time);
+                display->mouse_mode = FALSE;
+                return;
+            }
+
             if (!primary_modifier_still_pressed (display,
                         binding->mask)) {
                 /* This handles a race where modifier might be released
@@ -427,6 +435,11 @@ void deepin_init_custom_handlers(MetaDisplay* display)
             handle_switch, NULL, NULL);
     deepin_meta_override_keybinding_handler("switch-applications-backward",
             handle_switch, NULL, NULL);
+    deepin_meta_override_keybinding_handler("switch-group",
+            handle_switch, NULL, NULL);
+    deepin_meta_override_keybinding_handler("switch-group-backward",
+            handle_switch, NULL, NULL);
+                          
 
     deepin_meta_override_keybinding_handler("switch-to-workspace-right",
             handle_workspace_switch, NULL, NULL);
