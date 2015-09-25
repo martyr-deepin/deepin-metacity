@@ -136,6 +136,10 @@ static void do_choose_window (MetaDisplay    *display,
 
     initial_selection = meta_display_get_tab_next (display, type,
             screen, screen->active_workspace, NULL, backward);
+    if (screen->active_workspace->showing_desktop) {
+        initial_selection = meta_display_get_tab_next (display, type,
+                screen, screen->active_workspace, initial_selection, backward);
+    }
 
     /* Note that focus_window may not be in the tab chain, but it's OK */
     if (initial_selection == NULL)
