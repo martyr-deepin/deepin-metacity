@@ -435,6 +435,7 @@ void deepin_init_custom_handlers(MetaDisplay* display)
             handle_switch, NULL, NULL);
     deepin_meta_override_keybinding_handler("switch-applications-backward",
             handle_switch, NULL, NULL);
+
     deepin_meta_override_keybinding_handler("switch-group",
             handle_switch, NULL, NULL);
     deepin_meta_override_keybinding_handler("switch-group-backward",

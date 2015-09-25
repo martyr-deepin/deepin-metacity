@@ -344,8 +344,26 @@ meta_deepin_tab_widget_new (MetaWindow* window)
   widget->priv->window = window;
 
   if (window->type != META_WINDOW_DESKTOP) {
+      g_debug("WM_CLASS: %s, %s", window->res_name, window->res_class);
 
-      GdkPixbuf* scaled = gdk_pixbuf_scale_simple (window->icon,
+      /* try to load icon from res_class first, cause window->icon may
+       * contain a broken one 
+       **/
+      GError* error = NULL;
+      char* icon_name = g_ascii_strdown(window->res_class, -1);
+      GdkPixbuf* icon = gtk_icon_theme_load_icon(
+              gtk_icon_theme_get_default(),
+              icon_name, ICON_SIZE, GTK_ICON_LOOKUP_USE_BUILTIN, &error);
+      g_free(icon_name);
+
+      if (icon == NULL) {
+          g_debug("%s", error->message);
+          g_error_free(error);
+
+          icon = window->icon;
+      }
+
+      GdkPixbuf* scaled = gdk_pixbuf_scale_simple (icon,
               ICON_SIZE, ICON_SIZE, GDK_INTERP_BILINEAR);
       widget->priv->icon = gdk_cairo_surface_create_from_pixbuf(scaled,
                 1.0, NULL);
