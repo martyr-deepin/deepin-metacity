@@ -84,6 +84,11 @@
          g == META_GRAB_OP_KEYBOARD_ESCAPING_DOCK   ||  \
          g == META_GRAB_OP_KEYBOARD_ESCAPING_GROUP)
 
+#define GRAB_OP_CATCH_MOUSE(g)                          \
+  (g != META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS &&       \
+   g != META_GRAB_OP_KEYBOARD_PREVIEWING_WORKSPACE &&   \
+   !GRAB_OP_IS_WINDOW_SWITCH(g))
+
 /**
  * \defgroup pings Pings
  *
@@ -1541,11 +1546,10 @@ event_callback (XEvent   *event,
            display->grab_window == window) ||
           grab_op_is_keyboard (display->grab_op))
         {
-          if (display->grab_op == META_GRAB_OP_KEYBOARD_PREVIEWING_WORKSPACE
-              || display->grab_op == META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS) 
+          if (!GRAB_OP_CATCH_MOUSE(display->grab_op))
             {
-                /* do not end grab for these */
-                break;
+              /* do not end grab for these */
+              break;
             }
 
           meta_topic (META_DEBUG_WINDOW_OPS,
@@ -1554,19 +1558,6 @@ event_callback (XEvent   *event,
                       (display->grab_window ?
                        display->grab_window->desc :
                        "none"));
-          if (GRAB_OP_IS_WINDOW_SWITCH (display->grab_op))
-            {
-              MetaScreen *screen;
-              meta_topic (META_DEBUG_WINDOW_OPS,
-                          "Syncing to old stack positions.\n");
-              screen =
-                meta_display_screen_for_root (display, event->xany.window);
-
-              if (screen!=NULL)
-                meta_stack_set_positions (screen->stack,
-                                          display->grab_old_window_stacking);
-            }
-
           meta_display_end_grab_op (display,
                                     event->xbutton.time);
         }
@@ -3240,8 +3231,7 @@ meta_display_begin_grab_op (MetaDisplay *display,
   if (pointer_already_grabbed)
     display->grab_have_pointer = TRUE;
 
-  if (op != META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS 
-          && op != META_GRAB_OP_KEYBOARD_PREVIEWING_WORKSPACE) {
+  if (GRAB_OP_CATCH_MOUSE(op)) {
       meta_display_set_grab_op_cursor (display, screen, op, FALSE, grab_xwindow,
               timestamp);
   }

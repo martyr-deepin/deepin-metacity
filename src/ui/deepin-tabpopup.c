@@ -134,6 +134,41 @@ static MetaTabEntry* _desktop_entry(DeepinTabPopup* popup)
     return entry;
 }
 
+static gboolean on_thumb_click_finished(MetaWindow* meta_win)
+{
+    MetaScreen* screen = meta_win->screen;
+    MetaDisplay* display = screen->display;
+
+    display->mouse_mode = FALSE;
+
+    if (meta_win->type != META_WINDOW_DESKTOP) {
+        meta_screen_unshow_desktop(screen);
+        meta_window_activate(meta_win, gtk_get_current_event_time());
+
+    } else if (!screen->active_workspace->showing_desktop) {
+        meta_screen_show_desktop(screen, gtk_get_current_event_time());
+    }
+
+    meta_display_end_grab_op (display, gtk_get_current_event_time());
+    return G_SOURCE_REMOVE;
+}
+
+static gboolean on_thumb_clicked(MetaDeepinTabWidget* tab,
+               GdkEvent* event, gpointer user_data)
+{
+    g_debug("%s", __func__);
+
+    DeepinTabPopup* popup = (DeepinTabPopup*)user_data;
+    MetaWindow* meta_win = meta_deepin_tab_widget_get_meta_window(tab);
+
+    deepin_tab_popup_select(popup, (MetaTabEntryKey)meta_win->xwindow);
+  
+    g_timeout_add(SWITCHER_SELECT_ANIMATION_DURATION, 
+            (GSourceFunc)on_thumb_click_finished, meta_win);
+
+    return TRUE;
+}
+
 DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
         int                 screen_number,
         int                 entry_count,
@@ -248,6 +283,9 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
                 top * (item_height + SWITCHER_ROW_SPACING) 
                 + (item_height + SWITCHER_ROW_SPACING) / 2);
 
+        g_object_connect(G_OBJECT(w), 
+                "signal::button-release-event", on_thumb_clicked, popup,
+                NULL);
         left++;
         if (left >= width) {
             left = 0, top++;

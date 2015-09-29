@@ -58,6 +58,8 @@ typedef struct _MetaDeepinTabWidgetPrivate
 
   GtkRequisition init_size;
   GtkRequisition real_size;
+
+  GdkWindow* event_window;
 } MetaDeepinTabWidgetPrivate;
 
 enum {
@@ -285,7 +287,16 @@ static void meta_deepin_tab_widget_get_preferred_width_for_height(GtkWidget *wid
 static void meta_deepin_tab_widget_size_allocate(GtkWidget* widget, 
         GtkAllocation* allocation)
 {
+    MetaDeepinTabWidgetPrivate* priv = META_DEEPIN_TAB_WIDGET(widget)->priv;
     gtk_widget_set_allocation(widget, allocation);
+
+    if (gtk_widget_get_realized (widget)) {
+        gdk_window_move_resize (priv->event_window,
+                allocation->x,
+                allocation->y,
+                allocation->width,
+                allocation->height);
+    }
 
     GtkAllocation expanded;
     expanded.width = fast_round(allocation->width * 1.033);
@@ -307,6 +318,79 @@ static void meta_deepin_tab_widget_init (MetaDeepinTabWidget *self)
   gtk_widget_set_has_window(GTK_WIDGET(self), FALSE);
 }
 
+static void meta_deepin_tab_widget_realize (GtkWidget *widget)
+{
+    MetaDeepinTabWidget *self = META_DEEPIN_TAB_WIDGET (widget);
+    MetaDeepinTabWidgetPrivate *priv = self->priv;
+    GtkAllocation allocation;
+    GdkWindow *window;
+    GdkWindowAttr attributes;
+    gint attributes_mask;
+
+    gtk_widget_get_allocation (widget, &allocation);
+
+    gtk_widget_set_realized (widget, TRUE);
+
+    attributes.window_type = GDK_WINDOW_CHILD;
+    attributes.x = allocation.x;
+    attributes.y = allocation.y;
+    attributes.width = allocation.width;
+    attributes.height = allocation.height;
+    attributes.wclass = GDK_INPUT_ONLY;
+    attributes.event_mask = gtk_widget_get_events (widget);
+    attributes.event_mask |= (GDK_BUTTON_PRESS_MASK |
+            GDK_BUTTON_RELEASE_MASK |
+            GDK_ENTER_NOTIFY_MASK |
+            GDK_LEAVE_NOTIFY_MASK);
+
+    attributes_mask = GDK_WA_X | GDK_WA_Y;
+
+    window = gtk_widget_get_parent_window (widget);
+    gtk_widget_set_window (widget, window);
+    g_object_ref (window);
+
+    priv->event_window = gdk_window_new (window,
+            &attributes, attributes_mask);
+    gtk_widget_register_window (widget, priv->event_window);
+}
+
+static void meta_deepin_tab_widget_unrealize (GtkWidget *widget)
+{
+    MetaDeepinTabWidget *self = META_DEEPIN_TAB_WIDGET (widget);
+    MetaDeepinTabWidgetPrivate *priv = self->priv;
+
+    if (priv->event_window) {
+        gtk_widget_unregister_window (widget, priv->event_window);
+        gdk_window_destroy (priv->event_window);
+        priv->event_window = NULL;
+    }
+
+    GTK_WIDGET_CLASS (meta_deepin_tab_widget_parent_class)->unrealize (widget);
+}
+
+static void meta_deepin_tab_widget_map (GtkWidget *widget)
+{
+    MetaDeepinTabWidget *self = META_DEEPIN_TAB_WIDGET (widget);
+    MetaDeepinTabWidgetPrivate *priv = self->priv;
+
+    GTK_WIDGET_CLASS (meta_deepin_tab_widget_parent_class)->map (widget);
+
+    if (priv->event_window)
+        gdk_window_show (priv->event_window);
+}
+
+static void meta_deepin_tab_widget_unmap (GtkWidget *widget)
+{
+    MetaDeepinTabWidget *self = META_DEEPIN_TAB_WIDGET (widget);
+    MetaDeepinTabWidgetPrivate *priv = self->priv;
+
+    if (priv->event_window) {
+        gdk_window_hide (priv->event_window);
+    }
+
+    GTK_WIDGET_CLASS (meta_deepin_tab_widget_parent_class)->unmap (widget);
+}
+
 static void meta_deepin_tab_widget_class_init (MetaDeepinTabWidgetClass *klass)
 {
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
@@ -319,6 +403,11 @@ static void meta_deepin_tab_widget_class_init (MetaDeepinTabWidgetClass *klass)
   widget_class->get_preferred_height = meta_deepin_tab_widget_get_preferred_height;
   widget_class->get_preferred_width_for_height = meta_deepin_tab_widget_get_preferred_width_for_height;
   widget_class->size_allocate = meta_deepin_tab_widget_size_allocate;
+
+  widget_class->realize = meta_deepin_tab_widget_realize;
+  widget_class->unrealize = meta_deepin_tab_widget_unrealize;
+  widget_class->map = meta_deepin_tab_widget_map;
+  widget_class->unmap = meta_deepin_tab_widget_unmap;
 
   gobject_class->set_property = meta_deepin_tab_widget_set_property;
   gobject_class->get_property = meta_deepin_tab_widget_get_property;
@@ -442,5 +531,10 @@ void meta_deepin_tab_widget_set_scale(MetaDeepinTabWidget* self, gdouble val)
 gdouble meta_deepin_tab_widget_get_scale(MetaDeepinTabWidget* self)
 {
     return self->priv->scale;
+}
+
+MetaWindow* meta_deepin_tab_widget_get_meta_window(MetaDeepinTabWidget* self)
+{
+    return self->priv->window;
 }
 

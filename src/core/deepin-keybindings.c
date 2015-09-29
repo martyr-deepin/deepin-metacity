@@ -118,6 +118,50 @@ static void _activate_selection_or_desktop(MetaWindow* target, guint32 timestamp
     }
 }
 
+static void _do_ungrab(MetaScreen* screen, GtkWidget* w, gboolean release_keyboard)
+{
+    GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(screen->display->xdisplay);
+    GdkDeviceManager* dev_man = gdk_display_get_device_manager(gdisplay);
+    GdkDevice* pointer = gdk_device_manager_get_client_pointer(dev_man);
+    GdkDevice* kb = gdk_device_get_associated_device(pointer);
+
+    if (release_keyboard) 
+        gdk_device_ungrab(kb, GDK_CURRENT_TIME);
+    gdk_device_ungrab(pointer, GDK_CURRENT_TIME);
+}
+
+static void _do_grab(MetaScreen* screen, GtkWidget* w, gboolean grab_keyboard)
+{
+    GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(screen->display->xdisplay);
+    GdkDeviceManager* dev_man = gdk_display_get_device_manager(gdisplay);
+    GdkDevice* pointer = gdk_device_manager_get_client_pointer(dev_man);
+    GdkDevice* kb = gdk_device_get_associated_device(pointer);
+
+    g_assert(gdk_device_get_source(pointer) == GDK_SOURCE_MOUSE);
+    g_assert(gdk_device_get_source(kb) == GDK_SOURCE_KEYBOARD);
+
+    GdkGrabStatus ret = GDK_GRAB_SUCCESS;
+    if (grab_keyboard) {
+        ret = gdk_device_grab(kb, gtk_widget_get_window(w), 
+                GDK_OWNERSHIP_NONE, TRUE,
+                GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK,
+                NULL, gtk_get_current_event_time());
+        if (ret != GDK_GRAB_SUCCESS) {
+            g_debug("%s: grab keyboard failed", __func__);
+        }
+    }
+
+    ret = gdk_device_grab(pointer, gtk_widget_get_window(w), 
+            GDK_OWNERSHIP_NONE, TRUE,
+            GDK_BUTTON_PRESS_MASK| GDK_BUTTON_RELEASE_MASK| 
+            GDK_ENTER_NOTIFY_MASK| GDK_FOCUS_CHANGE_MASK,
+            NULL, gtk_get_current_event_time());
+    if (ret != GDK_GRAB_SUCCESS) {
+        g_debug("%s: grab failed", __func__);
+    }
+}
+
+
 static void do_choose_window (MetaDisplay    *display,
         MetaScreen     *screen,
         MetaWindow     *event_window,
@@ -201,6 +245,9 @@ static void do_choose_window (MetaDisplay    *display,
                 deepin_tab_popup_set_showing (screen->tab_popup, TRUE);
                 g_debug("%s", __func__);
                 meta_screen_show_desktop(screen, event->xkey.time);
+
+                /* rely on auto ungrab when destroyed */
+                _do_grab(screen, screen->tab_popup->window, FALSE);
             }
         }
     }
@@ -213,49 +260,6 @@ static void handle_switch(MetaDisplay *display, MetaScreen *screen,
     gint backwards = (binding->handler->flags & META_KEY_BINDING_IS_REVERSED) != 0;
     g_debug("%s: backwards %d", __func__, backwards);
     do_choose_window (display, screen, window, event, binding, backwards);
-}
-
-static void _do_ungrab(MetaScreen* screen, GtkWidget* w, gboolean release_keyboard)
-{
-    GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(screen->display->xdisplay);
-    GdkDeviceManager* dev_man = gdk_display_get_device_manager(gdisplay);
-    GdkDevice* pointer = gdk_device_manager_get_client_pointer(dev_man);
-    GdkDevice* kb = gdk_device_get_associated_device(pointer);
-
-    if (release_keyboard) 
-        gdk_device_ungrab(kb, GDK_CURRENT_TIME);
-    gdk_device_ungrab(pointer, GDK_CURRENT_TIME);
-}
-
-static void _do_grab(MetaScreen* screen, GtkWidget* w, gboolean grab_keyboard)
-{
-    GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(screen->display->xdisplay);
-    GdkDeviceManager* dev_man = gdk_display_get_device_manager(gdisplay);
-    GdkDevice* pointer = gdk_device_manager_get_client_pointer(dev_man);
-    GdkDevice* kb = gdk_device_get_associated_device(pointer);
-
-    g_assert(gdk_device_get_source(pointer) == GDK_SOURCE_MOUSE);
-    g_assert(gdk_device_get_source(kb) == GDK_SOURCE_KEYBOARD);
-
-    GdkGrabStatus ret = GDK_GRAB_SUCCESS;
-    if (grab_keyboard) {
-        ret = gdk_device_grab(kb, gtk_widget_get_window(w), 
-                GDK_OWNERSHIP_NONE, TRUE,
-                GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK,
-                NULL, gtk_get_current_event_time());
-        if (ret != GDK_GRAB_SUCCESS) {
-            g_debug("%s: grab keyboard failed", __func__);
-        }
-    }
-
-    ret = gdk_device_grab(pointer, gtk_widget_get_window(w), 
-            GDK_OWNERSHIP_NONE, TRUE,
-            GDK_BUTTON_PRESS_MASK| GDK_BUTTON_RELEASE_MASK| 
-            GDK_ENTER_NOTIFY_MASK| GDK_FOCUS_CHANGE_MASK,
-            NULL, gtk_get_current_event_time());
-    if (ret != GDK_GRAB_SUCCESS) {
-        g_debug("%s: grab failed", __func__);
-    }
 }
 
 static void on_drag_end(DeepinMessageHub* hub, GtkWidget* top)
