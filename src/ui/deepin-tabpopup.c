@@ -204,6 +204,7 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
     gtk_window_set_screen (GTK_WINDOW (popup->outline_window),
             screen);
 
+    gtk_widget_set_app_paintable(popup->outline_window, TRUE);
     gtk_window_set_position (GTK_WINDOW (popup->outline_window),
             GTK_WIN_POS_CENTER_ALWAYS);
     gtk_window_set_default_size(GTK_WINDOW(popup->outline_window), 

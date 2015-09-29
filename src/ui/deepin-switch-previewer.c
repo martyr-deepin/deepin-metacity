@@ -184,10 +184,11 @@ GtkWidget* meta_deepin_switch_previewer_new (DeepinTabPopup* popup)
 {
     MetaDeepinSwitchPreviewer* self =
         (MetaDeepinSwitchPreviewer*)g_object_new(META_TYPE_DEEPIN_SWITCH_PREVIEWER, NULL);
+    gtk_widget_set_app_paintable(GTK_WIDGET(self), TRUE);
+
     MetaDeepinSwitchPreviewerPrivate* priv = self->priv;
     priv->popup = popup;
 
-    /*deepin_setup_style_class(GTK_WIDGET(self), "deepin-window-manager");*/
     return (GtkWidget*)self;
 }
 
@@ -243,8 +244,14 @@ void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self)
         meta_window_get_outer_rect(desktop_win, &r1);
         meta_window_get_outer_rect(dock_win, &r2);
 
-        priv->desktop_surface = deepin_window_surface_manager_get_combined_surface(
-                desktop_win, dock_win, 0, r1.height - r2.height, 1.0);
+        priv->desktop_surface = deepin_window_surface_manager_get_combined3(
+                deepin_background_cache_get_surface(1.0), 
+                deepin_window_surface_manager_get_surface(desktop_win, 1.0), 
+                0, 0,
+                deepin_window_surface_manager_get_surface(dock_win, 1.0), 
+                0, r1.height - r2.height,
+                1.0);
+
     }
 
     gtk_widget_queue_resize(GTK_WIDGET(self));
@@ -495,9 +502,6 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
     MetaDeepinSwitchPreviewerPrivate *priv = self->priv;
 
     cairo_save(cr);
-    cairo_set_source_surface(cr,
-            deepin_background_cache_get_surface(1.0), 0, 0);
-
     cairo_reset_clip(cr);
 
     GtkRequisition req;

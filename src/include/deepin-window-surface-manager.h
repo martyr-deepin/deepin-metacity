@@ -64,6 +64,12 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow*, double);
 cairo_surface_t* deepin_window_surface_manager_get_combined_surface(
         MetaWindow*, MetaWindow*, int, int, double);
 
+cairo_surface_t* deepin_window_surface_manager_get_combined3(
+        cairo_surface_t*,
+        cairo_surface_t*, int, int, 
+        cairo_surface_t*, int, int, 
+        double);
+
 /* clear surface for window */
 void deepin_window_surface_manager_remove_window(MetaWindow*);
 
