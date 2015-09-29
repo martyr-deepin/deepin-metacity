@@ -126,6 +126,38 @@ static void meta_deepin_tab_widget_finalize(GObject *object)
     G_OBJECT_CLASS(meta_deepin_tab_widget_parent_class)->finalize(object);
 }
 
+static void _do_clip(MetaDeepinTabWidget* self, cairo_t* cr)
+{
+    MetaDeepinTabWidgetPrivate* priv = self->priv;
+
+    MetaRectangle win_r;
+    meta_window_get_outer_rect(priv->window, &win_r);
+
+    double sx = RECT_PREFER_WIDTH / (double)win_r.width;
+    double sy = RECT_PREFER_HEIGHT / (double)win_r.height;
+
+    sx = MIN(sx, sy) * priv->scale;
+
+    GtkRequisition req;
+    gtk_widget_get_preferred_size(GTK_WIDGET(self), &req, NULL);
+
+    int mw = req.width * 1.033, mh = req.height * 1.033;
+    cairo_rectangle_int_t r = {-(mw - req.width)/2, -(mh - req.height)/2, mw, mh};
+    cairo_region_t* reg = cairo_region_create_rectangle(&r);
+
+    cairo_surface_t* ref = deepin_window_surface_manager_get_surface(
+            priv->window, sx);
+
+    r.width = cairo_image_surface_get_width(ref);
+    r.height = cairo_image_surface_get_height(ref);
+    r.x = (req.width - r.width) / 2.0;
+    r.y = (req.height - r.height) / 2.0;
+    cairo_region_subtract_rectangle(reg, &r);
+
+    gdk_cairo_region(cr, reg);
+    cairo_clip(cr);
+}
+
 static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
 {
   MetaDeepinTabWidget *self = META_DEEPIN_TAB_WIDGET (widget);
@@ -139,10 +171,14 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
   gdouble x, y, w = req.width, h = req.height;
 
   gdouble w2 = w / 2.0, h2 = h / 2.0;
+  gdouble pos = priv->animation ? priv->current_pos : 1.0;
 
   cairo_save(cr);
-  gdouble pos = priv->animation ? priv->current_pos : 1.0;
+
+  if (priv->render_thumb) _do_clip(self, cr);
+
   cairo_translate(cr, w2, h2);
+
   if (priv->selected) {
       cairo_scale(cr, 1.0 + 0.033 * pos, 1.0 + 0.033 * pos);
   } else {
