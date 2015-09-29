@@ -4265,8 +4265,19 @@ get_focussed_group (MetaDisplay *display)
     return NULL;
 }
 
+static gboolean
+_in_same_res_class(MetaWindow* win)
+{
+  MetaDisplay* display = win->screen->display;
+  MetaWindow* focused = display->focus_window;
+  
+  if (!focused) return FALSE;
+  return (g_str_equal(focused->res_class, win->res_class));
+}
+
 #define IN_TAB_CHAIN(w,t) (((t) == META_TAB_LIST_NORMAL && META_WINDOW_IN_NORMAL_TAB_CHAIN (w)) \
     || ((t) == META_TAB_LIST_DOCKS && META_WINDOW_IN_DOCK_TAB_CHAIN (w)) \
+    || ((t) == META_TAB_LIST_GROUP && _in_same_res_class(w))  \
     || ((t) == META_TAB_LIST_GROUP && META_WINDOW_IN_GROUP_TAB_CHAIN (w, get_focussed_group(w->display))))
 
 static MetaWindow*
