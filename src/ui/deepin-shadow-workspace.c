@@ -217,6 +217,169 @@ static GdkPoint rect_center(MetaRectangle rect)
     return (GdkPoint){rect.x + rect.width / 2, rect.y + rect.height / 2};
 }
 
+static int squared_distance (GdkPoint a, GdkPoint b)
+{
+    int k1 = b.x - a.x;
+    int k2 = b.y - a.y;
+
+    return k1*k1 + k2*k2;
+}
+
+typedef struct _TilableWindow
+{
+    MetaRectangle rect;
+    MetaDeepinClonedWidget* id;
+} TilableWindow;
+
+static void grid_placement ( DeepinShadowWorkspace* self, 
+        MetaRectangle area, gboolean closest)
+{
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+    GPtrArray* clones = priv->clones;
+    if (!clones || clones->len == 0) return;
+
+    int window_count = clones->len;
+    int columns = (int)ceil (sqrt (window_count));
+    int rows = (int)ceil (window_count / (double)columns);
+
+    // Assign slots
+    int slot_width = area.width / columns;
+    int slot_height = area.height / rows;
+
+    GList* windows = NULL;
+    for (int i = 0; i < clones->len; i++) {
+        MetaDeepinClonedWidget* clone = g_ptr_array_index(clones, i);
+
+        TilableWindow* tw = g_new0(TilableWindow, 1);
+        tw->id = clone;
+
+        MetaWindow* win = meta_deepin_cloned_widget_get_window(clone);
+        meta_window_get_input_rect(win, &tw->rect);
+
+        windows = g_list_append(windows, tw);
+    }
+
+    TilableWindow* taken_slots[rows * columns];
+
+    if (closest) {
+        // Assign each window to the closest available slot.
+
+        // precalculate all slot centers
+        GdkPoint slot_centers[rows * columns];
+        for (int x = 0; x < columns; x++) {
+            for (int y = 0; y < rows; y++) {
+                slot_centers[x + y * columns] = (GdkPoint){
+                    area.x + slot_width  * x + slot_width  / 2,
+                    area.y + slot_height * y + slot_height / 2
+                };
+            }
+        }
+
+        GList* tmplist = g_list_copy(windows);
+        while (g_list_length(tmplist) > 0) {
+            GList* link = g_list_nth(tmplist, 0);
+            TilableWindow* window = (TilableWindow*)link->data;
+            MetaRectangle rect = window->rect;
+
+            int slot_candidate = -1;
+            int slot_candidate_distance = INT_MAX;
+            GdkPoint pos = rect_center (rect);
+
+            // all slots
+            for (int i = 0; i < columns * rows; i++) {
+                if (i > window_count - 1)
+                    break;
+
+                int dist = squared_distance (pos, slot_centers[i]);
+
+                if (dist < slot_candidate_distance) {
+                    // window is interested in this slot
+                    TilableWindow* occupier = taken_slots[i];
+                    if (occupier == window)
+                        continue;
+
+                    if (occupier == NULL || dist < squared_distance (rect_center (occupier->rect), slot_centers[i])) {
+                        // either nobody lives here, or we're better - takeover the slot if it's our best
+                        slot_candidate = i;
+                        slot_candidate_distance = dist;
+                    }
+                }
+            }
+
+            if (slot_candidate == -1)
+                continue;
+
+            if (taken_slots[slot_candidate] != NULL)
+                tmplist = g_list_prepend(tmplist, taken_slots[slot_candidate]);
+
+            tmplist = g_list_remove_link(tmplist, link);
+            taken_slots[slot_candidate] = window;
+            g_list_free(link);
+        }
+        g_list_free(tmplist);
+
+    } else {
+        // Assign each window as the origin order.
+        for (int i = 0; i < clones->len; i++) {
+            GList* link = g_list_nth (windows, i);
+            taken_slots[i] = (TilableWindow*)link->data;
+        }
+    }
+
+    // see how many windows we have on the last row
+    int left_over = (int)window_count - columns * (rows - 1);
+
+    for (int slot = 0; slot < columns * rows; slot++) {
+        TilableWindow* window = taken_slots[slot];
+        // some slots might be empty
+        if (window == NULL)
+            continue;
+
+        MetaRectangle rect = window->rect;
+
+        // Work out where the slot is
+        MetaRectangle target = {
+            area.x + (slot % columns) * slot_width,
+            area.y + (slot / columns) * slot_height,
+            slot_width, 
+            slot_height
+        };
+        target = rect_adjusted (target, 10, 10, -10, -10);
+
+        float scale;
+        if (target.width / (double)rect.width < target.height / (double)rect.height) {
+            // Center vertically
+            scale = target.width / (float)rect.width;
+            target.y += (target.height - (int)(rect.height * scale)) / 2;
+            target.height = (int)floorf (rect.height * scale);
+        } else {
+            // Center horizontally
+            scale = target.height / (float)rect.height;
+            target.x += (target.width - (int)(rect.width * scale)) / 2;
+            target.width = (int)floorf (rect.width * scale);
+        }
+
+        // Don't scale the windows too much
+        if (scale > 1.0) {
+            scale = 1.0f;
+            target = (MetaRectangle){
+                rect_center (target).x - (int)floorf (rect.width * scale) / 2,
+                rect_center (target).y - (int)floorf (rect.height * scale) / 2,
+                (int)floorf (scale * rect.width), 
+                (int)floorf (scale * rect.height)
+            };
+        }
+
+        // put the last row in the center, if necessary
+        if (left_over != columns && slot >= columns * (rows - 1))
+            target.x += (columns - left_over) * slot_width / 2;
+
+        place_window(self, window->id, target);
+    }
+
+    g_list_free_full(windows, g_free);
+}
+
 static void natural_placement (DeepinShadowWorkspace* self, MetaRectangle area)
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
@@ -463,7 +626,9 @@ static void calculate_places(DeepinShadowWorkspace* self)
         };
 
         priv->animating = TRUE;
-        natural_placement(self, area);
+        /*natural_placement(self, area);*/
+        grid_placement(self, area, FALSE);
+
     } else {
         priv->ready = TRUE; // no window at all
     }
