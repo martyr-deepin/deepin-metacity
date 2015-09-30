@@ -249,7 +249,7 @@ void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self)
                 deepin_window_surface_manager_get_surface(desktop_win, 1.0), 
                 0, 0,
                 deepin_window_surface_manager_get_surface(dock_win, 1.0), 
-                0, r1.height - r2.height,
+                (r1.width - r2.width)/2, r1.height - r2.height,
                 1.0);
 
     }
