@@ -19,6 +19,7 @@
 
 #include <config.h>
 #include <math.h>
+#include <string.h>
 #include <stdlib.h>
 #include <util.h>
 #include <gdk/gdk.h>
@@ -260,12 +261,15 @@ static void grid_placement ( DeepinShadowWorkspace* self,
     }
 
     TilableWindow* taken_slots[rows * columns];
+    memset(taken_slots, 0, sizeof taken_slots);
 
     if (closest) {
         // Assign each window to the closest available slot.
 
         // precalculate all slot centers
         GdkPoint slot_centers[rows * columns];
+        memset(slot_centers, 0, sizeof slot_centers);
+
         for (int x = 0; x < columns; x++) {
             for (int y = 0; y < rows; y++) {
                 slot_centers[x + y * columns] = (GdkPoint){

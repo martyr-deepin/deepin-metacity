@@ -80,7 +80,7 @@ void deepin_message_hub_window_damaged(MetaWindow* window, XRectangle* rects, in
     if (window == NULL || window->unmanaging || window->withdrawn)
         return;
 
-    gboolean surface_need_update = FALSE;
+    gboolean surface_need_update = window->type != META_WINDOW_NORMAL;
 
     MetaRectangle bound;
     meta_window_get_input_rect(window, &bound);
