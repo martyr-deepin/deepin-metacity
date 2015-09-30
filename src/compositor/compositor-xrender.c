@@ -1530,8 +1530,19 @@ static gboolean
 compositor_idle_cb (gpointer data)
 {
   MetaCompositorXRender *compositor = (MetaCompositorXRender *) data;
-
   compositor->repaint_id = 0;
+
+  static GTimer* t = NULL;
+  static double last_time = 0;
+
+  if (!t) {
+      t = g_timer_new();
+  } else {
+      double d = g_timer_elapsed(t, NULL);
+      if (d - last_time < 0.030) return FALSE;
+      last_time = d;
+  }
+
   repair_display (compositor->display);
 
   return FALSE;
