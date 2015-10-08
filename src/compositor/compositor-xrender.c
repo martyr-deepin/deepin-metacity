@@ -1955,6 +1955,7 @@ add_win (MetaScreen *screen,
     }
   get_window_type (display, cw);
 
+
   /* If Metacity has decided not to manage this window then the input events
      won't have been set on the window */
   event_mask = cw->attrs.your_event_mask | PropertyChangeMask;
@@ -1988,7 +1989,18 @@ add_win (MetaScreen *screen,
   else
     cw->shadow_type = META_SHADOW_MEDIUM;
 
-  cw->opacity = OPAQUE;
+  {
+    gulong value;
+
+    MetaCompositorXRender* compositor = DISPLAY_COMPOSITOR(display);
+
+    if (meta_prop_get_cardinal (display, xwindow,
+                                compositor->atom_net_wm_window_opacity,
+                                &value) == FALSE)
+      value = OPAQUE;
+
+    cw->opacity = (guint)value;
+  }
 
   cw->border_clip = None;
 
