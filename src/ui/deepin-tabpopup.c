@@ -30,6 +30,7 @@
 #include "deepin-fixed.h"
 #include "select-workspace.h"
 #include "deepin-design.h"
+#include "deepin-message-hub.h"
 #include "deepin-switch-previewer.h"
 #include "deepin-window-surface-manager.h"
 #include "deepin-background-cache.h"
@@ -169,6 +170,123 @@ static gboolean on_thumb_clicked(MetaDeepinTabWidget* tab,
     return TRUE;
 }
 
+static gboolean on_idle_relayout(DeepinTabPopup* self)
+{
+    int height;
+    int width;
+    float box_width, box_height;
+    float item_width, item_height;
+    double item_scale = 1.0;
+    int entry_count = g_list_length(self->entries);
+
+    calculate_preferred_size(entry_count, self->max_width,
+            &box_width, &box_height, &item_width, &item_height, &width);
+
+    item_scale = item_width / SWITCHER_ITEM_PREFER_WIDTH;
+    height = entry_count / width;
+    if (entry_count % width)
+        height += 1;
+
+
+    GtkWidget* grid = gtk_bin_get_child(GTK_BIN(self->window));
+
+    int left = 0, top = 0;
+    GList* tmp = self->entries;
+    while (tmp) {
+        DeepinTabEntry *te = (DeepinTabEntry*)tmp->data;
+        meta_deepin_tab_widget_set_scale(META_DEEPIN_TAB_WIDGET(te->widget), item_scale);
+
+        deepin_fixed_move(DEEPIN_FIXED(grid), te->widget, 
+                left * (item_width + SWITCHER_COLUMN_SPACING) 
+                + (item_width + SWITCHER_COLUMN_SPACING) / 2,
+                top * (item_height + SWITCHER_ROW_SPACING) 
+                + (item_height + SWITCHER_ROW_SPACING) / 2,
+                TRUE);
+
+        left++;
+        if (left >= width) {
+            left = 0, top++;
+        }
+        tmp = tmp->next;
+    }
+
+    return G_SOURCE_REMOVE;
+}
+
+static void free_deepin_tab_entry (gpointer data, gpointer user_data)
+{
+    DeepinTabEntry *te;
+
+    te = (DeepinTabEntry*)data;
+
+    g_free (te->title);
+
+    g_free (te);
+}
+
+static void display_entry (DeepinTabPopup *popup,
+        DeepinTabEntry     *te)
+{
+    if (popup->current_selected_entry) {
+        meta_deepin_tab_widget_unselect (META_DEEPIN_TAB_WIDGET (popup->current_selected_entry->widget));
+    }
+
+    meta_deepin_tab_widget_select (META_DEEPIN_TAB_WIDGET (te->widget));
+    meta_deepin_switch_previewer_select(popup->previewer, te);
+
+    /* Must be before we handle an expose for the outline window */
+    popup->current_selected_entry = te;
+}
+
+
+static void on_window_removed(DeepinMessageHub* hub, MetaWindow* window, 
+        gpointer data)
+{
+    if (window->type != META_WINDOW_NORMAL) return;
+
+    DeepinTabPopup* self = (DeepinTabPopup*)data;
+    MetaDisplay* display = meta_get_display();
+
+    GList* tmp = self->entries;
+    while (tmp) {
+        DeepinTabEntry *te = (DeepinTabEntry*)tmp->data;
+        MetaWindow* meta_win = meta_display_lookup_x_window(display, (Window)te->key);
+        if (meta_win == window) {
+            self->entries = g_list_remove_link(self->entries, tmp);
+
+            GtkWidget* grid = gtk_bin_get_child(GTK_BIN(self->window));
+            gtk_container_remove(GTK_CONTAINER(grid), te->widget);
+
+            if (self->current == tmp) {
+                self->current = tmp->next;
+                if (self->current == NULL)
+                    self->current = self->entries;
+                DeepinTabEntry *te = (DeepinTabEntry*)self->current->data;
+                display_entry(self, te);
+            }
+
+            free_deepin_tab_entry(te, NULL);
+            g_list_free(tmp);
+
+            break;
+        }
+
+        tmp = tmp->next;
+    }
+
+    g_idle_add((GSourceFunc)on_idle_relayout, data);
+}
+
+static void on_window_change_workspace(DeepinMessageHub* hub, MetaWindow* window,
+        MetaWorkspace* new_workspace, gpointer user_data)
+{
+    MetaWorkspace* active_ws = new_workspace->screen->active_workspace;
+    
+    if (active_ws != new_workspace) { // dest workspace
+        on_window_removed(hub, window, user_data);
+    }
+}
+
 DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
         int                 screen_number,
         int                 entry_count,
@@ -230,7 +348,8 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
     popup->current_selected_entry = NULL;
 
     screen_width = gdk_screen_get_width (screen);
-    max_width = screen_width - POPUP_SCREEN_PADDING * 2 - POPUP_PADDING * 2;
+    popup->max_width = max_width = 
+        screen_width - POPUP_SCREEN_PADDING * 2 - POPUP_PADDING * 2;
     for (i = 0; i < entry_count; ++i) {
         DeepinTabEntry* new_entry = deepin_tab_entry_new (&entries[i]);
         popup->entries = g_list_prepend (popup->entries, new_entry);
@@ -245,6 +364,7 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
             g_free(tmp);
 
             entry_count++;
+            i++;
         }
     }
 
@@ -299,23 +419,20 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
     GdkWindow *window = gtk_widget_get_window (popup->outline_window);
     gdk_window_raise(window);
 
+    g_object_connect(G_OBJECT(deepin_message_hub_get()), 
+            "signal::window-removed", on_window_removed, popup,
+            "signal::about-to-change-workspace", on_window_change_workspace, popup,
+            NULL);
+
     return popup;
-}
-
-static void free_deepin_tab_entry (gpointer data, gpointer user_data)
-{
-    DeepinTabEntry *te;
-
-    te = (DeepinTabEntry*)data;
-
-    g_free (te->title);
-
-    g_free (te);
 }
 
 void deepin_tab_popup_free (DeepinTabPopup *popup)
 {
     meta_verbose ("Destroying tab popup window\n");
+
+    g_signal_handlers_disconnect_by_data(G_OBJECT(deepin_message_hub_get()), 
+            popup);
 
     if (popup->outline_window != NULL) {
         gtk_widget_destroy (GTK_WIDGET(popup->previewer));
@@ -346,20 +463,6 @@ void deepin_tab_popup_set_showing (DeepinTabPopup *popup,
             meta_core_increment_event_serial (GDK_DISPLAY_XDISPLAY (gdk_display_get_default ()));
         }
     }
-}
-
-static void display_entry (DeepinTabPopup *popup,
-        DeepinTabEntry     *te)
-{
-    if (popup->current_selected_entry) {
-        meta_deepin_tab_widget_unselect (META_DEEPIN_TAB_WIDGET (popup->current_selected_entry->widget));
-    }
-
-    meta_deepin_tab_widget_select (META_DEEPIN_TAB_WIDGET (te->widget));
-    meta_deepin_switch_previewer_select(popup->previewer, te);
-
-    /* Must be before we handle an expose for the outline window */
-    popup->current_selected_entry = te;
 }
 
 void deepin_tab_popup_forward (DeepinTabPopup *popup)

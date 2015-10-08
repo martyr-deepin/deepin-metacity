@@ -53,6 +53,7 @@ struct _DeepinTabPopup
   GList *entries;
   DeepinTabEntry *current_selected_entry;
   GtkWidget *outline_window;
+  int max_width;
   MetaDeepinSwitchPreviewer* previewer;
 };
 

@@ -54,6 +54,7 @@ typedef struct _MetaDeepinTabWidgetPrivate
   cairo_surface_t* snapshot;
 
   MetaWindow* window;
+  MetaRectangle outer_rect; /* cache of window outer rect */
 
   gint disposed: 1;
   gint render_thumb: 1; /* if size is too small, do not render it */
@@ -170,7 +171,7 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
 
   cairo_save(cr);
 
-  if (priv->render_thumb) _do_clip(self, cr);
+  if (priv->render_thumb && priv->snapshot) _do_clip(self, cr);
 
   cairo_translate(cr, w2, h2);
 
@@ -183,8 +184,7 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
   gtk_render_background(context, cr, -w2, -h2, w, h);
   cairo_restore(cr);
 
-  MetaRectangle r;
-  meta_window_get_outer_rect(priv->window, &r);
+  MetaRectangle r = priv->outer_rect;
 
   double sx = RECT_PREFER_WIDTH / (double)r.width;
   double sy = RECT_PREFER_HEIGHT / (double)r.height;
@@ -199,7 +199,7 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
       cairo_paint(cr);
   }
 
-  if (priv->render_thumb) {
+  if (priv->render_thumb && priv->snapshot) {
       x = (w - cairo_image_surface_get_width(priv->snapshot)) / 2.0;
       y = (h - cairo_image_surface_get_height(priv->snapshot)) / 2.0;
       cairo_set_source_surface(cr, priv->snapshot, x, y);
@@ -460,6 +460,7 @@ meta_deepin_tab_widget_new (MetaWindow* window)
   widget = (MetaDeepinTabWidget*)g_object_new (META_TYPE_DEEPIN_TAB_WIDGET, NULL);
 
   widget->priv->window = window;
+  meta_window_get_outer_rect(window, &widget->priv->outer_rect);
 
   if (window->type != META_WINDOW_DESKTOP) {
       g_debug("WM_CLASS: %s, %s", window->res_name, window->res_class);
@@ -559,8 +560,7 @@ void meta_deepin_tab_widget_set_scale(MetaDeepinTabWidget* self, gdouble val)
             g_clear_pointer(&priv->snapshot, cairo_surface_destroy);
         }
 
-        MetaRectangle r;
-        meta_window_get_outer_rect(priv->window, &r);
+        MetaRectangle r = priv->outer_rect;
 
         double sx = RECT_PREFER_WIDTH / (double)r.width;
         double sy = RECT_PREFER_HEIGHT / (double)r.height;
@@ -571,7 +571,7 @@ void meta_deepin_tab_widget_set_scale(MetaDeepinTabWidget* self, gdouble val)
         if (priv->snapshot) cairo_surface_reference(priv->snapshot);
     }
 
-    gtk_widget_queue_draw(GTK_WIDGET(self));
+    gtk_widget_queue_resize(GTK_WIDGET(self));
 }
 
 gdouble meta_deepin_tab_widget_get_scale(MetaDeepinTabWidget* self)
