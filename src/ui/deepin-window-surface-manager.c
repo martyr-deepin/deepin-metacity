@@ -39,7 +39,6 @@ static DeepinWindowSurfaceManager* _the_manager = NULL;
 struct _DeepinWindowSurfaceManagerPrivate
 {
     GHashTable* windows;
-    GList* pending_refresh; /* MetaWindow that has pending damages */
 };
 
 enum
@@ -64,7 +63,6 @@ static void deepin_window_surface_manager_finalize (GObject *object)
 {
     DeepinWindowSurfaceManager* self = DEEPIN_WINDOW_SURFACE_MANAGER(object);
     g_hash_table_unref(self->priv->windows);
-    g_list_free(self->priv->pending_refresh);
 
 	G_OBJECT_CLASS (deepin_window_surface_manager_parent_class)->finalize (object);
 }
@@ -267,14 +265,11 @@ void deepin_window_surface_manager_flush()
 
     for (GList* t = l; t; t = t->next) {
         MetaWindow* win = (MetaWindow*)t->data;
-        if (g_list_find(priv->pending_refresh, win)) {
-            g_hash_table_remove(priv->windows, win);
-            deepin_window_surface_manager_get_surface((MetaWindow*)t->data, 1.0);
-        }
+        g_hash_table_remove(priv->windows, win);
+        g_signal_emit(self, signals[SIGNAL_SURFACE_INVALID], 0, win);
+        deepin_window_surface_manager_get_surface((MetaWindow*)t->data, 1.0);
     }
     g_list_free(l);
-    g_list_free(priv->pending_refresh);
-    priv->pending_refresh = NULL;
 }
 
 static void on_window_removed(DeepinMessageHub* hub, MetaWindow* window, 
@@ -286,16 +281,7 @@ static void on_window_removed(DeepinMessageHub* hub, MetaWindow* window,
 static void on_window_damaged(DeepinMessageHub* hub, MetaWindow* window, 
         gpointer data)
 {
-    DeepinWindowSurfaceManager* self = deepin_window_surface_manager_get();
-    DeepinWindowSurfaceManagerPrivate* priv = self->priv;
-    if (!g_hash_table_contains(priv->windows, window)) {
-        return;
-    }
-
-    if (!g_list_find(priv->pending_refresh, window)) {
-        priv->pending_refresh = g_list_append(priv->pending_refresh, 
-                window);
-    }
+    deepin_window_surface_manager_remove_window(window);
 }
 
 DeepinWindowSurfaceManager* deepin_window_surface_manager_get(void)

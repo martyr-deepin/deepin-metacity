@@ -188,8 +188,6 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
     double item_scale = 1.0;
     float item_width, item_height;
 
-    deepin_window_surface_manager_flush();
-
     popup = g_new (DeepinTabPopup, 1);
 
     screen = gdk_display_get_screen (gdk_display_get_default (),

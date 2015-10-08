@@ -742,8 +742,6 @@ static gboolean on_deepin_wm_background_event(DeepinWMBackground* self,
 
 GtkWidget* deepin_wm_background_new(MetaScreen* screen)
 {
-    deepin_window_surface_manager_flush();
-
     GtkWidget* widget = (GtkWidget*)g_object_new(DEEPIN_TYPE_WM_BACKGROUND,
             "type", GTK_WINDOW_POPUP, NULL);
     deepin_setup_style_class(widget, "deepin-window-manager"); 
@@ -753,9 +751,6 @@ GtkWidget* deepin_wm_background_new(MetaScreen* screen)
     MetaDisplay* display = meta_get_display();
     GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(display->xdisplay);
     self->priv->gscreen = gdk_display_get_default_screen(gdisplay);
-
-    /*GdkVisual* visual = gdk_screen_get_rgba_visual (self->priv->gscreen);*/
-    /*if (visual) gtk_widget_set_visual (widget, visual);*/
 
     gint w = screen->rect.width, h = screen->rect.height;
     gtk_window_set_position(GTK_WINDOW(widget), GTK_WIN_POS_CENTER_ALWAYS);

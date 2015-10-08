@@ -172,24 +172,15 @@ static void meta_deepin_cloned_widget_get_property(GObject *object, guint proper
     }
 }
 
-static void on_surface_invalid(DeepinWindowSurfaceManager* manager,
-        MetaWindow* window, MetaDeepinClonedWidget* self)
-{
-    if (window && self->priv->meta_window == window) {
-        self->priv->snapshot = NULL;
-    }
-}
-
 static void meta_deepin_cloned_widget_dispose(GObject *object)
 {
     MetaDeepinClonedWidget *self = META_DEEPIN_CLONED_WIDGET(object);
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
 
     priv->meta_window = NULL;
-    priv->snapshot = NULL;
-    g_signal_handlers_disconnect_by_data(
-            G_OBJECT(deepin_window_surface_manager_get()), 
-            (gpointer)object);
+    if (priv->snapshot) {
+        g_clear_pointer(&priv->snapshot, cairo_surface_destroy);
+    }
 
     G_OBJECT_CLASS(meta_deepin_cloned_widget_parent_class)->dispose(object);
 }
@@ -720,8 +711,6 @@ GtkWidget * meta_deepin_cloned_widget_new (MetaWindow* meta)
     widget = (MetaDeepinClonedWidget*)g_object_new (META_TYPE_DEEPIN_CLONED_WIDGET, NULL);
     widget->priv->meta_window = meta;
     deepin_setup_style_class(GTK_WIDGET(widget), "deepin-window-clone");
-    g_signal_connect(deepin_window_surface_manager_get(), 
-            "surface-invalid", (GCallback)on_surface_invalid, widget);
 
     GtkTargetEntry targets[] = {
         {(char*)"window", GTK_TARGET_OTHER_WIDGET, DRAG_TARGET_WINDOW},
@@ -925,6 +914,7 @@ void meta_deepin_cloned_widget_set_size(MetaDeepinClonedWidget* self,
 
     priv->snapshot = deepin_window_surface_manager_get_surface(
             priv->meta_window, (double)width/r.width);
+    if (priv->snapshot) cairo_surface_reference(priv->snapshot);
 
     priv->real_size.width = width;
     priv->real_size.height = height;
@@ -977,11 +967,6 @@ void meta_deepin_cloned_widget_pop_state(MetaDeepinClonedWidget* self)
     if (self->priv->animation_stack == 0) {
         meta_deepin_cloned_widget_prepare_animation(self);
     }
-}
-
-cairo_surface_t* meta_deepin_cloned_widget_get_snapshot(MetaDeepinClonedWidget* self)
-{
-    return self->priv->snapshot;
 }
 
 void meta_deepin_cloned_widget_set_alpha(MetaDeepinClonedWidget* self, gdouble val)

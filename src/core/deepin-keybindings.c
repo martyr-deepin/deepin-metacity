@@ -356,7 +356,6 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
         }
 
         GtkWidget* top = screen->exposing_windows_popup;
-        deepin_window_surface_manager_flush();
 
         DeepinShadowWorkspace* active_workspace = 
             (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
