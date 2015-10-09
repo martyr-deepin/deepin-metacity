@@ -244,6 +244,9 @@ void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self)
         meta_window_get_outer_rect(desktop_win, &r1);
         meta_window_get_outer_rect(dock_win, &r2);
 
+        deepin_window_surface_manager_remove_window(desktop_win);
+        deepin_window_surface_manager_remove_window(dock_win);
+
         priv->desktop_surface = deepin_window_surface_manager_get_combined3(
                 deepin_background_cache_get_surface(1.0), 
                 deepin_window_surface_manager_get_surface(desktop_win, 1.0), 
