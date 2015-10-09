@@ -32,6 +32,7 @@
 #include <unistd.h>
 
 #include <gdk/gdk.h>
+#include <cairo/cairo-xlib.h>
 
 #include "display.h"
 #include "screen.h"
@@ -161,6 +162,8 @@ typedef struct _MetaCompWindow
 
   gboolean damaged;
   gboolean shaped;
+
+  XRectangle shape_bounds;
 
   MetaCompWindowType type;
 
@@ -1968,6 +1971,11 @@ add_win (MetaScreen *screen,
   cw->damaged = FALSE;
   cw->shaped = is_shaped (display, xwindow);
 
+  cw->shape_bounds.x = cw->attrs.x;
+  cw->shape_bounds.y = cw->attrs.y;
+  cw->shape_bounds.width = cw->attrs.width;
+  cw->shape_bounds.height = cw->attrs.height;
+
   if (cw->attrs.class == InputOnly)
     cw->damage = None;
   else
@@ -2124,6 +2132,7 @@ resize_win (MetaCompWindow *cw,
   Display *xdisplay = meta_display_get_xdisplay (display);
   MetaCompScreen *info = meta_screen_get_compositor_data (screen);
   XserverRegion damage;
+  XserverRegion shape;
   gboolean debug;
 
   debug = DISPLAY_COMPOSITOR (display)->debug;
@@ -2214,6 +2223,10 @@ resize_win (MetaCompWindow *cw,
       damage = XFixesCreateRegion (xdisplay, NULL, 0);
       XFixesCopyRegion (xdisplay, damage, cw->extents);
     }
+
+  shape = XFixesCreateRegion (xdisplay, &cw->shape_bounds, 1);
+  XFixesUnionRegion (xdisplay, damage, damage, shape);
+  XFixesDestroyRegion (xdisplay, shape);
 
   dump_xserver_region ("resize_win", display, damage);
   add_damage (screen, damage);
@@ -2573,6 +2586,21 @@ process_shape (MetaCompositorXRender *compositor,
 
       if (event->shaped && !cw->shaped)
         cw->shaped = TRUE;
+
+      if (event->shaped == True)
+        {
+          cw->shape_bounds.x = cw->attrs.x + event->x;
+          cw->shape_bounds.y = cw->attrs.y + event->y;
+          cw->shape_bounds.width = event->width;
+          cw->shape_bounds.height = event->height;
+        }
+      else
+        {
+          cw->shape_bounds.x = cw->attrs.x;
+          cw->shape_bounds.y = cw->attrs.y;
+          cw->shape_bounds.width = cw->attrs.width;
+          cw->shape_bounds.height = cw->attrs.height;
+        }
     }
 }
 
@@ -2952,24 +2980,42 @@ xrender_process_event (MetaCompositor *compositor,
 #endif
 }
 
-static Pixmap
-xrender_get_window_pixmap (MetaCompositor *compositor,
-                           MetaWindow     *window)
+static cairo_surface_t *
+xrender_get_window_surface (MetaCompositor *compositor,
+                            MetaWindow     *window)
 {
 #ifdef HAVE_COMPOSITE_EXTENSIONS
-  MetaCompWindow *cw = NULL;
-  MetaScreen *screen = meta_window_get_screen (window);
-  MetaFrame *frame = meta_window_get_frame (window);
+  MetaFrame *frame;
+  Window xwindow;
+  MetaScreen *screen;
+  MetaCompWindow *cw;
+  MetaCompositorXRender *xrc;
+  Display *display;
+  Pixmap pixmap;
 
-  cw = find_window_for_screen (screen, frame ? meta_frame_get_xwindow (frame) :
-                               meta_window_get_xwindow (window));
+  frame = meta_window_get_frame (window);
+
+  if (frame)
+    xwindow = meta_frame_get_xwindow (frame);
+  else
+    xwindow = meta_window_get_xwindow (window);
+
+  screen = meta_window_get_screen (window);
+  cw = find_window_for_screen (screen, xwindow);
+
   if (cw == NULL)
-    return None;
+    return NULL;
+
+  xrc = (MetaCompositorXRender *) compositor;
+  display = meta_display_get_xdisplay (xrc->display);
 
   if (meta_window_is_shaded (window))
-    return cw->shaded_back_pixmap;
+    pixmap = cw->shaded_back_pixmap;
   else
-    return cw->back_pixmap;
+    pixmap = cw->back_pixmap;
+
+  return cairo_xlib_surface_create (display, pixmap, cw->attrs.visual,
+                                    cw->attrs.width, cw->attrs.height);
 #endif
 }
 
@@ -3155,7 +3201,7 @@ static MetaCompositor comp_info = {
   xrender_remove_window,
   xrender_set_updates,
   xrender_process_event,
-  xrender_get_window_pixmap,
+  xrender_get_window_surface,
   xrender_set_active_window,
   xrender_free_window,
   xrender_maximize_window,
@@ -3166,7 +3212,7 @@ MetaCompositor *
 meta_compositor_xrender_new (MetaDisplay *display)
 {
 #ifdef HAVE_COMPOSITE_EXTENSIONS
-  char *atom_names[] = {
+  const gchar *atom_names[] = {
     "_XROOTPMAP_ID",
     "_XSETROOT_ID",
     "_NET_WM_WINDOW_OPACITY",
@@ -3196,7 +3242,7 @@ meta_compositor_xrender_new (MetaDisplay *display)
   xrc->display = display;
 
   meta_verbose ("Creating %d atoms\n", (int) G_N_ELEMENTS (atom_names));
-  XInternAtoms (xdisplay, atom_names, G_N_ELEMENTS (atom_names),
+  XInternAtoms (xdisplay, (gchar **) atom_names, G_N_ELEMENTS (atom_names),
                 False, atoms);
 
   xrc->atom_x_root_pixmap = atoms[0];

@@ -1,8 +1,22 @@
+NULL =
+
 lib_LTLIBRARIES = libdeepin-metacity-private.la
 
 SUBDIRS = tools themes
 
-AM_CPPFLAGS=-I$(srcdir)/include -DMETACITY_LIBEXECDIR=\"$(libexecdir)\" -DHOST_ALIAS=\"@HOST_ALIAS@\" -DMETACITY_LOCALEDIR=\"$(prefix)/@DATADIRNAME@/locale\" -DMETACITY_PKGDATADIR=\"$(pkgdatadir)\" -DMETACITY_DATADIR=\"$(datadir)\" -DG_LOG_DOMAIN=\"deepin_metacity\" -DSN_API_NOT_YET_FROZEN=1 @METACITY_CFLAGS@
+AM_CPPFLAGS = \
+	-DMETACITY_LIBEXECDIR=\"$(libexecdir)\" \
+	-DHOST_ALIAS=\"@HOST_ALIAS@\" \
+	-DMETACITY_LOCALEDIR=\""$(localedir)"\" \
+	-DMETACITY_PKGDATADIR=\"$(pkgdatadir)\" \
+	-DMETACITY_DATADIR=\"$(datadir)\" \
+	-DG_LOG_DOMAIN=\"deepin_metacity\" \
+	-DSN_API_NOT_YET_FROZEN=1 \
+	-I$(srcdir)/include \
+	@METACITY_CFLAGS@ \
+	$(WARN_CFLAGS) \
+	$(AM_CFLAGS) \
+	$(NULL)
 
 deepin_metacity_SOURCES= 				\
 	core/main.c				\
@@ -149,7 +163,7 @@ libdeepin_metacity_private_la_SOURCES=			\
 	ui/theme.h				\
 	ui/ui.c
 
-libdeepin_metacity_private_la_LDFLAGS = -no-undefined -version-info 3:0:0
+libdeepin_metacity_private_la_LDFLAGS = -no-undefined -version-info 3:0:0 $(WARN_LDFLAGS) $(AM_LDFLAGS)
 libdeepin_metacity_private_la_LIBADD  = @METACITY_LIBS@
 
 libdeepin_metacityincludedir = $(includedir)/deepin-metacity/metacity-private

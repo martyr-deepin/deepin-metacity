@@ -101,7 +101,7 @@ void calculate_preferred_size(gint entry_count, gint max_width,
         float* box_width, float* box_height, float* item_width,
         float* item_height, int* max_items_each_row);
 
-GtkCssProvider* deepin_get_default_css_provider();
+GtkCssProvider* deepin_get_default_css_provider(void);
 
 void deepin_setup_style_class(GtkWidget* widget, const char* class_name);
 

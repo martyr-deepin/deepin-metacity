@@ -102,7 +102,7 @@ void deepin_message_hub_window_damaged(MetaWindow* window, XRectangle* rects, in
     }
 }
 
-void deepin_message_hub_desktop_changed()
+void deepin_message_hub_desktop_changed(void)
 {
     g_debug("%s", __func__);
     g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_DESKTOP_CHANGED], 0);
@@ -124,7 +124,7 @@ void deepin_message_hub_window_about_to_change_workspace(
             window, workspace);
 }
  
-void deepin_message_hub_drag_end()
+void deepin_message_hub_drag_end(void)
 {
     g_debug("%s", __func__);
     g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_DRAG_END], 0); 

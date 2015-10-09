@@ -1296,6 +1296,56 @@ meta_screen_update_cursor (MetaScreen *screen)
   XFreeCursor (screen->display->xdisplay, xcursor);
 }
 
+#define MAX_PREVIEW_SIZE 150.0
+
+static GdkPixbuf *
+get_window_pixbuf (MetaWindow *window,
+                   int        *width,
+                   int        *height)
+{
+  cairo_surface_t *surface;
+  GdkPixbuf *pixbuf, *scaled;
+  double ratio;
+
+  surface = meta_compositor_get_window_surface (window->display->compositor,
+                                            window);
+  if (surface == NULL)
+    return NULL;
+
+  meta_error_trap_push (NULL);
+
+  pixbuf = meta_ui_get_pixbuf_from_surface (surface);
+  cairo_surface_destroy (surface);
+
+  if (meta_error_trap_pop_with_return (NULL, FALSE) != Success)
+    g_clear_object (&pixbuf);
+
+  if (pixbuf == NULL) 
+    return NULL;
+
+  *width = gdk_pixbuf_get_width (pixbuf);
+  *height = gdk_pixbuf_get_height (pixbuf);
+
+  /* Scale pixbuf to max dimension MAX_PREVIEW_SIZE */
+  if (*width > *height)
+    {
+      ratio = ((double) *width) / MAX_PREVIEW_SIZE;
+      *width = (int) MAX_PREVIEW_SIZE;
+      *height = (int) (((double) *height) / ratio);
+    }
+  else
+    {
+      ratio = ((double) *height) / MAX_PREVIEW_SIZE;
+      *height = (int) MAX_PREVIEW_SIZE;
+      *width = (int) (((double) *width) / ratio);
+    }
+
+  scaled = gdk_pixbuf_scale_simple (pixbuf, *width, *height,
+                                    GDK_INTERP_BILINEAR);
+  g_object_unref (pixbuf);
+  return scaled;
+}
+                                         
 void
 meta_screen_ensure_tab_popup (MetaScreen      *screen,
                               MetaTabList      list_type,
@@ -2039,7 +2089,7 @@ meta_screen_queue_workarea_recalc (MetaScreen *screen)
 
 
 #ifdef WITH_VERBOSE_MODE
-static char *
+static const gchar *
 meta_screen_corner_to_string (MetaScreenCorner corner)
 {
   switch (corner)
@@ -2052,6 +2102,8 @@ meta_screen_corner_to_string (MetaScreenCorner corner)
       return "BottomLeft";
     case META_SCREEN_BOTTOMRIGHT:
       return "BottomRight";
+    default:
+      break;
     }
 
   return "Unknown";
@@ -2264,6 +2316,8 @@ meta_screen_calc_workspace_layout (MetaScreen          *screen,
               --r;
             }
         }
+      break;
+    default:
       break;
     }
 
@@ -2685,6 +2739,9 @@ meta_screen_sn_event (SnMonitorEvent *event,
       meta_topic (META_DEBUG_STARTUP,
                   "Received startup canceled for %s\n",
                   sn_startup_sequence_get_id (sequence));
+      break;
+
+    default:
       break;
     }
 }

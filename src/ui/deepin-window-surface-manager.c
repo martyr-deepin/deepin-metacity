@@ -92,39 +92,6 @@ static gint scale_compare(gconstpointer a, gconstpointer b, gpointer data)
     return 0;
 }
 
-static cairo_surface_t* get_window_surface(MetaWindow* window)
-{
-    Pixmap pixmap;
-
-    pixmap = meta_compositor_get_window_pixmap (window->display->compositor,
-            window);
-
-    if (pixmap == None) return NULL;
-
-    cairo_surface_t *surface = NULL;
-
-    MetaScreen *screen = window->screen;
-    MetaDisplay *display = meta_screen_get_display (screen);
-    Display *xdisplay = meta_display_get_xdisplay (display);
-
-    Window root;
-    int x, y;
-    unsigned int width, height, border, depth;
-
-    if (!XGetGeometry(xdisplay, pixmap, &root, &x, &y, &width, &height, &border, &depth))
-        return NULL;
-
-    GdkVisual* visual;
-    visual = gdk_screen_get_rgba_visual (gdk_screen_get_default());
-    if (!visual || depth != 32)
-        visual = gdk_screen_get_system_visual (gdk_screen_get_default());
-
-    surface = cairo_xlib_surface_create(xdisplay, pixmap,
-            GDK_VISUAL_XVISUAL(visual), width, height);
-
-    return surface;
-}
-
 cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
         double scale)
 {
@@ -141,7 +108,8 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
     *s = 1.0;
     cairo_surface_t* ref = (cairo_surface_t*)g_tree_lookup(t, s);
     if (!ref) {
-        ref = get_window_surface(window);
+        ref = meta_compositor_get_window_surface(window->display->compositor,
+            window);
         if (!ref) {
             g_free(s);
             return NULL;

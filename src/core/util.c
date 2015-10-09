@@ -321,6 +321,8 @@ topic_name (MetaDebugTopic topic)
       return "EDGE_RESISTANCE";
     case META_DEBUG_UI:
       return "UI";
+    default:
+      break;
     }
 
   return "WM";
@@ -473,7 +475,6 @@ meta_pop_no_msg_prefix (void)
 void
 meta_exit (MetaExitCode code)
 {
-
   exit (code);
 }
 

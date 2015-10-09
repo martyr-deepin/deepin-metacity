@@ -105,7 +105,7 @@ void calculate_preferred_size(gint entry_count, gint max_width,
     if (max_items_each_row) *max_items_each_row = cached.items_each_row;
 }
 
-GtkCssProvider* deepin_get_default_css_provider()
+GtkCssProvider* deepin_get_default_css_provider(void)
 {
     if (_deepin_css_provider) return _deepin_css_provider;
     GtkCssProvider* css_style = gtk_css_provider_new();

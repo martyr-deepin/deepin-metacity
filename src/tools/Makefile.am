@@ -5,7 +5,7 @@ icon_DATA=metacity-window-demo.png
 
 AM_CPPFLAGS=@METACITY_WINDOW_DEMO_CFLAGS@ @METACITY_MESSAGE_CFLAGS@ \
 	-DMETACITY_ICON_DIR=\"$(pkgdatadir)/icons\" \
-	-DMETACITY_LOCALEDIR=\"$(prefix)/@DATADIRNAME@/locale\"
+	-DMETACITY_LOCALEDIR=\""$(localedir)"\"
 
 metacity_message_SOURCES= 				\
 	metacity-message.c
@@ -26,7 +26,7 @@ noinst_PROGRAMS=metacity-mag metacity-grayscale
 
 metacity_message_LDADD= @METACITY_MESSAGE_LIBS@
 metacity_window_demo_LDADD= @METACITY_WINDOW_DEMO_LIBS@
-metacity_mag_LDADD= @METACITY_WINDOW_DEMO_LIBS@ -lm
+metacity_mag_LDADD= @METACITY_WINDOW_DEMO_LIBS@
 metacity_grayscale_LDADD = @METACITY_WINDOW_DEMO_LIBS@
 
 EXTRA_DIST=$(icon_DATA)

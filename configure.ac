@@ -1,22 +1,63 @@
-AC_PREREQ(2.50)
+dnl **************************************************************************
+dnl Define version info
+dnl **************************************************************************
 
-m4_define([metacity_major_version], [3])
-m4_define([metacity_minor_version], [17])
-m4_define([metacity_micro_version], [2])
+m4_define([m_major_version], [3])
+m4_define([m_minor_version], [18])
+m4_define([m_micro_version], [0])
+m4_define([m_version], [m_major_version.m_minor_version.m_micro_version])
 
-m4_define([metacity_version],
-          [metacity_major_version.metacity_minor_version.metacity_micro_version])
-AC_INIT([deepin-metacity], [metacity_version],
-        [http://bugzilla.gnome.org/enter_bug.cgi?product=metacity])
+dnl **************************************************************************
+dnl Define bugzilla address
+dnl **************************************************************************
 
-AC_CONFIG_SRCDIR(src/core/display.c)
-AC_CONFIG_HEADERS(config.h)
+m4_define([m_bugzilla_url],
+          [https://bugzilla.gnome.org/enter_bug.cgi?product=metacity])
 
-AM_INIT_AUTOMAKE([1.11.1 no-dist-gzip dist-xz])
-m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])],)
+dnl **************************************************************************
+dnl Initialize autoconf
+dnl **************************************************************************
+
+AC_INIT([deepin-metacity], [m_version], [m_bugzilla_url])
+AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_SRCDIR([src/core/display.c])
+AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_AUX_DIR([build-aux])
+
+CFLAGS="${CFLAGS} -std=gnu99"
+
+dnl **************************************************************************
+dnl Set release policy
+dnl **************************************************************************
+
+AX_IS_RELEASE([git-directory])
+
+dnl **************************************************************************
+dnl Enable debug
+dnl **************************************************************************
+
+AX_CHECK_ENABLE_DEBUG([yes])
+
+dnl **************************************************************************
+dnl Add warning flags
+dnl **************************************************************************
+
+#AX_COMPILER_FLAGS([WARN_CFLAGS], [WARN_LDFLAGS])
+
+dnl **************************************************************************
+dnl Initialize automake
+dnl **************************************************************************
+
+AM_INIT_AUTOMAKE([1.13 no-dist-gzip dist-xz tar-ustar -Wno-portability])
 AM_MAINTAINER_MODE([enable])
+AM_SILENT_RULES([yes])
 
-GNOME_MAINTAINER_MODE_DEFINES
+dnl **************************************************************************
+dnl Initialize libtool
+dnl **************************************************************************
+
+LT_INIT
+LT_LIB_M
 
 # Honor aclocal flags
 AC_SUBST(ACLOCAL_AMFLAGS, "\${ACLOCAL_FLAGS}")
@@ -29,8 +70,6 @@ IT_PROG_INTLTOOL([0.34.90])
 AC_PROG_CC
 AC_ISC_POSIX
 AC_HEADER_STDC
-AC_LIBTOOL_WIN32_DLL
-AM_PROG_LIBTOOL
 
 #### Integer sizes 
 
@@ -45,76 +84,11 @@ AC_CHECK_SIZEOF(__int64)
 ## byte order
 AC_C_BIGENDIAN
 
-#### Warnings
-
-changequote(,)dnl
-if test "x$GCC" = "xyes"; then
-  case " $CFLAGS " in
-  *[\ \	]-Wall[\ \	]*) ;;
-  *) CFLAGS="$CFLAGS -Wall" ;;
-  esac
-
-#  case " $CFLAGS " in
-#  *[\ \	]-Wshadow[\ \	]*) ;;
-#  *) CFLAGS="$CFLAGS -Wshadow" ;;
-#  esac
-
-  case " $CFLAGS " in
-  *[\ \	]-Wchar-subscripts[\ \	]*) ;;
-  *) CFLAGS="$CFLAGS -Wchar-subscripts" ;;
-  esac
-
-  case " $CFLAGS " in
-  *[\ \	]-Wmissing-declarations[\ \	]*) ;;
-  *) CFLAGS="$CFLAGS -Wmissing-declarations" ;;
-  esac
-
-  case " $CFLAGS " in
-  *[\ \	]-Wmissing-prototypes[\ \	]*) ;;
-  *) CFLAGS="$CFLAGS -Wmissing-prototypes" ;;
-  esac
-
-  case " $CFLAGS " in
-  *[\ \	]-Wnested-externs[\ \	]*) ;;
-  *) CFLAGS="$CFLAGS -Wnested-externs" ;;
-  esac
-
-  case " $CFLAGS " in
-  *[\ \	]-Wpointer-arith[\ \	]*) ;;
-  *) CFLAGS="$CFLAGS -Wpointer-arith" ;;
-  esac
-
-  case " $CFLAGS " in
-  *[\ \	]-Wcast-align[\ \	]*) ;;
-  *) CFLAGS="$CFLAGS -Wcast-align" ;;
-  esac
-
-  case " $CFLAGS " in
-  *[\ \	]-Wsign-compare[\ \	]*) ;;
-  *) CFLAGS="$CFLAGS -Wsign-compare" ;;
-  esac
-
-  if test "x$enable_ansi" = "xyes"; then
-    case " $CFLAGS " in
-    *[\ \	]-ansi[\ \	]*) ;;
-    *) CFLAGS="$CFLAGS -ansi" ;;
-    esac
-
-    case " $CFLAGS " in
-    *[\ \	]-pedantic[\ \	]*) ;;
-    *) CFLAGS="$CFLAGS -pedantic" ;;
-    esac
-  fi
-fi
-changequote([,])dnl
-
-GTK_API_VERSION=3.0
 GTK_MIN_VERSION=3.15.2
 GIO_MIN_VERSION=2.25.10
 CANBERRA_GTK=libcanberra-gtk3
 
-METACITY_PC_MODULES="gtk+-$GTK_API_VERSION >= $GTK_MIN_VERSION gio-2.0 >= $GIO_MIN_VERSION pango >= 1.2.0 gsettings-desktop-schemas >= 3.3.0"
-AC_SUBST(GTK_API_VERSION)
+METACITY_PC_MODULES="gtk+-3.0 >= $GTK_MIN_VERSION gio-2.0 >= $GIO_MIN_VERSION pango >= 1.2.0 gsettings-desktop-schemas >= 3.3.0"
 
 GLIB_GSETTINGS
 
@@ -176,8 +150,8 @@ AM_GLIB_GNU_GETTEXT
 ## here we get the flags we'll actually use
 PKG_CHECK_MODULES(ALL, glib-2.0 >= 2.36.0 gthread-2.0 >= 2.32.0)
 # gtk_window_set_icon_name requires gtk2+-2.60
-PKG_CHECK_MODULES(METACITY_MESSAGE, gtk+-$GTK_API_VERSION >= $GTK_MIN_VERSION)
-PKG_CHECK_MODULES(METACITY_WINDOW_DEMO, gtk+-$GTK_API_VERSION >= $GTK_MIN_VERSION)
+PKG_CHECK_MODULES(METACITY_MESSAGE, gtk+-3.0 >= $GTK_MIN_VERSION)
+PKG_CHECK_MODULES(METACITY_WINDOW_DEMO, gtk+-3.0 >= $GTK_MIN_VERSION)
 
 if $PKG_CONFIG --atleast-version 1.2.0 pangoxft; then
    echo "pangoxft found"
@@ -390,9 +364,9 @@ if test "x$found_randr" = "xyes"; then
    AC_DEFINE(HAVE_RANDR, , [Have the Xrandr extension library])
 fi
 
-METACITY_LIBS="$ALL_LIBS $METACITY_LIBS $RANDR_LIBS -lX11 -lXext $X_EXTRA_LIBS -lm"
+METACITY_LIBS="$ALL_LIBS $METACITY_LIBS $RANDR_LIBS -lX11 -lXext $X_EXTRA_LIBS $LIBM"
 METACITY_MESSAGE_LIBS="$METACITY_MESSAGE_LIBS -lX11 $X_EXTRA_LIBS"
-METACITY_WINDOW_DEMO_LIBS="$METACITY_WINDOW_DEMO_LIBS -lX11 $X_EXTRA_LIBS"
+METACITY_WINDOW_DEMO_LIBS="$METACITY_WINDOW_DEMO_LIBS -lX11 $X_EXTRA_LIBS $LIBM"
 METACITY_PROPS_LIBS="$METACITY_PROPS_LIBS -lX11 $X_EXTRA_LIBS"
 
 found_sm=no
@@ -433,18 +407,6 @@ if test x"$ZENITY" = xno; then
   AC_MSG_ERROR([zenity not found in your path - needed for dialogs])
 fi
 
-AC_ARG_ENABLE(debug,
-	[  --enable-debug		enable debugging],,
-	enable_debug=no)
-if test "x$enable_debug" = "xyes"; then
-	CFLAGS="$CFLAGS -g -O"
-fi
-
-# Warnings are there for a reason
-if test "x$GCC" = "xyes"; then
-  CFLAGS="$CFLAGS -Wall -std=gnu99"
-fi
-
 AC_ARG_ENABLE(themes-documentation,
   AC_HELP_STRING([--disable-themes-documentation],
                  [disable building themes documentation on system where yelp-tools is unavailable]),,
@@ -455,53 +417,53 @@ if test x$enable_themes_documentation = xyes; then
   YELP_HELP_INIT
 fi
 
+dnl **************************************************************************
+dnl Process .in files
+dnl **************************************************************************
+
 AC_CONFIG_FILES([
-Makefile
-doc/Makefile
-doc/creating_themes/Makefile
-doc/man/Makefile
-src/Makefile
-src/libmetacity-private.pc
-src/tools/Makefile
-src/themes/Makefile
-po/Makefile.in
+  Makefile
+
+  doc/Makefile
+  doc/creating_themes/Makefile
+  doc/man/Makefile
+
+  src/Makefile
+  src/libmetacity-private.pc
+  src/tools/Makefile
+  src/themes/Makefile
+
+  po/Makefile.in
 ])
 
 AC_OUTPUT
 
-if test x$enable_verbose_mode = xno; then
-        echo "*** WARNING WARNING WARNING WARNING WARNING"
-        echo "*** Building without verbose mode"
-        echo "*** This means there's no way to debug metacity problems."
-        echo "*** Please build normal desktop versions of metacity"
-        echo "*** with verbose mode enabled so users can use it when they report bugs."
-fi
+dnl **************************************************************************
+dnl Show summary
+dnl **************************************************************************
 
-dnl ==========================================================================
-echo "
-deepin-metacity-$VERSION (using gtk+-${GTK_API_VERSION}):
-
-	prefix:                   ${prefix}
-	source code location:	  ${srcdir}
-	compiler:		  ${CC}
-
-	Canberra:                 ${enable_canberra}
-	XFree86 Xinerama:         ${use_xfree_xinerama}
-	Solaris Xinerama:         ${use_solaris_xinerama}
-	Startup notification:     ${have_startup_notification}
-	Compositing manager:      ${have_xcomposite}
-	Session management:       ${found_sm}
-	Resize-and-rotate:        ${found_randr}
-	Render:                   ${have_xrender}
-	Xcursor:                  ${have_xcursor}
-"
-
-METACITY_MINOR_VERSION=metacity_minor_version
-if test $(( $(echo $METACITY_MINOR_VERSION) %2)) == "1"; then
-   stable_version=$(( ($METACITY_MINOR_VERSION / 2) * 2))
-   echo "This is the UNSTABLE branch of metacity"
-   echo -n "Use 3.$stable_version.x for stable "
-   echo    "(gnome-3-$stable_version branch in Subversion)"
-else
-   echo "This is the stable branch of metacity"
-fi
+echo ""
+echo "  Deepin Metacity $VERSION"
+echo "  `echo Deepin Metacity $VERSION | sed "s/./=/g"`"
+echo ""
+echo "  srcdir ......................: ${srcdir}"
+echo ""
+echo "  compiler ....................: ${CC}"
+echo "  cflags ......................: ${CFLAGS}"
+echo ""
+echo "  prefix ......................: ${prefix}"
+echo "  exec_prefix .................: ${exec_prefix}"
+echo "  libdir ......................: ${libdir}"
+echo "  sysconfdir ..................: ${sysconfdir}"
+echo "  libexecdir ..................: ${libexecdir}"
+echo ""
+echo "  Canberra ....................: ${enable_canberra}"
+echo "  XFree86 Xinerama ............: ${use_xfree_xinerama}"
+echo "  Solaris Xinerama ............: ${use_solaris_xinerama}"
+echo "  Startup notification ........: ${have_startup_notification}"
+echo "  Compositing manager .........: ${have_xcomposite}"
+echo "  Session management ..........: ${found_sm}"
+echo "  Resize-and-rotate ...........: ${found_randr}"
+echo "  Render ......................: ${have_xrender}"
+echo "  Xcursor .....................: ${have_xcursor}"
+echo ""
