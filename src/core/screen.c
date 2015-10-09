@@ -1386,7 +1386,6 @@ meta_screen_ensure_previewing_workspace (MetaScreen* screen)
     return;
 
   screen->ws_previewer = deepin_wm_background_new(screen);
-  gtk_widget_set_app_paintable(GTK_WIDGET(screen->ws_previewer), TRUE);
 }
 
 void meta_screen_ensure_exposing_windows (MetaScreen* screen)
