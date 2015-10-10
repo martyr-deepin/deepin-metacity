@@ -37,7 +37,6 @@ libdeepin-metacity-private.so.3 libmetacity-private3 #MINVER#
  meta_compositor_destroy@Base 3.17.1
  meta_compositor_end_move@Base 3.17.1
  meta_compositor_free_window@Base 3.17.1
- meta_compositor_get_window_pixmap@Base 3.17.1
  meta_compositor_manage_screen@Base 3.17.1
  meta_compositor_maximize_window@Base 3.17.1
  meta_compositor_new@Base 3.17.1
@@ -514,7 +513,6 @@ libdeepin-metacity-private.so.3 libmetacity-private3 #MINVER#
  meta_ui_get_frame_borders@Base 3.17.1
  meta_ui_get_frame_bounds@Base 3.17.1
  meta_ui_get_frame_mask@Base 3.17.1
- meta_ui_get_pixbuf_from_pixmap@Base 3.17.1
  meta_ui_have_a_theme@Base 3.17.1
  meta_ui_init@Base 3.17.1
  meta_ui_map_frame@Base 3.17.1
