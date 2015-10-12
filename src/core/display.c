@@ -2124,6 +2124,15 @@ event_callback (XEvent   *event,
         {
           window = meta_window_new (display, event->xmaprequest.window,
                                     FALSE);
+          if (!window->decorated) 
+            {
+              XWindowAttributes attrs;
+              if (XGetWindowAttributes (display->xdisplay, window->xwindow, &attrs))
+                {
+                  meta_compositor_add_window(display->compositor,
+                                             window, window->xwindow, &attrs);
+                }
+            }
         }
       /* if frame was receiver it's some malicious send event or something */
       else if (!frame_was_receiver && window)
