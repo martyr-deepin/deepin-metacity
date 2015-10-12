@@ -23,6 +23,9 @@
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
 #include <cairo-xlib.h>
+#ifdef HAVE_COMPOSITE_EXTENSIONS
+#include <X11/extensions/Xrender.h>
+#endif
 #include "errors.h"
 #include "../core/window-private.h"
 #include "compositor.h"
@@ -115,15 +118,26 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
             return NULL;
         }
 
-        gboolean keep_alpha = (window->type == META_WINDOW_DESKTOP
-                || window->type == META_WINDOW_DOCK);
-
         MetaRectangle r, r2;
         meta_window_get_input_rect(window, &r);
         meta_window_get_outer_rect(window, &r2);
 
-        cairo_surface_t* ret = cairo_image_surface_create(
-                keep_alpha ? CAIRO_FORMAT_ARGB32 : CAIRO_FORMAT_RGB24,
+        cairo_format_t format = CAIRO_FORMAT_RGB24;
+        if (window->depth == 32)
+            format = CAIRO_FORMAT_ARGB32;
+
+#ifdef HAVE_COMPOSITE_EXTENSIONS
+        XRenderPictFormat *render_fmt;
+        render_fmt = XRenderFindVisualFormat(window->display->xdisplay,
+                window->xvisual);
+
+        if (render_fmt && render_fmt->type == PictTypeDirect 
+                && render_fmt->direct.alphaMask)
+            format = CAIRO_FORMAT_ARGB32;
+
+#endif
+
+        cairo_surface_t* ret = cairo_image_surface_create(format, 
                 r2.width, r2.height);
 
         meta_error_trap_push (window->display);
