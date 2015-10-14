@@ -61,8 +61,10 @@ static gboolean on_popup_timeout(DeepinWorkspaceIndicator* self)
 {
     /*g_debug("%s", __func__);*/
     DeepinWorkspaceIndicatorPrivate *priv = self->priv;
+    if (!priv->timeline) return G_SOURCE_REMOVE;
 
     deepin_timeline_start(priv->timeline);
+    return G_SOURCE_REMOVE;
 }
 
 static void on_stopped(DeepinTimeline* timeline, DeepinWorkspaceIndicator* self)
@@ -112,6 +114,15 @@ static void deepin_workspace_indicator_unmap (GtkWidget *widget)
 {
     DeepinWorkspaceIndicator *self = DEEPIN_WORKSPACE_INDICATOR (widget);
     DeepinWorkspaceIndicatorPrivate *priv = self->priv;
+
+    if (deepin_timeline_is_playing(priv->timeline)) {
+        deepin_timeline_stop(priv->timeline);
+    }
+
+    if (priv->timeout_id) {
+        g_source_remove(priv->timeout_id);
+        priv->timeout_id = 0;
+    }
 
     g_signal_handlers_disconnect_by_data(priv->timeline, self);
     g_clear_pointer(&priv->timeline, g_object_unref);
