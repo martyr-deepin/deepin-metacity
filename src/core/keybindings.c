@@ -2705,7 +2705,7 @@ process_workspace_switch_grab (MetaDisplay *display,
           break;
   }
 
-  if (target_workspace != screen->active_workspace)
+  if (target_workspace && target_workspace != screen->active_workspace)
   {
       g_debug("%s: request switch", __func__);
       GtkWidget* w = gtk_bin_get_child(GTK_BIN(screen->ws_popup));
