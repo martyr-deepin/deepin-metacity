@@ -436,6 +436,45 @@ static void handle_workspace_switch(MetaDisplay *display, MetaScreen *screen,
     }
 }
 
+static void handle_move_to_workspace  (MetaDisplay    *display,
+                              MetaScreen     *screen,
+                              MetaWindow     *window,
+                              XEvent         *event,
+                              MetaKeyBinding *binding)
+{
+    MetaWorkspace *workspace;
+    MetaMotionDirection motion;
+
+    if (window->always_sticky)
+        return;
+
+    MetaKeyBindingAction action = meta_prefs_get_keybinding_action(binding->name);
+    if (action == META_KEYBINDING_ACTION_MOVE_TO_WORKSPACE_RIGHT) {
+        g_debug("%s: to right", __func__);
+        motion = META_MOTION_RIGHT;
+    } else if (action == META_KEYBINDING_ACTION_MOVE_TO_WORKSPACE_LEFT) {
+        motion = META_MOTION_LEFT;
+        g_debug("%s: to left", __func__);
+    } else {
+        return;
+    }
+    workspace = meta_workspace_get_neighbor(screen->active_workspace, motion);
+
+    if (workspace) {
+        /* Activate second, so the window is never unmapped */
+        meta_window_change_workspace (window, workspace);
+        workspace->screen->display->mouse_mode = FALSE;
+        meta_workspace_activate_with_focus (workspace,
+                window, event->xkey.time);
+        meta_screen_ensure_workspace_popup(workspace->screen);
+        gtk_widget_show_all(screen->ws_popup);
+
+        GtkWidget* w = gtk_bin_get_child(GTK_BIN(screen->ws_popup));
+        DeepinWorkspaceIndicator* indi = DEEPIN_WORKSPACE_INDICATOR(w);
+        deepin_workspace_indicator_request_workspace_change(indi, workspace);
+    }
+}
+
 void deepin_init_custom_handlers(MetaDisplay* display)
 {
     deepin_meta_override_keybinding_handler("switch-applications",
@@ -453,6 +492,12 @@ void deepin_init_custom_handlers(MetaDisplay* display)
             handle_workspace_switch, NULL, NULL);
     deepin_meta_override_keybinding_handler("switch-to-workspace-left",
             handle_workspace_switch, NULL, NULL);
+
+    deepin_meta_override_keybinding_handler("move-to-workspace-left",
+            handle_move_to_workspace, NULL, NULL);
+    deepin_meta_override_keybinding_handler("move-to-workspace-right",
+            handle_move_to_workspace, NULL, NULL);
+                          
 
     deepin_meta_display_add_keybinding(display, "expose-all-windows",
             META_KEY_BINDING_NONE, handle_expose_windows, EXPOSE_ALL_WINDOWS);
