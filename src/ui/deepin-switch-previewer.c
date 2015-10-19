@@ -240,18 +240,24 @@ void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self)
             windows = windows->next;
         }
 
-        MetaRectangle r1, r2;
-        meta_window_get_outer_rect(desktop_win, &r1);
-        meta_window_get_outer_rect(dock_win, &r2);
+        MetaRectangle r1 = {0, 0, 0, 0}, r2 = {0, 0, 0, 0};
+        cairo_surface_t* aux1 = NULL, *aux2 = NULL;
+
+        if (desktop_win) {
+            meta_window_get_outer_rect(desktop_win, &r1);
+            aux1 = deepin_window_surface_manager_get_surface(desktop_win, 1.0); 
+        }
+
+        if (dock_win) {
+            meta_window_get_outer_rect(dock_win, &r2);
+            aux2 = deepin_window_surface_manager_get_surface(dock_win, 1.0); 
+        }
 
         priv->desktop_surface = deepin_window_surface_manager_get_combined3(
                 deepin_background_cache_get_surface(1.0), 
-                deepin_window_surface_manager_get_surface(desktop_win, 1.0), 
-                0, 0,
-                deepin_window_surface_manager_get_surface(dock_win, 1.0), 
-                (r1.width - r2.width)/2, r1.height - r2.height,
+                aux1, r1.x, r1.y,
+                aux2, r2.x, r2.y,
                 1.0);
-
     }
 
     gtk_widget_queue_resize(GTK_WIDGET(self));
