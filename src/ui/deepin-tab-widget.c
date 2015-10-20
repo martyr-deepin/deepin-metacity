@@ -476,8 +476,10 @@ meta_deepin_tab_widget_new (MetaWindow* window)
       g_free(icon_name);
 
       if (icon == NULL) {
-          g_debug("%s", error->message);
-          g_error_free(error);
+          if (error) {
+              g_debug("%s", error->message);
+              g_error_free(error);
+          }
 
           icon = window->icon;
       }
