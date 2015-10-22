@@ -165,7 +165,7 @@ static void _do_grab(MetaScreen* screen, GtkWidget* w, gboolean grab_keyboard)
 static void do_choose_window (MetaDisplay    *display,
         MetaScreen     *screen,
         MetaWindow     *event_window,
-        XEvent         *event,
+        XIDeviceEvent         *event,
         MetaKeyBinding *binding,
         gboolean        backward)
 {
@@ -173,9 +173,9 @@ static void do_choose_window (MetaDisplay    *display,
     MetaWindow *initial_selection;
 
     /* reverse direction according to initial backward state */
-    if (!backward && event->xkey.state & ShiftMask)
+    if (!backward && event->mods.base & ShiftMask)
         backward = !backward;
-    else if (backward && !(event->xkey.state & ShiftMask))
+    else if (backward && !(event->mods.base & ShiftMask))
         backward = !backward;
 
     initial_selection = meta_display_get_tab_next (display, type,
@@ -206,7 +206,7 @@ static void do_choose_window (MetaDisplay    *display,
                     "switch/cycle windows with no modifiers\n",
                     initial_selection->desc);
             display->mouse_mode = FALSE;
-            _activate_selection_or_desktop(initial_selection, event->xkey.time);
+            _activate_selection_or_desktop(initial_selection, event->time);
 
         } else if (meta_display_begin_grab_op (display,
                     screen,
@@ -216,11 +216,11 @@ static void do_choose_window (MetaDisplay    *display,
                     FALSE,
                     0,
                     binding->mask,
-                    event->xkey.time,
+                    event->time,
                     0, 0)) {
 
             if (g_list_length(screen->tab_popup->entries) <= 1) {
-                meta_display_end_grab_op (display, event->xkey.time);
+                meta_display_end_grab_op (display, event->time);
                 display->mouse_mode = FALSE;
                 return;
             }
@@ -236,15 +236,15 @@ static void do_choose_window (MetaDisplay    *display,
                         "mouse_mode due to switch/cycle windows where "
                         "modifier was released prior to grab\n",
                         initial_selection->desc);
-                meta_display_end_grab_op (display, event->xkey.time);
+                meta_display_end_grab_op (display, event->time);
                 display->mouse_mode = FALSE;
-                _activate_selection_or_desktop(initial_selection, event->xkey.time);
+                _activate_selection_or_desktop(initial_selection, event->time);
             } else {
                 deepin_tab_popup_select (screen->tab_popup,
                         (MetaTabEntryKey) initial_selection->xwindow);
                 deepin_tab_popup_set_showing (screen->tab_popup, TRUE);
                 g_debug("%s", __func__);
-                meta_screen_show_desktop(screen, event->xkey.time);
+                meta_screen_show_desktop(screen, event->time);
 
                 /* rely on auto ungrab when destroyed */
                 _do_grab(screen, screen->tab_popup->window, FALSE);
@@ -254,7 +254,7 @@ static void do_choose_window (MetaDisplay    *display,
 }
 
 static void handle_switch(MetaDisplay *display, MetaScreen *screen,
-        MetaWindow *window, XEvent *event,
+        MetaWindow *window, XIDeviceEvent *event,
         MetaKeyBinding *binding, gpointer user_data)
 {
     gint backwards = (binding->handler->flags & META_KEY_BINDING_IS_REVERSED) != 0;
@@ -270,7 +270,7 @@ static void on_drag_end(DeepinMessageHub* hub, GtkWidget* top)
 }
 
 static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
-        MetaWindow *window, XEvent *event,
+        MetaWindow *window, XIDeviceEvent *event,
         MetaKeyBinding *binding, gpointer user_data)
 {
     g_debug("%s", __func__);
@@ -283,7 +283,7 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
                 FALSE,
                 0,
                 grab_mask,
-                event->xkey.time,
+                event->time,
                 0, 0))
     {
         gboolean grabbed_before_release = 
@@ -298,7 +298,7 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
              * spaces.
              */
             g_debug("not grabbed_before_release");
-            meta_display_end_grab_op (display, event->xkey.time);
+            meta_display_end_grab_op (display, event->time);
             return;
         }
 
@@ -321,7 +321,7 @@ enum {
 };
 
 static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
-        MetaWindow *window, XEvent *event,
+        MetaWindow *window, XIDeviceEvent *event,
         MetaKeyBinding *binding, gpointer user_data)
 {
     g_debug("%s", __func__);
@@ -336,7 +336,7 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
                 FALSE,
                 0,
                 grab_mask,
-                event->xkey.time,
+                event->time,
                 0, 0))
     {
         gboolean grabbed_before_release = 
@@ -351,7 +351,7 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
              * spaces.
              */
             g_debug("not grabbed_before_release");
-            meta_display_end_grab_op (display, event->xkey.time);
+            meta_display_end_grab_op (display, event->time);
             return;
         }
 
@@ -377,7 +377,7 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
 }
 
 static void handle_workspace_switch(MetaDisplay *display, MetaScreen *screen,
-        MetaWindow *window, XEvent *event,
+        MetaWindow *window, XIDeviceEvent *event,
         MetaKeyBinding *binding, gpointer user_data)
 {
     gint motion;
@@ -409,7 +409,7 @@ static void handle_workspace_switch(MetaDisplay *display, MetaScreen *screen,
                 FALSE,
                 0,
                 grab_mask,
-                event->xkey.time,
+                event->time,
                 0, 0))
     {
         MetaWorkspace *next;
@@ -420,12 +420,12 @@ static void handle_workspace_switch(MetaDisplay *display, MetaScreen *screen,
         grabbed_before_release = primary_modifier_still_pressed (display, grab_mask);
 
         if (!(next && grabbed_before_release)) {
-            meta_display_end_grab_op (display, event->xkey.time);
+            meta_display_end_grab_op (display, event->time);
             return;
         }
 
         if (next != screen->active_workspace) {
-            meta_workspace_activate(next, event->xkey.time);
+            meta_workspace_activate(next, event->time);
 
             gtk_widget_show_all(screen->ws_popup);
 
@@ -439,7 +439,7 @@ static void handle_workspace_switch(MetaDisplay *display, MetaScreen *screen,
 static void handle_move_to_workspace  (MetaDisplay    *display,
                               MetaScreen     *screen,
                               MetaWindow     *window,
-                              XEvent         *event,
+                              XIDeviceEvent         *event,
                               MetaKeyBinding *binding)
 {
     MetaWorkspace *workspace;
@@ -465,7 +465,7 @@ static void handle_move_to_workspace  (MetaDisplay    *display,
         meta_window_change_workspace (window, workspace);
         workspace->screen->display->mouse_mode = FALSE;
         meta_workspace_activate_with_focus (workspace,
-                window, event->xkey.time);
+                window, event->time);
         meta_screen_ensure_workspace_popup(workspace->screen);
         gtk_widget_show_all(screen->ws_popup);
 

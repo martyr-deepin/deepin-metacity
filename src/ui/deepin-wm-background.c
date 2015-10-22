@@ -765,7 +765,7 @@ GtkWidget* deepin_wm_background_new(MetaScreen* screen)
     return widget;
 }
 
-void deepin_wm_background_handle_event(DeepinWMBackground* self, XEvent* event, 
+void deepin_wm_background_handle_event(DeepinWMBackground* self, XIDeviceEvent* event, 
         KeySym keysym, MetaKeyBindingAction action)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;

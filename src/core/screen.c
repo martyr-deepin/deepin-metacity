@@ -517,6 +517,16 @@ meta_screen_new (MetaDisplay *display,
   /* select our root window events */
   meta_error_trap_push_with_return (display);
 
+  {
+    unsigned char mask_bits[XIMaskLen (XI_LASTEVENT)] = { 0 };
+    XIEventMask mask = { XIAllMasterDevices, sizeof (mask_bits), mask_bits };
+
+    XISetMask (mask.mask, XI_KeyPress);
+    XISetMask (mask.mask, XI_KeyRelease);
+    XISelectEvents (xdisplay, xroot, &mask, 1);
+
+  }
+
   /* We need to or with the existing event mask since
    * gtk+ may be interested in other events.
    */
@@ -526,7 +536,7 @@ meta_screen_new (MetaDisplay *display,
                 SubstructureRedirectMask | SubstructureNotifyMask |
                 ColormapChangeMask | PropertyChangeMask |
                 LeaveWindowMask | EnterWindowMask |
-                KeyPressMask | KeyReleaseMask |
+                /*KeyPressMask | KeyReleaseMask |*/
                 FocusChangeMask | StructureNotifyMask |
 #ifdef HAVE_COMPOSITE_EXTENSIONS
                 ExposureMask |
@@ -541,6 +551,7 @@ meta_screen_new (MetaDisplay *display,
 
       return NULL;
     }
+
 
   screen = g_new (MetaScreen, 1);
   screen->closing = 0;

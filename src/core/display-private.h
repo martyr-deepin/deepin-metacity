@@ -270,6 +270,11 @@ struct _MetaDisplay
   int xfixes_error_base;
 #endif
 
+  /* xi2 */
+  int xi_opcode;
+  int xi_error_base;
+  int xi_event_base;
+
   unsigned int have_xsync : 1;
 #define META_DISPLAY_HAS_XSYNC(display) ((display)->have_xsync)
   unsigned int have_shape : 1;
@@ -293,6 +298,7 @@ struct _MetaDisplay
 #define META_DISPLAY_HAS_DAMAGE(display) FALSE
 #define META_DISPLAY_HAS_XFIXES(display) FALSE
 #endif
+  unsigned int have_xi2: 1;
 };
 
 /* Xserver time can wraparound, thus comparing two timestamps needs to take
@@ -497,5 +503,8 @@ void meta_display_remove_autoraise_callback (MetaDisplay *display);
 
 /* In above-tab-keycode.c */
 guint meta_display_get_above_tab_keycode (MetaDisplay *display);
+XIEvent* meta_display_get_input_event(MetaDisplay* display, 
+                                      XEvent* event);
+
 
 #endif

@@ -81,7 +81,7 @@ gboolean deepin_shadow_workspace_get_is_all_window_mode(DeepinShadowWorkspace*);
 void deepin_shadow_workspace_focus_next(DeepinShadowWorkspace*, gboolean);
 MetaDeepinClonedWidget* deepin_shadow_workspace_get_focused(DeepinShadowWorkspace*);
 void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
-        XEvent* event, KeySym keysym, MetaKeyBindingAction action);
+        XIDeviceEvent* event, KeySym keysym, MetaKeyBindingAction action);
 MetaWorkspace* deepin_shadow_workspace_get_workspace(DeepinShadowWorkspace*);
 
 GdkWindow* deepin_shadow_workspace_get_event_window(DeepinShadowWorkspace*);

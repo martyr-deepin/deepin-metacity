@@ -1677,7 +1677,7 @@ MetaDeepinClonedWidget* deepin_shadow_workspace_get_focused(DeepinShadowWorkspac
 }
 
 void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
-        XEvent* event, KeySym keysym, MetaKeyBindingAction action)
+        XIDeviceEvent* event, KeySym keysym, MetaKeyBindingAction action)
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
     if (!priv->ready) return;
@@ -1691,7 +1691,7 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
             || action == META_KEYBINDING_ACTION_SWITCH_APPLICATIONS_BACKWARD) {
         g_debug("tabbing inside expose windows");
         if (keysym == XK_Tab)
-            backward = event->xkey.state & ShiftMask;
+            backward = event->mods.base & ShiftMask;
         else
             backward = action == META_KEYBINDING_ACTION_SWITCH_APPLICATIONS_BACKWARD;
         deepin_shadow_workspace_focus_next(self, backward);
@@ -1699,24 +1699,17 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
     } if (keysym == XK_Return) {
         MetaDeepinClonedWidget* clone = deepin_shadow_workspace_get_focused(self);
         if (!clone) {
-            meta_workspace_focus_default_window(priv->workspace, NULL, event->xkey.time);
+            meta_workspace_focus_default_window(priv->workspace, NULL, event->time);
         } else {
             MetaWindow* mw = meta_deepin_cloned_widget_get_window(clone);
             g_assert(mw != NULL);
             if (mw->workspace && mw->workspace != priv->workspace) {
-                meta_workspace_activate(mw->workspace, event->xkey.time);
+                meta_workspace_activate(mw->workspace, event->time);
             }
-            meta_window_activate(mw, event->xkey.time);
+            meta_window_activate(mw, event->time);
         }
 
-        meta_display_end_grab_op(priv->workspace->screen->display, event->xkey.time);
-
-    } else if (event->type == ButtonPress) {
-        MetaDisplay* display = meta_get_display();
-        GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(display->xdisplay);
-        GdkWindow* win = gdk_x11_window_lookup_for_display(gdisplay, event->xbutton.window);
-
-        g_debug("%s button press on %x", __func__, event->xbutton.window);
+        meta_display_end_grab_op(priv->workspace->screen->display, event->time);
     }
 }
 

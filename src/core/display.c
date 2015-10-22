@@ -29,6 +29,7 @@
  */
 
 #include <config.h>
+#include <X11/extensions/XInput2.h>
 #include <gdk/gdkx.h>
 #include "display-private.h"
 #include "util.h"
@@ -74,6 +75,7 @@
 #include <X11/extensions/Xdamage.h>
 #include <X11/extensions/Xfixes.h>
 #endif
+#include <X11/extensions/XInput2.h>
 #include <string.h>
 
 #define GRAB_OP_IS_WINDOW_SWITCH(g)                     \
@@ -140,10 +142,20 @@ static MetaDisplay *the_display = NULL;
 
 static gboolean mousemods_disabled = FALSE;
 
+static void
+meta_spew_xi2_event (MetaDisplay *display,
+                     XIEvent     *input_event,
+                     const char **name_p,
+                     char       **extra_p);
+
 #ifdef WITH_VERBOSE_MODE
 static void   meta_spew_event           (MetaDisplay    *display,
                                          XEvent         *event);
 #endif
+
+static Window
+xievent_get_modified_window (MetaDisplay *display,
+                             XIEvent *input_event);
 
 static gboolean event_callback          (XEvent         *event,
                                          gpointer        data);
@@ -502,6 +514,43 @@ meta_display_open (void)
     meta_verbose ("Attempted to init Shape, found error base %d event base %d\n",
                   the_display->shape_error_base,
                   the_display->shape_event_base);
+  }
+
+  {
+    /* xinput2 */
+    the_display->have_xi2 = FALSE;
+
+    the_display->xi_opcode = 0;
+    the_display->xi_error_base = 0;
+    the_display->xi_event_base = 0;
+
+    if (XQueryExtension(the_display->xdisplay, "XInputExtension",
+                &the_display->xi_opcode,
+                &the_display->xi_event_base,
+                &the_display->xi_error_base)) {
+
+        int major = 2, minor = 2;
+        if (XIQueryVersion(the_display->xdisplay, &major, &minor) != BadRequest) {
+            the_display->have_xi2 = TRUE;
+        }
+    }
+
+    int ndev = 0;
+    XIDeviceInfo* devs = XIQueryDevice(the_display->xdisplay, 
+            XIAllMasterDevices, &ndev);
+    for (int i = 0; i < ndev; i++) {
+        g_message("%s: dev %s, id %d, enabled %d",
+                devs[i].use == XIMasterPointer ? "pointer": 
+                (devs[i].use == XIMasterKeyboard ? "keyboard" : "None"),
+                devs[i].name,
+                devs[i].deviceid, devs[i].enabled);
+    }
+    if (devs) XIFreeDeviceInfo(devs);
+
+
+    meta_verbose ("Attempted to init XInput, found error base %d event base %d\n",
+                  the_display->xi_error_base,
+                  the_display->xi_event_base);
   }
 
 #ifdef HAVE_RENDER
@@ -1492,6 +1541,33 @@ meta_display_queue_autoraise_callback (MetaDisplay *display,
   display->autoraise_window = window;
 }
 
+XIEvent* 
+meta_display_get_input_event(MetaDisplay* display, XEvent* event)
+{
+    if (event->type == GenericEvent 
+            && event->xcookie.extension == display->xi_opcode) {
+        XIEvent *input_event;
+
+        /* NB: GDK event filters already have generic events
+         * allocated, so no need to do XGetEventData() on our own
+         */
+        input_event = (XIEvent *) event->xcookie.data;
+
+        switch (input_event->evtype) {
+            case XI_KeyPress:
+            case XI_KeyRelease:
+                if (((XIDeviceEvent *) input_event)->deviceid == META_VIRTUAL_CORE_KEYBOARD_ID)
+                    return input_event;
+                else 
+                    g_warning("%s: xi key event from other device", __func__);
+            default:
+                break;
+        }
+    }
+
+    return NULL;
+}
+
 /**
  * This is the most important function in the whole program. It is the heart,
  * it is the nexus, it is the Grand Central Station of Metacity's world.
@@ -1517,6 +1593,7 @@ event_callback (XEvent   *event,
   Window modified;
   gboolean frame_was_receiver;
   gboolean filter_out_event;
+  XIEvent* input_event;
 
   display = data;
 
@@ -1524,6 +1601,8 @@ event_callback (XEvent   *event,
   if (dump_events)
     meta_spew_event (display, event);
 #endif
+
+  input_event = meta_display_get_input_event(display, event);
 
 #ifdef HAVE_STARTUP_NOTIFICATION
   sn_display_process_event (display->sn_display, event);
@@ -1655,7 +1734,7 @@ event_callback (XEvent   *event,
         }
     }
 
-  if (window && ((event->type == KeyPress) || (event->type == ButtonPress)))
+  if (window && ((input_event && input_event->evtype == XI_KeyPress) || (event->type == KeyPress) || (event->type == ButtonPress)))
     {
       if (CurrentTime == display->current_time)
         {
@@ -1674,11 +1753,26 @@ event_callback (XEvent   *event,
         }
     }
 
+  if (input_event) {
+    switch (input_event->evtype)
+      {
+      case XI_KeyPress:
+      case XI_KeyRelease:
+        meta_display_process_key_event (display, window, event);
+        break;
+
+      default: 
+        g_warning("unhandled xi event type %d", input_event->evtype);
+        break; /* pass */
+      }
+  }
+
   switch (event->type)
     {
     case KeyPress:
     case KeyRelease:
-      meta_display_process_key_event (display, window, event);
+      /* xi2 take over key events, should never go here */
+      g_message("Oh no, key event here, %s", window ? window->desc : NULL);
       break;
     case ButtonPress:
       if ((window &&
@@ -2496,6 +2590,28 @@ event_callback (XEvent   *event,
   return filter_out_event;
 }
 
+static Window
+xievent_get_modified_window (MetaDisplay *display,
+                             XIEvent *input_event)
+{
+  switch (input_event->evtype)
+    {
+    case XI_Motion:
+    case XI_ButtonPress:
+    case XI_ButtonRelease:
+    case XI_KeyPress:
+    case XI_KeyRelease:
+      return ((XIDeviceEvent *) input_event)->event;
+    case XI_FocusIn:
+    case XI_FocusOut:
+    case XI_Enter:
+    case XI_Leave:
+      return ((XIEnterEvent *) input_event)->event;
+    }
+
+  return None;
+}
+
 /* Return the window this has to do with, if any, rather
  * than the frame or root window that was selecting
  * for substructure
@@ -2504,6 +2620,11 @@ static Window
 event_get_modified_window (MetaDisplay *display,
                            XEvent *event)
 {
+  XIEvent *input_event = meta_display_get_input_event (display, event);
+
+  if (input_event)
+    return xievent_get_modified_window (display, input_event);
+
   switch (event->type)
     {
     case KeyPress:
@@ -2587,6 +2708,10 @@ static guint32
 event_get_time (MetaDisplay *display,
                 XEvent      *event)
 {
+  XIEvent* input_event = meta_display_get_input_event(display, event);
+  if (input_event)
+    return input_event->time;
+
   switch (event->type)
     {
     case KeyPress:
@@ -2782,6 +2907,51 @@ alarm_state_to_string (XSyncAlarmState state)
 }
 #endif /* WITH_VERBOSE_MODE */
 
+static char*
+xi_key_event_description (Display *xdisplay,
+        XIDeviceEvent  *device_event)
+{
+    if (device_event) {
+        KeySym keysym   = XkbKeycodeToKeysym(xdisplay, device_event->detail, 0, 0);
+        const char *str = XKeysymToString (keysym);
+        return g_strdup_printf ("Key '%s' state 0x%x", str ? str : "none", 
+                device_event->mods.base);
+    }
+
+}
+
+static void
+meta_spew_xi2_event (MetaDisplay *display,
+                     XIEvent     *input_event,
+                     const char **name_p,
+                     char       **extra_p)
+{
+  const char *name = NULL;
+  char *extra = NULL;
+
+  XIEnterEvent *enter_event = (XIEnterEvent *) input_event;
+  XIDeviceEvent* device_event = (XIDeviceEvent*) input_event;
+
+  switch (input_event->evtype)
+    {
+    case XI_KeyPress:
+        name = "XI_KeyPress";
+        extra = xi_key_event_description (display->xdisplay, device_event);
+        break;
+
+    case XI_KeyRelease:
+        name = "XI_KeyRelease";
+        extra = xi_key_event_description (display->xdisplay, device_event);
+        break;
+
+    default: 
+        break;
+    }
+
+  *name_p = name;
+  *extra_p = extra;
+}
+
 #ifdef WITH_VERBOSE_MODE
 static void
 meta_spew_event (MetaDisplay *display,
@@ -2791,6 +2961,7 @@ meta_spew_event (MetaDisplay *display,
   char *extra = NULL;
   char *winname;
   MetaScreen *screen;
+  XIEvent* input_event;
 
   if (!meta_is_verbose())
     return;
@@ -2800,15 +2971,18 @@ meta_spew_event (MetaDisplay *display,
       event->type == NoExpose)
     return;
 
+  input_event = meta_display_get_input_event(display, event);
+  if (input_event) {
+      meta_spew_xi2_event(display, input_event, &name, &extra);
+  }
+
   switch (event->type)
     {
     case KeyPress:
       name = "KeyPress";
-      extra = key_event_description (display->xdisplay, event);
       break;
     case KeyRelease:
       name = "KeyRelease";
-      extra = key_event_description (display->xdisplay, event);
       break;
     case ButtonPress:
       name = "ButtonPress";
