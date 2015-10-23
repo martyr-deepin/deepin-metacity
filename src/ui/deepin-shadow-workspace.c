@@ -52,6 +52,7 @@ struct _DeepinShadowWorkspacePrivate
                       else, set when window placements are done */
     gint animating: 1; /* placement animation is going on */
     gint all_window_mode: 1; // used for Super+a
+    gint show_desktop: 1;
 
     gint fixed_width, fixed_height;
     gdouble scale; 
@@ -69,6 +70,8 @@ struct _DeepinShadowWorkspacePrivate
     MetaDeepinClonedWidget* window_need_focused;
 
     cairo_pattern_t* snapshot;
+    cairo_surface_t* desktop_surface;
+    int dock_height; /* used only when in show_desktop */
 };
 
 typedef struct _ClonedPrivateInfo
@@ -625,8 +628,8 @@ static void calculate_places(DeepinShadowWorkspace* self)
 
         MetaRectangle area = {
             padding_top, padding_left, 
-            priv->fixed_width - padding_left - padding_right,
-            priv->fixed_height - padding_top - padding_bottom
+            priv->fixed_width - padding_left - padding_right - priv->dock_height,
+            priv->fixed_height - padding_top - padding_bottom - priv->dock_height
         };
 
         priv->animating = TRUE;
@@ -718,6 +721,10 @@ static void deepin_shadow_workspace_finalize (GObject *object)
     if (priv->snapshot) {
         cairo_pattern_destroy(priv->snapshot);
         priv->snapshot = NULL;
+    }
+
+    if (priv->desktop_surface) {
+        g_clear_pointer(&priv->desktop_surface, cairo_surface_destroy);
     }
 
     G_OBJECT_CLASS (deepin_shadow_workspace_parent_class)->finalize (object);
@@ -885,8 +892,13 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
         gtk_render_background(context, cr, 0, 0, req.width, req.height);
     }
 
-    cairo_set_source_surface(cr,
-            deepin_background_cache_get_surface(priv->scale), 0, 0);
+    if (priv->show_desktop && priv->desktop_surface) {
+        cairo_set_source_surface(cr, priv->desktop_surface, 0, 0);
+        cairo_paint(cr);
+    } else {
+        cairo_set_source_surface(cr,
+                deepin_background_cache_get_surface(priv->scale), 0, 0);
+    }
 
     cairo_paint(cr);
 
@@ -1356,6 +1368,51 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
                 NULL);
     }
 
+    if (priv->show_desktop) {
+        if (priv->desktop_surface) {
+            g_clear_pointer(&priv->desktop_surface, cairo_surface_destroy);
+        }
+
+        priv->dock_height = 0;
+
+        MetaWindow *desktop_win = NULL, *dock_win = NULL;
+
+        GList* windows = priv->workspace->mru_list;
+        while (windows != NULL) {
+            MetaWindow *w = (MetaWindow*)windows->data;
+            if (w->type == META_WINDOW_DESKTOP) {
+                desktop_win = w;
+            }
+
+            if (w->type == META_WINDOW_DOCK) {
+                dock_win = w;
+            }
+
+            if (desktop_win && dock_win) break;
+            windows = windows->next;
+        }
+
+        MetaRectangle r1 = {0, 0, 0, 0}, r2 = {0, 0, 0, 0};
+        cairo_surface_t* aux1 = NULL, *aux2 = NULL;
+
+        if (desktop_win) {
+            meta_window_get_outer_rect(desktop_win, &r1);
+            aux1 = deepin_window_surface_manager_get_surface(desktop_win, 1.0); 
+        }
+
+        if (dock_win) {
+            meta_window_get_outer_rect(dock_win, &r2);
+            aux2 = deepin_window_surface_manager_get_surface(dock_win, 1.0); 
+            priv->dock_height = r2.height;
+        }
+
+        priv->desktop_surface = deepin_window_surface_manager_get_combined3(
+                deepin_background_cache_get_surface(1.0), 
+                aux1, r1.x, r1.y,
+                aux2, r2.x, r2.y,
+                1.0);
+    }
+
     gtk_widget_queue_resize(GTK_WIDGET(self));
 }
 
@@ -1763,5 +1820,15 @@ void deepin_shadow_workspace_set_show_all_windows(DeepinShadowWorkspace* self,
 gboolean deepin_shadow_workspace_get_is_all_window_mode(DeepinShadowWorkspace* self)
 {
     return self->priv->all_window_mode;
+}
+
+void deepin_shadow_workspace_set_show_desktop(DeepinShadowWorkspace* self, 
+        gboolean val)
+{
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+
+    if (priv->show_desktop != val) {
+        priv->show_desktop = val;
+    }
 }
 

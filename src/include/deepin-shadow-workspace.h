@@ -69,6 +69,10 @@ void deepin_shadow_workspace_set_thumb_mode(DeepinShadowWorkspace*, gboolean);
  **/
 void deepin_shadow_workspace_set_show_all_windows(DeepinShadowWorkspace*, gboolean);
 
+/* if showing dock & desktop background. 
+ * right now, this needs to be called before populate */
+void deepin_shadow_workspace_set_show_desktop(DeepinShadowWorkspace*, gboolean);
+
 /* frozen workspace when do animation makes it faster */
 void deepin_shadow_workspace_set_frozen(DeepinShadowWorkspace*, gboolean);
 
