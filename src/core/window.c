@@ -3449,8 +3449,6 @@ meta_window_move_resize_internal (MetaWindow          *window,
 
   if (window->frame) {
     meta_frame_calc_borders (window->frame, &borders);
-    w -= borders.total.left + borders.total.right;
-    h -= borders.total.top + borders.total.bottom;
   }
 
   new_rect.x = root_x_nw;
@@ -3516,11 +3514,13 @@ meta_window_move_resize_internal (MetaWindow          *window,
       int new_w, new_h;
 
       new_w = window->rect.width + borders.total.left + borders.total.right;
+      new_w = MIN (new_w, 32767);
 
       if (window->shaded)
         new_h = borders.total.top;
       else
         new_h = window->rect.height + borders.total.top + borders.total.bottom;
+      new_h = MIN (new_h, 32767);
 
       frame_size_dx = new_w - window->frame->rect.width;
       frame_size_dy = new_h - window->frame->rect.height;
