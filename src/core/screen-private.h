@@ -132,6 +132,7 @@ struct _MetaScreen
 
   guint keys_grabbed : 1;
   guint all_keys_grabbed : 1;
+  guint show_desktop_before_grab: 1;
 
   int closing;
 

@@ -3620,6 +3620,9 @@ meta_display_begin_grab_op (MetaDisplay *display,
         }
     }
 
+  if (screen->active_workspace->showing_desktop)
+      screen->show_desktop_before_grab = TRUE;
+
   display->grab_op = op;
   display->grab_window = window;
   display->grab_screen = screen;

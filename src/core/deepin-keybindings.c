@@ -244,7 +244,9 @@ static void do_choose_window (MetaDisplay    *display,
                         (MetaTabEntryKey) initial_selection->xwindow);
                 deepin_tab_popup_set_showing (screen->tab_popup, TRUE);
                 meta_verbose("%s", __func__);
-                meta_screen_show_desktop(screen, event->time);
+
+                if (!screen->show_desktop_before_grab)
+                    meta_screen_show_desktop(screen, event->time);
 
                 /* rely on auto ungrab when destroyed */
                 _do_grab(screen, screen->tab_popup->window, FALSE);

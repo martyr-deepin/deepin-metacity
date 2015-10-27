@@ -2157,10 +2157,12 @@ process_tab_grab (MetaDisplay *display,
           display->mouse_mode = FALSE;
 
           if (target_window->type != META_WINDOW_DESKTOP) {
-              meta_screen_unshow_desktop(screen);
+              if (!screen->show_desktop_before_grab) 
+                  meta_screen_unshow_desktop(screen);
+              screen->show_desktop_before_grab = FALSE;
               meta_window_activate (target_window, event->time);
 
-          } else if (!screen->active_workspace->showing_desktop) {
+          } else {
               meta_screen_show_desktop(screen, event->time);
           }
 
