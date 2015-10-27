@@ -3437,6 +3437,9 @@ meta_window_move_resize_internal (MetaWindow          *window,
 
   meta_window_get_client_root_coords (window, &old_rect);
 
+  w = MAX (0, MIN (w, 32767));
+  h = MAX (0, MIN (h, 32767));
+
   meta_topic (META_DEBUG_GEOMETRY,
               "Move/resize %s to %d,%d %dx%d%s%s from %d,%d %dx%d\n",
               window->desc, root_x_nw, root_y_nw, w, h,
@@ -3444,8 +3447,11 @@ meta_window_move_resize_internal (MetaWindow          *window,
               is_user_action ? " (user move/resize)" : "",
               old_rect.x, old_rect.y, old_rect.width, old_rect.height);
 
-  if (window->frame)
+  if (window->frame) {
     meta_frame_calc_borders (window->frame, &borders);
+    w -= borders.total.left + borders.total.right;
+    h -= borders.total.top + borders.total.bottom;
+  }
 
   new_rect.x = root_x_nw;
   new_rect.y = root_y_nw;

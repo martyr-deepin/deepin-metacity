@@ -442,12 +442,18 @@ meta_frame_sync_to_window (MetaFrame *frame,
    */
   update_shape (frame);
 
+  /* this may fail because of extra large size change, I dont have
+   * a better solution now 
+   * */
+  meta_error_trap_push (frame->window->display);
   meta_ui_move_resize_frame (frame->window->screen->ui,
 			     frame->xwindow,
 			     frame->rect.x,
 			     frame->rect.y,
 			     frame->rect.width,
 			     frame->rect.height);
+
+  meta_error_trap_pop (frame->window->display, FALSE);
 
   if (need_resize)
     {
