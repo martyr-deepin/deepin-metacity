@@ -67,23 +67,6 @@
 #include <time.h>
 #include <unistd.h>
 
-/**
- * The exit code we'll return to our parent process when we eventually die.
- */
-static MetaExitCode meta_exit_code = META_EXIT_SUCCESS;
-
-/**
- * Handle on the main loop, so that we have an easy way of shutting Metacity
- * down.
- */
-static GMainLoop *meta_main_loop = NULL;
-
-/**
- * If set, Metacity will spawn an identical copy of itself immediately
- * before quitting.
- */
-static gboolean meta_restart_after_quit = FALSE;
-
 static void prefs_changed_callback (MetaPreference pref,
                                     gpointer       data);
 
@@ -467,7 +450,7 @@ main (int argc, char **argv)
   if (meta_args.save_file && meta_args.client_id)
     meta_fatal ("Can't specify both SM save file and SM client id\n");
 
-  meta_main_loop = g_main_loop_new (NULL, FALSE);
+  meta_init_loop();
 
   meta_ui_init (&argc, &argv);
 
@@ -565,11 +548,11 @@ main (int argc, char **argv)
   if (!meta_display_open ())
     meta_exit (META_EXIT_ERROR);
 
-  g_main_loop_run (meta_main_loop);
+  meta_run_loop();
 
   meta_finalize ();
 
-  if (meta_restart_after_quit)
+  if (meta_is_restart_after_quit())
     {
       GError *err;
 
@@ -586,42 +569,11 @@ main (int argc, char **argv)
           meta_fatal (_("Failed to restart: %s\n"),
                       err->message);
           g_error_free (err); /* not reached anyhow */
-          meta_exit_code = META_EXIT_ERROR;
+          meta_quit (META_EXIT_ERROR);
         }
     }
 
-  return meta_exit_code;
-}
-
-/**
- * Stops Metacity. This tells the event loop to stop processing; it is rather
- * dangerous to use this rather than meta_restart() because this will leave
- * the user with no window manager. We generally do this only if, for example,
- * the session manager asks us to; we assume the session manager knows what
- * it's talking about.
- *
- * \param code The success or failure code to return to the calling process.
- */
-void
-meta_quit (MetaExitCode code)
-{
-  meta_exit_code = code;
-
-  if (g_main_loop_is_running (meta_main_loop))
-    g_main_loop_quit (meta_main_loop);
-}
-
-/**
- * Restarts Metacity. In practice, this tells the event loop to stop
- * processing, having first set the meta_restart_after_quit flag which
- * tells Metacity to spawn an identical copy of itself before quitting.
- * This happens on receipt of a _METACITY_RESTART_MESSAGE client event.
- */
-void
-meta_restart (void)
-{
-  meta_restart_after_quit = TRUE;
-  meta_quit (META_EXIT_SUCCESS);
+  return meta_get_exit_code ();
 }
 
 /**

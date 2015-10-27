@@ -76,7 +76,7 @@ libdeepin_metacity_private_la_SOURCES=			\
 	core/deepin-keybindings.h   \
 	core/deepin-timeline.c	    \
 	include/deepin-timeline.h	\
-	core/main.c					\
+	core/main-private.c			\
 	include/main.h				\
 	core/metacity-Xatomtype.h	\
 	core/place.c				\

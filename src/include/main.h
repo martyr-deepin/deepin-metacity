@@ -30,6 +30,12 @@ typedef enum
   META_EXIT_ERROR
 } MetaExitCode;
 
+gboolean meta_is_restart_after_quit();
+
+void meta_init_loop();
+
+void meta_run_loop();
+
 /* exit immediately */
 void meta_exit (MetaExitCode code) __attribute__((noreturn));
 
@@ -37,5 +43,7 @@ void meta_exit (MetaExitCode code) __attribute__((noreturn));
 void meta_quit (MetaExitCode code);
 
 void meta_restart (void);
+
+MetaExitCode meta_get_exit_code();
 
 #endif
