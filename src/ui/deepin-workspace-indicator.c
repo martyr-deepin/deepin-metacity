@@ -17,6 +17,7 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <util.h>
 #include "deepin-workspace-indicator.h"
 #include "deepin-timeline.h"
 #include "deepin-design.h"
@@ -51,7 +52,7 @@ static void deepin_workspace_indicator_finalize (GObject *object)
 
 static void on_started(DeepinTimeline* timeline, DeepinWorkspaceIndicator* self)
 {
-    /*g_debug("%s", __func__);*/
+    /*meta_verbose("%s", __func__);*/
     DeepinWorkspaceIndicatorPrivate *priv = self->priv;
 
     gtk_widget_set_opacity(GTK_WIDGET(self), priv->stage == 2 ? 1.0: 0.0); 
@@ -59,7 +60,7 @@ static void on_started(DeepinTimeline* timeline, DeepinWorkspaceIndicator* self)
 
 static gboolean on_popup_timeout(DeepinWorkspaceIndicator* self)
 {
-    /*g_debug("%s", __func__);*/
+    /*meta_verbose("%s", __func__);*/
     DeepinWorkspaceIndicatorPrivate *priv = self->priv;
     if (!priv->timeline) return G_SOURCE_REMOVE;
 
@@ -69,7 +70,7 @@ static gboolean on_popup_timeout(DeepinWorkspaceIndicator* self)
 
 static void on_stopped(DeepinTimeline* timeline, DeepinWorkspaceIndicator* self)
 {
-    /*g_debug("%s", __func__);*/
+    /*meta_verbose("%s", __func__);*/
     DeepinWorkspaceIndicatorPrivate *priv = self->priv;
 
     gtk_widget_set_opacity(GTK_WIDGET(self), priv->stage == 2 ? 0.0: 1.0); 
@@ -87,7 +88,7 @@ static void on_new_frame(DeepinTimeline* timeline, double pos,
     DeepinWorkspaceIndicatorPrivate *priv = self->priv;
 
     double t = priv->stage == 2 ? 1.0 - pos : pos;
-    /*g_debug("%s: pos %f", __func__, t);*/
+    /*meta_verbose("%s: pos %f", __func__, t);*/
     gtk_widget_set_opacity(GTK_WIDGET(self), t); 
 }
 

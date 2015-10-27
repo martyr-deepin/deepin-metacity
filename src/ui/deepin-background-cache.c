@@ -75,7 +75,7 @@ static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
     DeepinBackgroundCachePrivate* priv = self->priv;
 
     gchar* uri = g_settings_get_string(priv->bg_settings, GSETTINGS_BG_KEY);
-    g_debug("uri: %s", uri);
+    meta_verbose("uri: %s", uri);
 
     GdkScreen* screen = gdk_screen_get_default();
     priv->fixed_width = gdk_screen_get_width(screen);
@@ -98,7 +98,7 @@ static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
                 FALSE, &error);
 
         if (!pixbuf) {
-            g_debug("%s", error->message);
+            meta_verbose("%s", error->message);
             g_error_free(error);
             goto _cleanup;
         }
@@ -206,7 +206,7 @@ cairo_surface_t* deepin_background_cache_get_surface(double scale)
     sci->surface = surf;
     priv->caches = g_list_append(priv->caches, sci);
 
-    g_debug("%s: create scaled(%f) background", __func__, scale);
+    meta_verbose("%s: create scaled(%f) background", __func__, scale);
     return sci->surface;
 }
 

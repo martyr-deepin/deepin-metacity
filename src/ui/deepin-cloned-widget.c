@@ -215,7 +215,7 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
 
     /*GdkRectangle r;*/
     /*gdk_cairo_get_clip_rectangle(cr, &r);*/
-    /*g_debug("%s: (%s) ", __func__, priv->meta_window->desc);*/
+    /*meta_verbose("%s: (%s) ", __func__, priv->meta_window->desc);*/
 
     GtkStyleContext* context = gtk_widget_get_style_context (widget);
 
@@ -648,7 +648,7 @@ static void on_drag_data_get(GtkWidget* widget, GdkDragContext* context,
 
     gchar* raw_data = g_strdup_printf("%ld", widget);
 
-    g_debug("%s: set data %x", __func__, widget);
+    meta_verbose("%s: set data %x", __func__, widget);
     gtk_selection_data_set(data, atom_window, 8, raw_data, strlen(raw_data));
     g_free(raw_data);
 }
@@ -656,7 +656,7 @@ static void on_drag_data_get(GtkWidget* widget, GdkDragContext* context,
 static void on_drag_begin(GtkWidget* widget, GdkDragContext *context,
                gpointer user_data)
 {
-    g_debug("%s", __func__);
+    meta_verbose("%s", __func__);
     MetaDeepinClonedWidgetPrivate* priv = META_DEEPIN_CLONED_WIDGET(widget)->priv;
 
     gint w = cairo_image_surface_get_width(priv->snapshot); 
@@ -685,7 +685,7 @@ static void on_drag_begin(GtkWidget* widget, GdkDragContext *context,
 static void on_drag_end(GtkWidget* widget, GdkDragContext *context,
                gpointer user_data)
 {
-    g_debug("%s", __func__);
+    meta_verbose("%s", __func__);
     MetaDeepinClonedWidgetPrivate* priv = META_DEEPIN_CLONED_WIDGET(widget)->priv;
     gtk_widget_set_opacity(widget, 1.0);
 

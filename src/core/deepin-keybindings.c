@@ -147,7 +147,7 @@ static void _do_grab(MetaScreen* screen, GtkWidget* w, gboolean grab_keyboard)
                 GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK,
                 NULL, gtk_get_current_event_time());
         if (ret != GDK_GRAB_SUCCESS) {
-            g_debug("%s: grab keyboard failed", __func__);
+            meta_verbose("%s: grab keyboard failed", __func__);
         }
     }
 
@@ -157,7 +157,7 @@ static void _do_grab(MetaScreen* screen, GtkWidget* w, gboolean grab_keyboard)
             GDK_ENTER_NOTIFY_MASK| GDK_FOCUS_CHANGE_MASK,
             NULL, gtk_get_current_event_time());
     if (ret != GDK_GRAB_SUCCESS) {
-        g_debug("%s: grab failed", __func__);
+        meta_verbose("%s: grab failed", __func__);
     }
 }
 
@@ -243,7 +243,7 @@ static void do_choose_window (MetaDisplay    *display,
                 deepin_tab_popup_select (screen->tab_popup,
                         (MetaTabEntryKey) initial_selection->xwindow);
                 deepin_tab_popup_set_showing (screen->tab_popup, TRUE);
-                g_debug("%s", __func__);
+                meta_verbose("%s", __func__);
                 meta_screen_show_desktop(screen, event->time);
 
                 /* rely on auto ungrab when destroyed */
@@ -258,13 +258,13 @@ static void handle_switch(MetaDisplay *display, MetaScreen *screen,
         MetaKeyBinding *binding, gpointer user_data)
 {
     gint backwards = (binding->handler->flags & META_KEY_BINDING_IS_REVERSED) != 0;
-    g_debug("%s: backwards %d", __func__, backwards);
+    meta_verbose("%s: backwards %d", __func__, backwards);
     do_choose_window (display, screen, window, event, binding, backwards);
 }
 
 static void on_drag_end(DeepinMessageHub* hub, GtkWidget* top)
 {
-    g_debug("on drag done, regrab");
+    meta_verbose("on drag done, regrab");
     MetaDisplay* display = meta_get_display();
     _do_grab(display->active_screen, top, TRUE);
 }
@@ -273,7 +273,7 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
         MetaWindow *window, XIDeviceEvent *event,
         MetaKeyBinding *binding, gpointer user_data)
 {
-    g_debug("%s", __func__);
+    meta_verbose("%s", __func__);
     unsigned int grab_mask = binding->mask;
     if (meta_display_begin_grab_op (display,
                 screen,
@@ -297,7 +297,7 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
              * release event. Must end grab before we can switch
              * spaces.
              */
-            g_debug("not grabbed_before_release");
+            meta_verbose("not grabbed_before_release");
             meta_display_end_grab_op (display, event->time);
             return;
         }
@@ -324,7 +324,7 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
         MetaWindow *window, XIDeviceEvent *event,
         MetaKeyBinding *binding, gpointer user_data)
 {
-    g_debug("%s", __func__);
+    meta_verbose("%s", __func__);
     int expose_mode = binding->handler->data;
 
     unsigned int grab_mask = binding->mask;
@@ -350,7 +350,7 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
              * release event. Must end grab before we can switch
              * spaces.
              */
-            g_debug("not grabbed_before_release");
+            meta_verbose("not grabbed_before_release");
             meta_display_end_grab_op (display, event->time);
             return;
         }
@@ -392,11 +392,11 @@ static void handle_workspace_switch(MetaDisplay *display, MetaScreen *screen,
 
     MetaKeyBindingAction action = meta_prefs_get_keybinding_action(binding->name);
     if (action == META_KEYBINDING_ACTION_WORKSPACE_RIGHT) {
-        g_debug("%s: to right", __func__);
+        meta_verbose("%s: to right", __func__);
         motion = META_MOTION_RIGHT;
     } else if (action == META_KEYBINDING_ACTION_WORKSPACE_LEFT) {
         motion = META_MOTION_LEFT;
-        g_debug("%s: to left", __func__);
+        meta_verbose("%s: to left", __func__);
     } else {
         return;
     }
@@ -451,11 +451,11 @@ static void handle_move_to_workspace  (MetaDisplay    *display,
 
     MetaKeyBindingAction action = meta_prefs_get_keybinding_action(binding->name);
     if (action == META_KEYBINDING_ACTION_MOVE_TO_WORKSPACE_RIGHT) {
-        g_debug("%s: to right", __func__);
+        meta_verbose("%s: to right", __func__);
         motion = META_MOTION_RIGHT;
     } else if (action == META_KEYBINDING_ACTION_MOVE_TO_WORKSPACE_LEFT) {
         motion = META_MOTION_LEFT;
-        g_debug("%s: to left", __func__);
+        meta_verbose("%s: to left", __func__);
     } else {
         return;
     }

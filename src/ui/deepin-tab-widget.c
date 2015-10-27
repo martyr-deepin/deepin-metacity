@@ -463,7 +463,7 @@ meta_deepin_tab_widget_new (MetaWindow* window)
   meta_window_get_outer_rect(window, &widget->priv->outer_rect);
 
   if (window->type != META_WINDOW_DESKTOP) {
-      g_debug("WM_CLASS: %s, %s", window->res_name, window->res_class);
+      meta_verbose("WM_CLASS: %s, %s", window->res_name, window->res_class);
 
       /* try to load icon from res_class first, cause window->icon may
        * contain a broken one 
@@ -477,7 +477,7 @@ meta_deepin_tab_widget_new (MetaWindow* window)
 
       if (icon == NULL) {
           if (error) {
-              g_debug("%s", error->message);
+              meta_verbose("%s", error->message);
               g_error_free(error);
           }
 

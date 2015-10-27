@@ -150,14 +150,14 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
 
         int error_code = meta_error_trap_pop_with_return (window->display, FALSE);
         if (error_code != 0) {
-            g_debug("draw surface error %d", error_code);
+            meta_verbose("draw surface error %d", error_code);
             g_free(s);
             cairo_surface_destroy(ret);
             return NULL;
 
         } else {
             ref = ret;
-            g_debug("%s: clip visible rect", window->desc);
+            meta_verbose("%s: clip visible rect", window->desc);
             g_tree_insert(t, s, ref);
         }
     } else {
@@ -181,7 +181,7 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
         s = g_new(double, 1);
         *s = scale;
         g_tree_insert(t, s, surface);
-        g_debug("%s: (%s) new scale %f", __func__, window->desc, scale);
+        meta_verbose("%s: (%s) new scale %f", __func__, window->desc, scale);
     }
     
     return surface;
@@ -232,7 +232,7 @@ void deepin_window_surface_manager_remove_window(MetaWindow* window)
 
     DeepinWindowSurfaceManager* self = deepin_window_surface_manager_get();
     if (g_hash_table_contains(self->priv->windows, window)) {
-        g_debug("%s: %s", __func__, window->desc);
+        meta_verbose("%s: %s", __func__, window->desc);
         g_hash_table_remove(self->priv->windows, window);
         g_signal_emit(self, signals[SIGNAL_SURFACE_INVALID], 0, window);
     }

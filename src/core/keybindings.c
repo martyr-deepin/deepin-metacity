@@ -2667,7 +2667,7 @@ process_workspace_switch_grab (MetaDisplay *display,
   if (event->evtype == XI_KeyRelease &&
       end_keyboard_grab (display, event->detail))
     {
-        g_debug("%s: end switch", __func__);
+        meta_verbose("%s: end switch", __func__);
         meta_display_end_grab_op (display, event->time);
         meta_workspace_focus_default_window(screen->active_workspace,
                 NULL,
@@ -2711,7 +2711,7 @@ process_workspace_switch_grab (MetaDisplay *display,
 
   if (target_workspace && target_workspace != screen->active_workspace)
   {
-      g_debug("%s: request switch", __func__);
+      meta_verbose("%s: request switch", __func__);
       GtkWidget* w = gtk_bin_get_child(GTK_BIN(screen->ws_popup));
       DeepinWorkspaceIndicator* indi = DEEPIN_WORKSPACE_INDICATOR(w);
       deepin_workspace_indicator_request_workspace_change(indi, target_workspace);

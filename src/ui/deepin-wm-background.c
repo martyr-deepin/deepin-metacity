@@ -18,6 +18,7 @@
  */
 
 #include <config.h>
+#include <util.h>
 #include <stdlib.h>
 #include <gdk/gdkx.h>
 #include <prefs.h>
@@ -151,7 +152,7 @@ static void on_workspace_move_finished(DeepinFixed* fixed,
 
 
         if (priv->switching_workspace) {
-            g_debug("%s: switch done", __func__);
+            meta_verbose("%s: switch done", __func__);
             priv->interrupted_switching = FALSE;
             priv->switching_workspace = FALSE;
 
@@ -160,7 +161,7 @@ static void on_workspace_move_finished(DeepinFixed* fixed,
                     gtk_get_current_event_time());
 
         } else if (priv->deleting_workspace) {
-            g_debug("%s: deleting workspace done", __func__);
+            meta_verbose("%s: deleting workspace done", __func__);
             priv->deleting_workspace = FALSE;
 
             meta_workspace_activate(
@@ -173,7 +174,7 @@ static void on_workspace_move_finished(DeepinFixed* fixed,
             }
 
         } else if (priv->creating_workspace) {
-            g_debug("%s: adding workspace done", __func__);
+            meta_verbose("%s: adding workspace done", __func__);
             priv->creating_workspace = FALSE;
 
             if (priv->hover_ws && _show_closer(priv->screen)) {
@@ -215,7 +216,7 @@ static void relayout(DeepinWMBackground* self)
     GList *l = priv->screen->workspaces;
     gint current = g_list_index(priv->worskpaces, priv->active_workspace);
     if (current < 0) current = 0;
-    g_debug("current: %d", current);
+    meta_verbose("current: %d", current);
     
     GdkRectangle geom;
     gint monitor_index = gdk_screen_get_monitor_at_window(priv->gscreen,
@@ -295,7 +296,7 @@ static gboolean delayed_relayout(gpointer user_data)
 static gboolean on_close_button_clicked(GtkWidget* widget,
                GdkEvent* event, gpointer data)
 {
-    g_debug("%s", __func__);
+    meta_verbose("%s", __func__);
     DeepinWMBackground* self = (DeepinWMBackground*)data;
     DeepinWMBackgroundPrivate* priv = self->priv;
 
@@ -338,7 +339,7 @@ static gboolean on_close_button_clicked(GtkWidget* widget,
 static gboolean on_close_button_leaved(GtkWidget* widget,
                GdkEvent* event, gpointer data)
 {
-    g_debug("%s", __func__);
+    meta_verbose("%s", __func__);
     DeepinWMBackground* self = (DeepinWMBackground*)data;
     DeepinWMBackgroundPrivate* priv = self->priv;
 
@@ -387,7 +388,7 @@ static void _create_close_button(DeepinWMBackground* self)
 static gboolean on_workspace_thumb_released(DeepinShadowWorkspace* ws_thumb,
                GdkEvent* event, gpointer user_data)
 {
-    g_debug("%s", __func__);
+    meta_verbose("%s", __func__);
     DeepinWMBackground* self = (DeepinWMBackground*)user_data;
     DeepinWMBackgroundPrivate* priv = self->priv;
     
@@ -407,7 +408,7 @@ static gboolean on_workspace_thumb_leaved(DeepinShadowWorkspace* ws_thumb,
                GdkEvent* event, gpointer data)
 {
     DeepinWMBackground* self = (DeepinWMBackground*)data;
-    g_debug("%s", __func__);
+    meta_verbose("%s", __func__);
 
     gint x, y;
     x = event->crossing.x_root;
@@ -431,7 +432,7 @@ static gboolean on_workspace_thumb_entered(DeepinShadowWorkspace* ws_thumb,
 {
     DeepinWMBackground* self = DEEPIN_WM_BACKGROUND(data);
     DeepinWMBackgroundPrivate* priv= self->priv;
-    g_debug("%s", __func__);
+    meta_verbose("%s", __func__);
 
     priv->hover_ws = ws_thumb;
     if (_show_closer(priv->screen) 
@@ -530,7 +531,7 @@ static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer use
     DeepinWMBackground* self = (DeepinWMBackground*)user_data;
     DeepinWMBackgroundPrivate* priv = self->priv;
 
-    g_debug("%s", __func__);
+    meta_verbose("%s", __func__);
 
     GdkRectangle geom;
     gint monitor_index = gdk_screen_get_monitor_at_window(priv->gscreen,
@@ -769,7 +770,7 @@ void deepin_wm_background_handle_event(DeepinWMBackground* self, XIDeviceEvent* 
         KeySym keysym, MetaKeyBindingAction action)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
-    g_debug("%s", __func__);
+    meta_verbose("%s", __func__);
 
     GtkWidget* w = gtk_grab_get_current();
     if (w && GTK_IS_ENTRY(w)) return;
@@ -785,7 +786,7 @@ void deepin_wm_background_handle_event(DeepinWMBackground* self, XIDeviceEvent* 
             }
 
             if (priv->switching_workspace) {
-                g_debug("interrupt workspace switching");
+                meta_verbose("interrupt workspace switching");
                 priv->interrupted_switching = TRUE;
             }
             deepin_fixed_cancel_pending_animation(DEEPIN_FIXED(priv->fixed), NULL);

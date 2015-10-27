@@ -157,7 +157,7 @@ static gboolean on_thumb_click_finished(MetaWindow* meta_win)
 static gboolean on_thumb_clicked(MetaDeepinTabWidget* tab,
                GdkEvent* event, gpointer user_data)
 {
-    g_debug("%s", __func__);
+    meta_verbose("%s", __func__);
 
     DeepinTabPopup* popup = (DeepinTabPopup*)user_data;
     MetaWindow* meta_win = meta_deepin_tab_widget_get_meta_window(tab);
