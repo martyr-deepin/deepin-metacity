@@ -1444,7 +1444,6 @@ meta_screen_ensure_tab_popup (MetaScreen      *screen,
 void 
 meta_screen_ensure_previewing_workspace (MetaScreen* screen)
 {
-  g_message("%s", __func__);
   if (screen->ws_previewer) 
     return;
 
@@ -1453,7 +1452,6 @@ meta_screen_ensure_previewing_workspace (MetaScreen* screen)
 
 void meta_screen_ensure_exposing_windows (MetaScreen* screen)
 {
-  g_message("%s", __func__);
   if (screen->exposing_windows_popup)
     return;
 

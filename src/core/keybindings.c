@@ -1283,7 +1283,6 @@ meta_display_process_key_event (MetaDisplay *display,
   XIDeviceEvent* device_event;
 
   device_event = (XIDeviceEvent*)meta_display_get_input_event(display, event);
-  g_warning("%s: window %s", __func__, window ? window->desc : NULL);
 
   XIAllowEvents(display->xdisplay, META_VIRTUAL_CORE_KEYBOARD_ID,
           all_bindings_disabled ? XIReplayDevice : XIAsyncDevice,
@@ -2749,7 +2748,7 @@ process_previewing_workspace (MetaDisplay *display,
   if (keysym == XK_Escape
     || action == meta_prefs_get_keybinding_action("preview-workspace")) 
     {
-      g_message("%s: Escaping previewer", __func__);
+      meta_verbose("%s: Escaping previewer\n", __func__);
       meta_workspace_focus_default_window (screen->active_workspace,
                                            NULL,
                                            event->time);

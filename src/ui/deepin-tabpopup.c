@@ -413,11 +413,7 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
     }
 
     deepin_tab_popup_setup_style(popup);
-
     meta_deepin_switch_previewer_populate(popup->previewer);
-    gtk_widget_show_all(popup->outline_window);
-    GdkWindow *window = gtk_widget_get_window (popup->outline_window);
-    gdk_window_raise(window);
 
     g_object_connect(G_OBJECT(deepin_message_hub_get()), 
             "signal::window-removed", on_window_removed, popup,
@@ -452,6 +448,10 @@ void deepin_tab_popup_set_showing (DeepinTabPopup *popup,
 {
     if (showing)
     {
+        gtk_widget_show_all(popup->outline_window);
+        GdkWindow *window = gtk_widget_get_window (popup->outline_window);
+        gdk_window_raise(window);
+
         gtk_widget_show_all (popup->window);
     }
     else

@@ -539,7 +539,7 @@ meta_display_open (void)
     XIDeviceInfo* devs = XIQueryDevice(the_display->xdisplay, 
             XIAllMasterDevices, &ndev);
     for (int i = 0; i < ndev; i++) {
-        g_message("%s: dev %s, id %d, enabled %d",
+        meta_verbose("%s: dev %s, id %d, enabled %d\n",
                 devs[i].use == XIMasterPointer ? "pointer": 
                 (devs[i].use == XIMasterKeyboard ? "keyboard" : "None"),
                 devs[i].name,
@@ -1772,7 +1772,6 @@ event_callback (XEvent   *event,
     case KeyPress:
     case KeyRelease:
       /* xi2 take over key events, should never go here */
-      g_message("Oh no, key event here, %s", window ? window->desc : NULL);
       break;
     case ButtonPress:
       if ((window &&

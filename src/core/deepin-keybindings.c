@@ -161,6 +161,50 @@ static void _do_grab(MetaScreen* screen, GtkWidget* w, gboolean grab_keyboard)
     }
 }
 
+typedef struct PopupData_ 
+{
+    MetaScreen* screen;
+    MetaWindow *initial_selection;
+    guint timestamp;
+    MetaKeyBinding* binding;
+} PopupData;
+
+static gboolean on_delayed_popup(PopupData* pd)
+{
+    MetaScreen* screen = pd->screen;
+    MetaDisplay* display = screen->display;
+
+
+    if (display->grab_op != META_GRAB_OP_NONE) {
+        meta_verbose("%s", __func__);
+        if (!primary_modifier_still_pressed (display,
+                    pd->binding->mask)) {
+            /* This handles a race where modifier might be released
+             * before we establish the grab. must end grab
+             * prior to trying to focus a window.
+             */
+            meta_topic (META_DEBUG_FOCUS,
+                    "Ending grab, activating %s, and turning off "
+                    "mouse_mode due to switch/cycle windows where "
+                    "modifier was released prior to grab\n",
+                    pd->initial_selection->desc);
+            meta_display_end_grab_op (display, pd->timestamp);
+            display->mouse_mode = FALSE;
+            _activate_selection_or_desktop(pd->initial_selection, pd->timestamp);
+        } else {
+            if (!screen->show_desktop_before_grab)
+                meta_screen_show_desktop(screen, pd->timestamp);
+
+            deepin_tab_popup_set_showing(screen->tab_popup, TRUE);
+
+            /* rely on auto ungrab when destroyed */
+            _do_grab(screen, screen->tab_popup->window, FALSE);
+        }
+    }
+
+    g_slice_free(PopupData, pd);
+    return G_SOURCE_REMOVE;
+}
 
 static void do_choose_window (MetaDisplay    *display,
         MetaScreen     *screen,
@@ -225,32 +269,15 @@ static void do_choose_window (MetaDisplay    *display,
                 return;
             }
 
-            if (!primary_modifier_still_pressed (display,
-                        binding->mask)) {
-                /* This handles a race where modifier might be released
-                 * before we establish the grab. must end grab
-                 * prior to trying to focus a window.
-                 */
-                meta_topic (META_DEBUG_FOCUS,
-                        "Ending grab, activating %s, and turning off "
-                        "mouse_mode due to switch/cycle windows where "
-                        "modifier was released prior to grab\n",
-                        initial_selection->desc);
-                meta_display_end_grab_op (display, event->time);
-                display->mouse_mode = FALSE;
-                _activate_selection_or_desktop(initial_selection, event->time);
-            } else {
-                deepin_tab_popup_select (screen->tab_popup,
-                        (MetaTabEntryKey) initial_selection->xwindow);
-                deepin_tab_popup_set_showing (screen->tab_popup, TRUE);
-                meta_verbose("%s", __func__);
+            PopupData* pd = (PopupData*)g_slice_alloc(sizeof(PopupData));
+            pd->initial_selection = initial_selection;
+            pd->screen = screen;
+            pd->timestamp = event->time;
+            pd->binding = binding;
 
-                if (!screen->show_desktop_before_grab)
-                    meta_screen_show_desktop(screen, event->time);
-
-                /* rely on auto ungrab when destroyed */
-                _do_grab(screen, screen->tab_popup->window, FALSE);
-            }
+            deepin_tab_popup_select(screen->tab_popup,
+                    (MetaTabEntryKey)initial_selection->xwindow);
+            g_timeout_add(POPUP_DELAY_TIMEOUT, (GSourceFunc)on_delayed_popup, pd);
         }
     }
 }
