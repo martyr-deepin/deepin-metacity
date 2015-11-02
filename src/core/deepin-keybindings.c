@@ -118,46 +118,64 @@ static void _activate_selection_or_desktop(MetaWindow* target, guint32 timestamp
     }
 }
 
-static void _do_ungrab(MetaScreen* screen, GtkWidget* w, gboolean release_keyboard)
+static gboolean _grab_device (MetaDisplay* display, Window xwindow,
+        int device_id, guint32 timestamp)
 {
-    GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(screen->display->xdisplay);
-    GdkDeviceManager* dev_man = gdk_display_get_device_manager(gdisplay);
-    GdkDevice* pointer = gdk_device_manager_get_client_pointer(dev_man);
-    GdkDevice* kb = gdk_device_get_associated_device(pointer);
+  unsigned char mask_bits[XIMaskLen (XI_LASTEVENT)] = { 0 };
+  XIEventMask mask = { XIAllMasterDevices, sizeof (mask_bits), mask_bits };
+  int ret;
 
-    if (release_keyboard) 
-        gdk_device_ungrab(kb, GDK_CURRENT_TIME);
-    gdk_device_ungrab(pointer, GDK_CURRENT_TIME);
+  XISetMask (mask.mask, XI_ButtonPress);
+  XISetMask (mask.mask, XI_ButtonRelease);
+  XISetMask (mask.mask, XI_Enter);
+  XISetMask (mask.mask, XI_Leave);
+  XISetMask (mask.mask, XI_Motion);
+  XISetMask (mask.mask, XI_KeyPress);
+  XISetMask (mask.mask, XI_KeyRelease);
+  XISetMask (mask.mask, XI_FocusIn);
+  XISetMask (mask.mask, XI_FocusOut);
+
+  ret = XIGrabDevice(display->xdisplay, device_id,
+                      xwindow, 
+                      timestamp,
+                      None,
+                      XIGrabModeAsync, XIGrabModeAsync,
+                      TRUE, /* owner_events */
+                      &mask);
+
+  return (ret == Success);
 }
 
-static void _do_grab(MetaScreen* screen, GtkWidget* w, gboolean grab_keyboard)
+static gboolean _do_grab_pointer(MetaScreen* screen, GtkWidget* w)
 {
     GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(screen->display->xdisplay);
     GdkDeviceManager* dev_man = gdk_display_get_device_manager(gdisplay);
     GdkDevice* pointer = gdk_device_manager_get_client_pointer(dev_man);
-    GdkDevice* kb = gdk_device_get_associated_device(pointer);
 
     g_assert(gdk_device_get_source(pointer) == GDK_SOURCE_MOUSE);
-    g_assert(gdk_device_get_source(kb) == GDK_SOURCE_KEYBOARD);
 
-    GdkGrabStatus ret = GDK_GRAB_SUCCESS;
-    if (grab_keyboard) {
-        ret = gdk_device_grab(kb, gtk_widget_get_window(w), 
-                GDK_OWNERSHIP_NONE, TRUE,
-                GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK,
-                NULL, gtk_get_current_event_time());
-        if (ret != GDK_GRAB_SUCCESS) {
-            meta_verbose("%s: grab keyboard failed", __func__);
-        }
-    }
-
-    ret = gdk_device_grab(pointer, gtk_widget_get_window(w), 
+    GdkGrabStatus ret = gdk_device_grab(pointer, gtk_widget_get_window(w), 
             GDK_OWNERSHIP_NONE, TRUE,
             GDK_BUTTON_PRESS_MASK| GDK_BUTTON_RELEASE_MASK| 
             GDK_ENTER_NOTIFY_MASK| GDK_FOCUS_CHANGE_MASK,
             NULL, gtk_get_current_event_time());
-    if (ret != GDK_GRAB_SUCCESS) {
-        meta_verbose("%s: grab failed", __func__);
+    return (ret == GDK_GRAB_SUCCESS);
+}
+
+static void _do_grab(MetaScreen* screen, GtkWidget* w, gboolean grab_keyboard)
+{
+    MetaDisplay* display = meta_get_display();
+    Window xwin = GDK_WINDOW_XID(gtk_widget_get_window(w));
+
+    if (grab_keyboard) {
+        if (!_grab_device(display, xwin, META_VIRTUAL_CORE_KEYBOARD_ID,
+                gtk_get_current_event_time())) {
+            meta_verbose("grab keyboard failed\n");
+        }
+    }
+
+    if (!_do_grab_pointer(screen, w)) {
+        meta_verbose("grab pointer failed\n");
     }
 }
 
@@ -353,7 +371,7 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
         MetaWindow *window, XIDeviceEvent *event,
         MetaKeyBinding *binding, gpointer user_data)
 {
-    meta_verbose("%s", __func__);
+    meta_verbose("%s\n", __func__);
     int expose_mode = binding->handler->data;
 
     unsigned int grab_mask = binding->mask;
@@ -379,7 +397,7 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
              * release event. Must end grab before we can switch
              * spaces.
              */
-            meta_verbose("not grabbed_before_release");
+            meta_verbose("not grabbed_before_release\n");
             meta_display_end_grab_op (display, event->time);
             return;
         }
@@ -421,11 +439,11 @@ static void handle_workspace_switch(MetaDisplay *display, MetaScreen *screen,
 
     MetaKeyBindingAction action = meta_prefs_get_keybinding_action(binding->name);
     if (action == META_KEYBINDING_ACTION_WORKSPACE_RIGHT) {
-        meta_verbose("%s: to right", __func__);
+        meta_verbose("%s: to right\n", __func__);
         motion = META_MOTION_RIGHT;
     } else if (action == META_KEYBINDING_ACTION_WORKSPACE_LEFT) {
         motion = META_MOTION_LEFT;
-        meta_verbose("%s: to left", __func__);
+        meta_verbose("%s: to left\n", __func__);
     } else {
         return;
     }
@@ -480,11 +498,11 @@ static void handle_move_to_workspace  (MetaDisplay    *display,
 
     MetaKeyBindingAction action = meta_prefs_get_keybinding_action(binding->name);
     if (action == META_KEYBINDING_ACTION_MOVE_TO_WORKSPACE_RIGHT) {
-        meta_verbose("%s: to right", __func__);
+        meta_verbose("%s: to right\n", __func__);
         motion = META_MOTION_RIGHT;
     } else if (action == META_KEYBINDING_ACTION_MOVE_TO_WORKSPACE_LEFT) {
         motion = META_MOTION_LEFT;
-        meta_verbose("%s: to left", __func__);
+        meta_verbose("%s: to left\n", __func__);
     } else {
         return;
     }

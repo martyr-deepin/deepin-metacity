@@ -143,7 +143,7 @@ static void on_window_placed(MetaDeepinClonedWidget* clone, gpointer data)
     req.width *= info->init_scale;
     req.height *= info->init_scale;
 
-    meta_verbose("%s: scale down to %f, %d, %d", __func__, info->init_scale,
+    meta_verbose("%s: scale down to %f, %d, %d\n", __func__, info->init_scale,
             req.width, req.height);
 
     meta_deepin_cloned_widget_set_size(clone, req.width, req.height);
@@ -666,7 +666,7 @@ static void _remove_cloned_widget(DeepinShadowWorkspace* self,
     g_ptr_array_remove(priv->clones, clone);
     gtk_container_remove(GTK_CONTAINER(self), (GtkWidget*)clone);
 
-    meta_verbose("%s remove clone for %s", __func__, window->desc);
+    meta_verbose("%s remove clone for %s\n", __func__, window->desc);
 
     if (priv->hovered_clone == clone) {
         priv->hovered_clone = NULL;
@@ -851,7 +851,7 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
         MetaRectangle bound = {req.x, req.y, req.width, req.height};
         MetaRectangle clip = {r.x, r.y, r.width, r.height};
 
-        meta_verbose("%s: ws(%s(%s)) frozen", __func__, 
+        meta_verbose("%s: ws(%s(%s)) frozen\n", __func__, 
                 meta_workspace_get_name(priv->workspace),
                 (priv->thumb_mode ? "thumb": ""));
         if (priv->snapshot) {
@@ -860,7 +860,7 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
             return TRUE; 
 
         } else if (meta_rectangle_could_fit_rect(&clip, &bound)) {
-            meta_verbose("%s: frozen, do a full render", __func__);
+            meta_verbose("%s: frozen, do a full render\n", __func__);
             cairo_push_group(cr);
             do_snapshot_draw = TRUE;
         }
@@ -1092,7 +1092,7 @@ static gboolean on_entry_pressed(GtkWidget* entry,
     GdkEventButton evb = event->button;
 
     if (!gtk_widget_has_grab(entry)) {
-        meta_verbose("%s: grab", __func__);
+        meta_verbose("%s: grab\n", __func__);
         gtk_grab_add(entry);
         gtk_entry_grab_focus_without_selecting(GTK_ENTRY(entry));
 
@@ -1103,7 +1103,7 @@ static gboolean on_entry_pressed(GtkWidget* entry,
 
         GdkRectangle r = {alloc.x, alloc.y, alloc.width, alloc.height};
         if (x <= r.x || x >= r.x + r.width || y <= r.y || y >= r.y + r.height) {
-            meta_verbose("%s: ungrab and replay", __func__);
+            meta_verbose("%s: ungrab and replay\n", __func__);
             /* hack: when click out side of entry, loose grab and replay click,
              * incase some other entry was clicked and cannot get event */
             if (gtk_widget_has_grab(entry)) {
@@ -1125,6 +1125,7 @@ static gboolean on_entry_pressed(GtkWidget* entry,
 static gboolean on_entry_key_pressed(GtkWidget* entry,
                GdkEvent* event, gpointer data)
 {
+    meta_verbose("%s\n");
     DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
 
     if (event->key.keyval == GDK_KEY_Tab) 
@@ -1157,7 +1158,7 @@ static gboolean on_entry_key_pressed(GtkWidget* entry,
 static gboolean on_entry_focus_out(GtkWidget* entry,
                GdkEvent* event, gpointer user_data)
 {
-    meta_verbose("%s", __func__);
+    meta_verbose("%s\n", __func__);
     return FALSE;
 }
 
@@ -1250,7 +1251,7 @@ static gboolean on_deepin_cloned_widget_released(MetaDeepinClonedWidget* cloned,
                GdkEvent* event, gpointer data)
 {
     DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
-    meta_verbose("%s", __func__);
+    meta_verbose("%s\n", __func__);
     if (!self->priv->ready) return FALSE;
 
     if (meta_deepin_cloned_widget_is_dragging(cloned)) {
@@ -1275,7 +1276,7 @@ static gboolean on_deepin_cloned_widget_released(MetaDeepinClonedWidget* cloned,
 static gboolean on_close_button_clicked(GtkWidget* widget,
                GdkEvent* event, gpointer data)
 {
-    meta_verbose("%s", __func__);
+    meta_verbose("%s\n", __func__);
     DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
     DeepinShadowWorkspacePrivate* priv = self->priv;
 
@@ -1298,7 +1299,7 @@ static gboolean on_close_button_clicked(GtkWidget* widget,
 static gboolean on_close_button_leaved(GtkWidget* widget,
                GdkEvent* event, gpointer data)
 {
-    meta_verbose("%s", __func__);
+    meta_verbose("%s\n", __func__);
     DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
 
     if (!self->priv->hovered_clone) return FALSE;
@@ -1431,7 +1432,7 @@ static gboolean on_deepin_shadow_workspace_released(DeepinShadowWorkspace* self,
                GdkEvent* event, gpointer user_data)
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
-    meta_verbose("%s: ws %s(%s)", __func__, meta_workspace_get_name(priv->workspace),
+    meta_verbose("%s: ws %s(%s)\n", __func__, meta_workspace_get_name(priv->workspace),
             priv->thumb_mode ? "thumb":"normal");
 
     if (!priv->ready || priv->hovered_clone) return TRUE;
@@ -1460,14 +1461,14 @@ static void on_window_change_workspace(DeepinMessageHub* hub, MetaWindow* window
 {
     DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)user_data;
     DeepinShadowWorkspacePrivate* priv = self->priv;
-    meta_verbose("%s: ws %s(%s)", __func__, meta_workspace_get_name(priv->workspace),
+    meta_verbose("%s: ws %s(%s)\n", __func__, meta_workspace_get_name(priv->workspace),
             priv->thumb_mode ? "thumb":"normal");
 
     if (!priv->ready || !priv->clones) return;
     
     if (priv->workspace == new_workspace) { // dest workspace
         if (window->type != META_WINDOW_NORMAL) return;
-        meta_verbose("%s: add window", __func__);
+        meta_verbose("%s: add window\n", __func__);
 
         //add window
         GtkWidget* widget = meta_deepin_cloned_widget_new(window);
@@ -1506,14 +1507,14 @@ static void on_drag_data_received(GtkWidget* widget, GdkDragContext* context,
 {
     DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)widget;
     DeepinShadowWorkspacePrivate* priv = self->priv;
-    meta_verbose("%s: x %d, y %d", __func__, x, y);
+    meta_verbose("%s: x %d, y %d\n", __func__, x, y);
 
     const guchar* raw_data = gtk_selection_data_get_data(data);
     if (raw_data) {
         gpointer p = (gpointer)atol(raw_data);
         MetaDeepinClonedWidget* target_clone = META_DEEPIN_CLONED_WIDGET(p);
         MetaWindow* meta_win = meta_deepin_cloned_widget_get_window(target_clone);
-        meta_verbose("%s: get %x", __func__, target_clone);
+        meta_verbose("%s: get %x\n", __func__, target_clone);
         if (meta_win->on_all_workspaces) {
             gtk_drag_finish(context, FALSE, FALSE, time);
             return;
@@ -1525,7 +1526,7 @@ static void on_drag_data_received(GtkWidget* widget, GdkDragContext* context,
             MetaDeepinClonedWidget* clone = g_ptr_array_index(priv->clones, i);
 
             if (meta_deepin_cloned_widget_get_window(clone) == meta_win) {
-                meta_verbose("cancel drop on the same workspace");
+                meta_verbose("cancel drop on the same workspace\n");
                 gtk_drag_finish(context, FALSE, FALSE, time);
                 return;
             }
@@ -1541,7 +1542,7 @@ static void on_drag_data_received(GtkWidget* widget, GdkDragContext* context,
 static gboolean on_drag_drop(GtkWidget* widget, GdkDragContext* context,
                gint x, gint y, guint time, gpointer user_data)
 {
-    meta_verbose("%s", __func__);
+    meta_verbose("%s\n", __func__);
     return FALSE;
 }
 
@@ -1733,20 +1734,120 @@ MetaDeepinClonedWidget* deepin_shadow_workspace_get_focused(DeepinShadowWorkspac
     return priv->window_need_focused;
 }
 
+static guint _gdk_x11_device_xi2_translate_state(
+        XIModifierState *mods_state,
+        XIButtonState   *buttons_state,
+        XIGroupState    *group_state)
+{
+  guint state = 0;
+
+  if (mods_state)
+    state = mods_state->effective;
+
+  if (buttons_state)
+    {
+      gint len, i;
+
+      /* We're only interested in the first 3 buttons */
+      len = MIN (3, buttons_state->mask_len * 8);
+
+      for (i = 1; i <= len; i++)
+        {
+          if (!XIMaskIsSet (buttons_state->mask, i))
+            continue;
+
+          switch (i)
+            {
+            case 1:
+              state |= GDK_BUTTON1_MASK;
+              break;
+            case 2:
+              state |= GDK_BUTTON2_MASK;
+              break;
+            case 3:
+              state |= GDK_BUTTON3_MASK;
+              break;
+            default:
+              break;
+            }
+        }
+    }
+
+  if (group_state)
+    state |= (group_state->effective) << 13;
+
+  return state;
+}
+
+static void _entry_handle_event(GtkWidget* w, XIDeviceEvent* event)
+{
+    GdkEvent* kev = gdk_event_new(GDK_KEY_PRESS);
+
+    GdkDisplay* display = gdk_display_get_default();
+    GdkKeymap *keymap = gdk_keymap_get_for_display (display);
+    GdkDeviceManager* dev_manger = gdk_display_get_device_manager(display);
+    GdkDevice* client_pointer = gdk_device_manager_get_client_pointer(dev_manger);
+    GdkModifierType consumed, state;
+    GdkDevice *device, *source_device;
+
+    kev->key.send_event = TRUE;
+
+    kev->key.type = event->evtype == XI_KeyPress ? GDK_KEY_PRESS : GDK_KEY_RELEASE;
+
+    kev->key.window = gtk_widget_get_window(w);
+
+    kev->key.time = event->time;
+    kev->key.state = _gdk_x11_device_xi2_translate_state (&event->mods,
+            &event->buttons, &event->group);
+    kev->key.group = event->group.effective;
+
+    kev->key.hardware_keycode = event->detail;
+    kev->key.is_modifier = gdk_x11_keymap_key_is_modifier (keymap, kev->key.hardware_keycode);
+
+    device = gdk_device_get_associated_device(client_pointer);
+    gdk_event_set_device (kev, device);
+
+    source_device = device;
+    gdk_event_set_source_device (kev, source_device);
+
+    kev->key.keyval = GDK_KEY_VoidSymbol;
+
+    gdk_keymap_translate_keyboard_state (keymap,
+            kev->key.hardware_keycode,
+            kev->key.state,
+            kev->key.group,
+            &kev->key.keyval,
+            NULL, NULL, &consumed);
+
+    state = kev->key.state & ~consumed;
+    /*_gdk_x11_keymap_add_virt_mods (keymap, &state);*/
+    kev->key.state |= state;
+
+    kev->key.string = NULL;
+
+    /*gtk_propagate_event(w, kev);*/
+    gtk_widget_event(w, kev);
+    gdk_event_free(kev);
+}
+
 void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
         XIDeviceEvent* event, KeySym keysym, MetaKeyBindingAction action)
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
     if (!priv->ready) return;
+    meta_verbose("%s\n", __func__);
 
     GtkWidget* w = gtk_grab_get_current();
-    if (w && GTK_IS_ENTRY(w)) return;
+    if (w && GTK_IS_ENTRY(w)) {
+        _entry_handle_event(w, event);
+        return;
+    }
 
     gboolean backward = FALSE;
     if (keysym == XK_Tab
             || action == META_KEYBINDING_ACTION_SWITCH_APPLICATIONS
             || action == META_KEYBINDING_ACTION_SWITCH_APPLICATIONS_BACKWARD) {
-        meta_verbose("tabbing inside expose windows");
+        meta_verbose("tabbing inside expose windows\n");
         if (keysym == XK_Tab)
             backward = event->mods.base & ShiftMask;
         else
