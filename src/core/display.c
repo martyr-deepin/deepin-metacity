@@ -37,6 +37,7 @@
 #include "screen-private.h"
 #include "window-private.h"
 #include "deepin-message-hub.h"
+#include "deepin-shadow-workspace.h"
 #include "window-props.h"
 #include "group-props.h"
 #include "frame-private.h"
@@ -3848,6 +3849,13 @@ meta_display_begin_grab_op (MetaDisplay *display,
   return TRUE;
 }
 
+static void 
+on_expose_finished(GtkWidget* top)
+{
+    MetaDisplay* display = meta_get_display();
+    gtk_widget_destroy(top);
+}
+
 void
 meta_display_end_grab_op (MetaDisplay *display,
                           guint32      timestamp)
@@ -3908,12 +3916,16 @@ meta_display_end_grab_op (MetaDisplay *display,
     }
   else if (display->grab_op == META_GRAB_OP_KEYBOARD_EXPOSING_WINDOWS) 
     {
-      if (display->grab_screen->exposing_windows_popup) {
-        g_signal_handlers_disconnect_by_data(deepin_message_hub_get(), 
-                display->grab_screen->exposing_windows_popup);
-        gtk_widget_destroy(GTK_WIDGET(display->grab_screen->exposing_windows_popup));
-        display->grab_screen->exposing_windows_popup = NULL;
-      }
+      GtkWidget* top = display->grab_screen->exposing_windows_popup;
+      if (top) 
+        {
+          g_signal_handlers_disconnect_by_data(deepin_message_hub_get(), 
+                  top);
+          GtkWidget* ws = gtk_bin_get_child( GTK_BIN(top));
+          deepin_shadow_workspace_close(DEEPIN_SHADOW_WORKSPACE(ws), 
+                  TRUE, on_expose_finished, top);
+          display->grab_screen->exposing_windows_popup = NULL;
+        }
     }
 
   /* If this was a move or resize clear out the edge cache */

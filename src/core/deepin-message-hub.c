@@ -65,13 +65,13 @@ static void deepin_message_hub_finalize (GObject *object)
 
 void deepin_message_hub_window_added(MetaWindow* window)
 {
-    meta_verbose("%s: %s", __func__, window->desc);
+    meta_verbose("%s: %s\n", __func__, window->desc);
     g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_WINDOW_ADDED], 0, window);
 }
 
 void deepin_message_hub_window_removed(MetaWindow* window)
 {
-    meta_verbose("%s: %s", __func__, window->desc);
+    meta_verbose("%s: %s\n", __func__, window->desc);
     g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_WINDOW_REMOVED], 0, window);
 }
 
@@ -90,14 +90,13 @@ void deepin_message_hub_window_damaged(MetaWindow* window, XRectangle* rects, in
         double sx = (double)rects[i].width / bound.width,
                sy = (double)rects[i].height / bound.height;
         if (sx > 0.15 && sy > 0.15) {
-            /*meta_verbose("big enough (%d,%d)", rects[i].width, rects[i].height);*/
             surface_need_update = TRUE;
             break;
         }
     }
 
     if (surface_need_update) {
-        meta_verbose("%s: %s", __func__, window->desc);
+        meta_verbose("%s: %s\n", __func__, window->desc);
         g_signal_emit(deepin_message_hub_get(),
                 signals[SIGNAL_WINDOW_DAMAGED], 0, window);
     }
@@ -105,20 +104,20 @@ void deepin_message_hub_window_damaged(MetaWindow* window, XRectangle* rects, in
 
 void deepin_message_hub_desktop_changed(void)
 {
-    meta_verbose("%s", __func__);
+    meta_verbose("%s\n", __func__);
     g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_DESKTOP_CHANGED], 0);
 }
 
 void deepin_message_hub_screen_resized(MetaScreen* screen)
 {
-    meta_verbose("%s", __func__);
+    meta_verbose("%s\n", __func__);
     g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_SCREEN_RESIZED], 0, screen);
 }
 
 void deepin_message_hub_window_about_to_change_workspace(
         MetaWindow* window, MetaWorkspace* workspace)
 {
-    meta_verbose("%s: move %s to workspace %s", __func__, window->desc, 
+    meta_verbose("%s: move %s to workspace %s\n", __func__, window->desc, 
             meta_workspace_get_name(workspace));
     g_signal_emit(deepin_message_hub_get(),
             signals[SIGNAL_ABOUT_TO_CHANGE_WORKSPACE], 0, 
@@ -127,7 +126,7 @@ void deepin_message_hub_window_about_to_change_workspace(
  
 void deepin_message_hub_drag_end(void)
 {
-    meta_verbose("%s", __func__);
+    meta_verbose("%s\n", __func__);
     g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_DRAG_END], 0); 
 }
 

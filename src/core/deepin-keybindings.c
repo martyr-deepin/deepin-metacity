@@ -386,21 +386,24 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
                 event->time,
                 0, 0))
     {
-        gboolean grabbed_before_release = 
-            primary_modifier_still_pressed (display, grab_mask);
+        /* disable fast grab release check cause action may be activated 
+         * programmatically, which is super fast */
+
+        /*gboolean grabbed_before_release = */
+            /*primary_modifier_still_pressed (display, grab_mask);*/
 
         meta_topic (META_DEBUG_KEYBINDINGS, "Activating workspace preview\n");
 
-        if (!grabbed_before_release) {
+        /*if (!grabbed_before_release) {*/
             /* end the grab right away, modifier possibly released
              * before we could establish the grab and receive the
              * release event. Must end grab before we can switch
              * spaces.
              */
-            meta_verbose("not grabbed_before_release\n");
-            meta_display_end_grab_op (display, event->time);
-            return;
-        }
+            /*meta_verbose("not grabbed_before_release\n");*/
+            /*meta_display_end_grab_op (display, event->time);*/
+            /*return;*/
+        /*}*/
 
         GtkWidget* top = screen->exposing_windows_popup;
 
