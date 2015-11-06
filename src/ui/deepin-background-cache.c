@@ -69,13 +69,46 @@ static void deepin_background_cache_flush(DeepinBackgroundCache* self)
     }
 }
 
+static GdkPixbuf* _do_scale(DeepinBackgroundCache* self, GdkPixbuf* pixbuf)
+{
+    GdkPixbuf* new_pixbuf;
+    DeepinBackgroundCachePrivate* priv = self->priv;
+
+    int pw = gdk_pixbuf_get_width(pixbuf), ph = gdk_pixbuf_get_height(pixbuf);
+
+    if (pw == priv->fixed_width && ph == priv->fixed_height) return pixbuf;
+
+    double scale = (double)priv->fixed_width / priv->fixed_height;
+
+    int w = pw;
+    int h = (int)((double)w / scale);
+    int x = 0, y = 0;
+    if (h < ph) {
+        y = (ph - h) / 2;
+    } else {
+        h = ph;
+        w = (int)((double)h * scale);
+        x = (pw - w) / 2;
+    }
+
+    meta_verbose("%s: scale = %f, (%d, %d, %d, %d)\n", __func__, scale, x, y, w, h);
+    GdkPixbuf* subpixbuf = gdk_pixbuf_new_subpixbuf(pixbuf, x, y, w, h);
+
+    new_pixbuf = gdk_pixbuf_scale_simple(subpixbuf, priv->fixed_width, 
+            priv->fixed_height, GDK_INTERP_BILINEAR);
+
+    g_object_unref(subpixbuf);
+    g_object_unref(pixbuf);
+
+    return new_pixbuf;
+}
 
 static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
 {
     DeepinBackgroundCachePrivate* priv = self->priv;
 
     gchar* uri = g_settings_get_string(priv->bg_settings, GSETTINGS_BG_KEY);
-    meta_verbose("uri: %s", uri);
+    meta_verbose("uri: %s\n", uri);
 
     GdkScreen* screen = gdk_screen_get_default();
     priv->fixed_width = gdk_screen_get_width(screen);
@@ -92,10 +125,7 @@ static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
 
         path = g_file_get_path(f);
         GError* error = NULL;
-        GdkPixbuf* pixbuf = gdk_pixbuf_new_from_file_at_scale(path,
-                priv->fixed_width,
-                priv->fixed_height,
-                FALSE, &error);
+        GdkPixbuf* pixbuf = gdk_pixbuf_new_from_file(path, &error);
 
         if (!pixbuf) {
             meta_verbose("%s", error->message);
@@ -103,6 +133,7 @@ static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
             goto _cleanup;
         }
 
+        pixbuf = _do_scale(self, pixbuf);
         g_assert(!priv->background);
 
         priv->background = gdk_cairo_surface_create_from_pixbuf(pixbuf, 1.0, NULL);
