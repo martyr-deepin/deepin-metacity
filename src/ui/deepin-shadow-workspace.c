@@ -1873,7 +1873,7 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
             backward = action == META_KEYBINDING_ACTION_SWITCH_APPLICATIONS_BACKWARD;
         deepin_shadow_workspace_focus_next(self, backward);
 
-    } if (keysym == XK_Return) {
+    } else if (keysym == XK_Return) {
         MetaDeepinClonedWidget* clone = deepin_shadow_workspace_get_focused(self);
         if (!clone) {
             meta_workspace_focus_default_window(priv->workspace, NULL, event->time);
@@ -1887,6 +1887,10 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
         }
 
         g_idle_add((GSourceFunc)on_idle_end_grab, self);
+
+    } else if (keysym == XK_F2) {
+        gtk_grab_add(priv->entry);
+        gtk_widget_grab_focus(priv->entry);
     }
 }
 

@@ -124,8 +124,12 @@ static DeepinShadowWorkspace* _find_workspace(GList* l, MetaWorkspace* next)
     return (DeepinShadowWorkspace*)tmp->data;
 }
 
-static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer user_data);
-; 
+static void _create_workspace(DeepinWMBackground*);
+
+static void _delete_workspace(DeepinWMBackground*, DeepinShadowWorkspace*);
+
+static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event,
+        gpointer user_data);
 
 static void toggle_workspace_frozen(DeepinShadowWorkspace* ws, gpointer data)
 {
@@ -300,38 +304,15 @@ static gboolean on_close_button_clicked(GtkWidget* widget,
     DeepinWMBackground* self = (DeepinWMBackground*)data;
     DeepinWMBackgroundPrivate* priv = self->priv;
 
-    gboolean need_switch_active = FALSE;
-
-    _hide_close_button(self);
+    if (priv->creating_workspace 
+            || priv->deleting_workspace
+            || priv->switching_workspace) {
+        return TRUE;
+    }
 
     gint index = g_list_index(priv->worskpace_thumbs, priv->hover_ws);
     DeepinShadowWorkspace* ws = g_list_nth(priv->worskpaces, index)->data;
-    MetaWorkspace* workspace = deepin_shadow_workspace_get_workspace(ws);
-    need_switch_active = (ws == priv->active_workspace);
-
-    priv->worskpaces = g_list_remove(priv->worskpaces, ws);
-    priv->worskpace_thumbs = g_list_remove(priv->worskpace_thumbs, priv->hover_ws);
-
-    gtk_container_remove(GTK_CONTAINER(priv->fixed), (GtkWidget*)priv->hover_ws);
-    gtk_container_remove(GTK_CONTAINER(priv->fixed), (GtkWidget*)ws);
-
-    meta_screen_remove_workspace(priv->screen, workspace);
-
-    if (need_switch_active) {
-        MetaWorkspace* next_ws = priv->screen->active_workspace;
-        priv->active_workspace = _find_workspace(priv->worskpaces, next_ws);
-        DeepinShadowWorkspace* current_thumb = _find_workspace(
-                priv->worskpace_thumbs,
-                deepin_shadow_workspace_get_workspace(priv->active_workspace));
-
-        deepin_shadow_workspace_set_current(priv->active_workspace, TRUE);
-        deepin_shadow_workspace_set_current(current_thumb, TRUE);
-    }
-
-    priv->hover_ws = NULL;
-    priv->deleting_workspace = TRUE;
-
-    g_idle_add(delayed_relayout, self);
+    _delete_workspace(self, ws);
 
     return TRUE;
 }
@@ -528,70 +509,13 @@ void deepin_wm_background_switch_workspace(DeepinWMBackground* self,
 
 static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer user_data)
 {
-    DeepinWMBackground* self = (DeepinWMBackground*)user_data;
-    DeepinWMBackgroundPrivate* priv = self->priv;
-
-    meta_verbose("%s\n", __func__);
-
-    GdkRectangle geom;
-    gint monitor_index = gdk_screen_get_monitor_at_window(priv->gscreen,
-            gtk_widget_get_window(GTK_WIDGET(self)));
-    gdk_screen_get_monitor_geometry(priv->gscreen, monitor_index, &geom);
-
-    MetaWorkspace* new_ws = meta_screen_new_workspace(priv->screen);
-    gint i = g_list_length(priv->worskpaces)-1,
-         current = g_list_index(priv->worskpaces, priv->active_workspace),
-         pad = FLOW_CLONE_DISTANCE_PERCENT * geom.width;
-
-    {
-        DeepinShadowWorkspace* dsw = 
-            (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
-        deepin_shadow_workspace_set_scale(dsw, priv->scale);
-        deepin_shadow_workspace_populate(dsw, new_ws);
-        gtk_widget_show(GTK_WIDGET(dsw));
-
-        priv->worskpaces = g_list_append(priv->worskpaces, dsw);
-
-        gint x = (geom.width - priv->width) / 2 +  (i - current) * (priv->width + pad);
-        deepin_fixed_put(DEEPIN_FIXED(priv->fixed), (GtkWidget*)dsw,
-                x + priv->width/2, priv->top_offset + priv->height/2);
+    DeepinWMBackground* self = DEEPIN_WM_BACKGROUND(user_data);
+    if (self->priv->creating_workspace 
+            || self->priv->deleting_workspace
+            || self->priv->switching_workspace) {
+        return TRUE;
     }
-
-    /* for top workspace thumbnail */
-    {
-        DeepinShadowWorkspace* dsw = 
-            (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
-        deepin_shadow_workspace_set_thumb_mode(dsw, TRUE);
-        deepin_shadow_workspace_set_scale(dsw, WORKSPACE_WIDTH_PERCENT);
-        deepin_shadow_workspace_populate(dsw, new_ws);
-
-        g_object_connect(G_OBJECT(dsw), 
-                "signal::enter-notify-event", on_workspace_thumb_entered, self,
-                "signal::leave-notify-event", on_workspace_thumb_leaved, self,
-                "signal::button-release-event", on_workspace_thumb_released, self,
-                NULL);
-
-        gtk_widget_show(GTK_WIDGET(dsw));
-        priv->worskpace_thumbs = g_list_append(priv->worskpace_thumbs, dsw);
-
-        int thumb_spacing = geom.width * SPACING_PERCENT;
-        gint count = g_list_length(priv->worskpace_thumbs) + 1;
-        int thumb_y = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);
-        int thumb_x = (geom.width - count * (priv->thumb_width + thumb_spacing))/2;
-
-        int x = thumb_x + i * (priv->thumb_width + thumb_spacing);
-        int real_height = 0;
-        gtk_widget_get_preferred_height((GtkWidget*)dsw, &real_height, NULL);
-
-        deepin_fixed_put(DEEPIN_FIXED(priv->fixed), (GtkWidget*)dsw,
-                x + priv->thumb_width/2, 
-                thumb_y + real_height/2);
-    }
-
-    priv->hover_ws = NULL;
-    priv->creating_workspace = TRUE;
-    g_idle_add(delayed_relayout, self);
-
+    _create_workspace(self);
     return TRUE;
 }
 
@@ -766,6 +690,203 @@ GtkWidget* deepin_wm_background_new(MetaScreen* screen)
     return widget;
 }
 
+static void _delete_workspace(DeepinWMBackground* self,
+        DeepinShadowWorkspace* ws)
+{
+    DeepinWMBackgroundPrivate* priv = self->priv;
+
+    gboolean need_switch_active = FALSE;
+
+    _hide_close_button(self);
+
+    MetaWorkspace* workspace = deepin_shadow_workspace_get_workspace(ws);
+    DeepinShadowWorkspace* ws_thumb = _find_workspace(priv->worskpace_thumbs, workspace);
+    g_assert(ws_thumb != NULL);
+    if (priv->hover_ws) g_assert(priv->hover_ws == ws_thumb);
+
+    need_switch_active = (ws == priv->active_workspace);
+
+    priv->worskpaces = g_list_remove(priv->worskpaces, ws);
+    priv->worskpace_thumbs = g_list_remove(priv->worskpace_thumbs, ws_thumb);
+
+    gtk_container_remove(GTK_CONTAINER(priv->fixed), (GtkWidget*)ws_thumb);
+    gtk_container_remove(GTK_CONTAINER(priv->fixed), (GtkWidget*)ws);
+
+    meta_screen_remove_workspace(priv->screen, workspace);
+
+    if (need_switch_active) {
+        MetaWorkspace* next_ws = priv->screen->active_workspace;
+        priv->active_workspace = _find_workspace(priv->worskpaces, next_ws);
+        DeepinShadowWorkspace* current_thumb = _find_workspace(
+                priv->worskpace_thumbs,
+                deepin_shadow_workspace_get_workspace(priv->active_workspace));
+
+        deepin_shadow_workspace_set_current(priv->active_workspace, TRUE);
+        deepin_shadow_workspace_set_current(current_thumb, TRUE);
+    }
+
+    priv->hover_ws = NULL;
+    priv->deleting_workspace = TRUE;
+
+    g_idle_add(delayed_relayout, self);
+}
+
+static void _create_workspace(DeepinWMBackground* self)
+{
+    DeepinWMBackgroundPrivate* priv = self->priv;
+
+    meta_verbose("%s\n", __func__);
+    if (meta_screen_get_n_workspaces(priv->screen) >= MAX_WORKSPACE_NUM) return;
+
+    GdkRectangle geom;
+    gint monitor_index = gdk_screen_get_monitor_at_window(priv->gscreen,
+            gtk_widget_get_window(GTK_WIDGET(self)));
+    gdk_screen_get_monitor_geometry(priv->gscreen, monitor_index, &geom);
+
+    MetaWorkspace* new_ws = meta_screen_new_workspace(priv->screen);
+    gint i = g_list_length(priv->worskpaces)-1,
+         current = g_list_index(priv->worskpaces, priv->active_workspace),
+         pad = FLOW_CLONE_DISTANCE_PERCENT * geom.width;
+
+    {
+        DeepinShadowWorkspace* dsw = 
+            (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
+        deepin_shadow_workspace_set_scale(dsw, priv->scale);
+        deepin_shadow_workspace_populate(dsw, new_ws);
+        gtk_widget_show(GTK_WIDGET(dsw));
+
+        priv->worskpaces = g_list_append(priv->worskpaces, dsw);
+
+        gint x = (geom.width - priv->width) / 2 +  (i - current) * (priv->width + pad);
+        deepin_fixed_put(DEEPIN_FIXED(priv->fixed), (GtkWidget*)dsw,
+                x + priv->width/2, priv->top_offset + priv->height/2);
+    }
+
+    /* for top workspace thumbnail */
+    {
+        DeepinShadowWorkspace* dsw = 
+            (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
+        deepin_shadow_workspace_set_thumb_mode(dsw, TRUE);
+        deepin_shadow_workspace_set_scale(dsw, WORKSPACE_WIDTH_PERCENT);
+        deepin_shadow_workspace_populate(dsw, new_ws);
+
+        g_object_connect(G_OBJECT(dsw), 
+                "signal::enter-notify-event", on_workspace_thumb_entered, self,
+                "signal::leave-notify-event", on_workspace_thumb_leaved, self,
+                "signal::button-release-event", on_workspace_thumb_released, self,
+                NULL);
+
+        gtk_widget_show(GTK_WIDGET(dsw));
+        priv->worskpace_thumbs = g_list_append(priv->worskpace_thumbs, dsw);
+
+        int thumb_spacing = geom.width * SPACING_PERCENT;
+        gint count = g_list_length(priv->worskpace_thumbs) + 1;
+        int thumb_y = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);
+        int thumb_x = (geom.width - count * (priv->thumb_width + thumb_spacing))/2;
+
+        int x = thumb_x + i * (priv->thumb_width + thumb_spacing);
+        int real_height = 0;
+        gtk_widget_get_preferred_height((GtkWidget*)dsw, &real_height, NULL);
+
+        deepin_fixed_put(DEEPIN_FIXED(priv->fixed), (GtkWidget*)dsw,
+                x + priv->thumb_width/2, 
+                thumb_y + real_height/2);
+    }
+
+    priv->hover_ws = NULL;
+    priv->creating_workspace = TRUE;
+    g_idle_add(delayed_relayout, self);
+}
+
+static void _handle_workspace_creation(DeepinWMBackground* self,
+        XIDeviceEvent* event, KeySym keysym, MetaKeyBindingAction action)
+{
+    if (self->priv->creating_workspace 
+            || self->priv->deleting_workspace
+            || self->priv->switching_workspace) {
+        return;
+    }
+    _create_workspace(self);
+}
+
+static void _handle_workspace_deletion(DeepinWMBackground* self,
+        XIDeviceEvent* event, KeySym keysym, MetaKeyBindingAction action)
+{
+    DeepinWMBackgroundPrivate* priv = self->priv;
+    if (self->priv->creating_workspace 
+            || self->priv->deleting_workspace
+            || self->priv->switching_workspace) {
+        return;
+    }
+
+    g_assert(priv->active_workspace);
+    _delete_workspace(self, priv->active_workspace);
+}
+
+static void _handle_workspace_goto(DeepinWMBackground* self,
+        XIDeviceEvent* event, KeySym keysym, MetaKeyBindingAction action)
+{
+    DeepinWMBackgroundPrivate* priv = self->priv;
+
+    gint index = keysym - XK_1;
+    MetaWorkspace* current = deepin_shadow_workspace_get_workspace(priv->active_workspace); 
+    MetaWorkspace* next = meta_screen_get_workspace_by_index(current->screen, index);
+    if (next) {
+        if (next == current) {
+            //bouncing
+            return;
+        }
+
+        deepin_fixed_cancel_pending_animation(DEEPIN_FIXED(priv->fixed), NULL);
+        deepin_wm_background_switch_workspace(self, next);
+    }
+}
+
+static void _handle_workspace_switch(DeepinWMBackground* self, XIDeviceEvent* event,
+        KeySym keysym, MetaKeyBindingAction action)
+{
+    DeepinWMBackgroundPrivate* priv = self->priv;
+
+    MetaMotionDirection dir = keysym == XK_Left ? META_MOTION_LEFT:META_MOTION_RIGHT;
+    MetaWorkspace* current = deepin_shadow_workspace_get_workspace(priv->active_workspace); 
+    MetaWorkspace* next = meta_workspace_get_neighbor(current, dir);
+    if (next) {
+        if (next == current) {
+            //bouncing
+            return;
+        }
+
+        if (priv->switching_workspace) {
+            meta_verbose("interrupt workspace switching\n");
+            priv->interrupted_switching = TRUE;
+        }
+        deepin_fixed_cancel_pending_animation(DEEPIN_FIXED(priv->fixed), NULL);
+        deepin_wm_background_switch_workspace(self, next);
+    }
+}
+
+static struct wm_event_dispatch_ 
+{
+    KeySym trigger;
+    void (*handler)(DeepinWMBackground* self, XIDeviceEvent* event,
+            KeySym keysym, MetaKeyBindingAction action);
+
+} dispatcher[] = {
+    {XK_Left,           _handle_workspace_switch},
+    {XK_Right,          _handle_workspace_switch},
+    {XK_plus,           _handle_workspace_creation},
+    {XK_equal,          _handle_workspace_creation},
+    {XK_minus,          _handle_workspace_deletion},
+    {XK_underscore,     _handle_workspace_deletion},
+    {XK_1,             _handle_workspace_goto},
+    {XK_2,             _handle_workspace_goto},
+    {XK_3,             _handle_workspace_goto},
+    {XK_4,             _handle_workspace_goto},
+    {XK_5,             _handle_workspace_goto},
+    {XK_6,             _handle_workspace_goto},
+    {XK_7,             _handle_workspace_goto},
+};
+
 void deepin_wm_background_handle_event(DeepinWMBackground* self, XIDeviceEvent* event, 
         KeySym keysym, MetaKeyBindingAction action)
 {
@@ -778,25 +899,23 @@ void deepin_wm_background_handle_event(DeepinWMBackground* self, XIDeviceEvent* 
     gboolean intercept = (w && GTK_IS_ENTRY(w));
     meta_verbose("%s: intercept %d\n", __func__, intercept);
 
-    if (!intercept && (keysym == XK_Left || keysym == XK_Right)) {
-        MetaMotionDirection dir = keysym == XK_Left ? META_MOTION_LEFT:META_MOTION_RIGHT;
-        MetaWorkspace* current = deepin_shadow_workspace_get_workspace(priv->active_workspace); 
-        MetaWorkspace* next = meta_workspace_get_neighbor(current, dir);
-        if (next) {
-            if (next == current) {
-                //bouncing
+    if (!intercept) {
+        for (int i = 0, len = G_N_ELEMENTS(dispatcher); i < len; i++) {
+            if (dispatcher[i].trigger == keysym) {
+                dispatcher[i].handler(self, event, keysym, action);
                 return;
             }
-
-            if (priv->switching_workspace) {
-                meta_verbose("interrupt workspace switching\n");
-                priv->interrupted_switching = TRUE;
-            }
-            deepin_fixed_cancel_pending_animation(DEEPIN_FIXED(priv->fixed), NULL);
-            deepin_wm_background_switch_workspace(self, next);
         }
 
-    } else { 
+    } 
+
+    if (keysym == XK_F2) {
+        // send this to active thumb for editting name
+        DeepinShadowWorkspace* thumb = _find_workspace(priv->worskpace_thumbs,
+                deepin_shadow_workspace_get_workspace(priv->active_workspace));
+        deepin_shadow_workspace_handle_event(thumb, event, keysym, action);
+
+    } else {
         /* pass through to active workspace */
         deepin_shadow_workspace_handle_event(priv->active_workspace,
                 event, keysym, action);
