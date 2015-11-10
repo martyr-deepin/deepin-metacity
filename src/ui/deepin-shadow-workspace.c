@@ -716,6 +716,7 @@ static void on_window_removed(DeepinMessageHub* hub, MetaWindow* window,
 static void deepin_shadow_workspace_init (DeepinShadowWorkspace *self)
 {
     self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, DEEPIN_TYPE_SHADOW_WORKSPACE, DeepinShadowWorkspacePrivate);
+    memset(self->priv, 0, sizeof *self->priv);
 
     self->priv->scale = 1.0;
     gtk_widget_set_sensitive(GTK_WIDGET(self), TRUE);
@@ -1091,6 +1092,7 @@ static void deepin_shadow_workspace_class_init (DeepinShadowWorkspaceClass *klas
 
 static gboolean on_idle_focus_out_entry(GtkWidget* entry)
 {
+    meta_verbose("%s\n", __func__);
     GdkEvent *fevent = gdk_event_new (GDK_FOCUS_CHANGE);
     fevent->focus_change.type = GDK_FOCUS_CHANGE;
     fevent->focus_change.in = FALSE;
@@ -1108,10 +1110,12 @@ static gboolean on_idle_focus_out_entry(GtkWidget* entry)
 static gboolean on_entry_pressed(GtkWidget* entry,
                GdkEvent* event, gpointer user_data)
 {
-    GdkEventButton evb = event->button;
+    DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)user_data;
+    DeepinShadowWorkspacePrivate* priv =self->priv;
 
+    GdkEventButton evb = event->button;
     if (!gtk_widget_has_grab(entry)) {
-        meta_verbose("%s: grab\n", __func__);
+        meta_verbose("%s: %p grab\n", __func__, GDK_WINDOW_XID(gtk_widget_get_window(entry)));
         gtk_grab_add(entry);
         gtk_entry_grab_focus_without_selecting(GTK_ENTRY(entry));
 
@@ -1125,17 +1129,11 @@ static gboolean on_entry_pressed(GtkWidget* entry,
             meta_verbose("%s: ungrab and replay\n", __func__);
             /* hack: when click out side of entry, loose grab and replay click,
              * incase some other entry was clicked and cannot get event */
-            if (gtk_widget_has_grab(entry)) {
-                gtk_grab_remove(entry);
-                gtk_editable_select_region(GTK_EDITABLE(entry), 0, 0);
-                g_idle_add((GSourceFunc)on_idle_focus_out_entry, entry);
+            gtk_editable_select_region(GTK_EDITABLE(entry), 0, 0);
+            gtk_grab_remove(entry);
+            g_idle_add((GSourceFunc)on_idle_focus_out_entry, entry);
 
-                GdkEvent* copy = gtk_get_current_event();
-                gdk_event_put(copy);
-                gdk_event_free(copy);
-
-                return TRUE;
-            }
+            return TRUE;
         }
     }
     return FALSE;
@@ -1439,11 +1437,9 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
 static void on_deepin_shadow_workspace_show(DeepinShadowWorkspace* self, gpointer data)
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
-    if (priv->thumb_mode && priv->entry) {
-        if (priv->selected) gtk_widget_grab_focus(priv->entry);
-        /*gtk_entry_reset_im_context(GTK_ENTRY(priv->entry));*/
-        /*gtk_editable_select_region(GTK_EDITABLE(priv->entry), 0, 0);*/
-    }
+    /*if (priv->thumb_mode && priv->entry) {*/
+        /*if (priv->selected) gtk_widget_grab_focus(priv->entry);*/
+    /*}*/
     g_idle_add((GSourceFunc)on_idle, self);
 }
 
@@ -1854,7 +1850,10 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
     if (!priv->ready) return;
-    meta_verbose("%s\n", __func__);
+
+    meta_verbose("%s: ws(%s(%s))\n", __func__, 
+            meta_workspace_get_name(priv->workspace),
+            (priv->thumb_mode ? "thumb": ""));
 
     GtkWidget* w = gtk_grab_get_current();
     if (w && GTK_IS_ENTRY(w)) {

@@ -274,7 +274,6 @@ static void relayout(DeepinWMBackground* self)
                     x + priv->thumb_width/2, y, TRUE);
             _move_count++;
         }
-
     }
 }
 
@@ -377,8 +376,8 @@ static gboolean on_workspace_thumb_released(DeepinShadowWorkspace* ws_thumb,
         return TRUE;
     }
 
-    if (priv->active_workspace != ws_thumb) {
-        MetaWorkspace* next = deepin_shadow_workspace_get_workspace(ws_thumb);
+    MetaWorkspace* next = deepin_shadow_workspace_get_workspace(ws_thumb);
+    if (deepin_shadow_workspace_get_workspace(priv->active_workspace) != next) {
         deepin_fixed_cancel_pending_animation(DEEPIN_FIXED(priv->fixed), NULL);
         deepin_wm_background_switch_workspace(self, next);
     } 
@@ -408,19 +407,29 @@ static gboolean on_workspace_thumb_leaved(DeepinShadowWorkspace* ws_thumb,
     return TRUE;
 }
 
+static gboolean _idle_show_close_button(DeepinWMBackground* self)
+{
+    DeepinWMBackgroundPrivate* priv = self->priv;
+    if (priv->disposed) return G_SOURCE_REMOVE;
+
+    if (_show_closer(priv->screen) && priv->hover_ws
+            && !(priv->deleting_workspace 
+                || priv->creating_workspace
+                || priv->switching_workspace)) {
+        _move_close_button_for(self, priv->hover_ws);
+        gtk_widget_set_opacity(priv->close_button, 1.0);
+    }
+    return G_SOURCE_REMOVE;
+}
+
 static gboolean on_workspace_thumb_entered(DeepinShadowWorkspace* ws_thumb,
                GdkEvent* event, gpointer data)
 {
     DeepinWMBackground* self = DEEPIN_WM_BACKGROUND(data);
-    DeepinWMBackgroundPrivate* priv= self->priv;
     meta_verbose("%s\n", __func__);
 
-    priv->hover_ws = ws_thumb;
-    if (_show_closer(priv->screen) 
-            && !(priv->deleting_workspace || priv->creating_workspace)) {
-        _move_close_button_for(self, ws_thumb);
-        gtk_widget_set_opacity(priv->close_button, 1.0);
-    }
+    self->priv->hover_ws = ws_thumb;
+    g_idle_add((GSourceFunc)_idle_show_close_button, self);
     return TRUE;
 }
 
@@ -430,6 +439,20 @@ static void deepin_wm_background_init (DeepinWMBackground *self)
 
     DeepinWMBackgroundPrivate* priv = self->priv;
     priv->worskpaces = NULL;
+}
+
+static void deepin_wm_background_dispose (GObject *object)
+{
+    DeepinWMBackground* self = DEEPIN_WM_BACKGROUND(object);
+    DeepinWMBackgroundPrivate* priv = self->priv;
+
+    if (!priv->disposed) {
+        priv->disposed = TRUE;
+        g_list_free(priv->worskpaces);
+        g_list_free(priv->worskpace_thumbs);
+    }
+
+    G_OBJECT_CLASS (deepin_wm_background_parent_class)->dispose (object);
 }
 
 static void deepin_wm_background_finalize (GObject *object)
@@ -453,6 +476,7 @@ static void deepin_wm_background_class_init (DeepinWMBackgroundClass *klass)
     widget_class->draw = deepin_wm_background_real_draw;
 
     object_class->finalize = deepin_wm_background_finalize;
+    object_class->dispose = deepin_wm_background_dispose;
 }
 
 void deepin_wm_background_switch_workspace(DeepinWMBackground* self, 
@@ -702,7 +726,7 @@ static void _delete_workspace(DeepinWMBackground* self,
     MetaWorkspace* workspace = deepin_shadow_workspace_get_workspace(ws);
     DeepinShadowWorkspace* ws_thumb = _find_workspace(priv->worskpace_thumbs, workspace);
     g_assert(ws_thumb != NULL);
-    if (priv->hover_ws) g_assert(priv->hover_ws == ws_thumb);
+    if (priv->hover_ws) priv->hover_ws = NULL;
 
     need_switch_active = (ws == priv->active_workspace);
 
@@ -725,7 +749,6 @@ static void _delete_workspace(DeepinWMBackground* self,
         deepin_shadow_workspace_set_current(current_thumb, TRUE);
     }
 
-    priv->hover_ws = NULL;
     priv->deleting_workspace = TRUE;
 
     g_idle_add(delayed_relayout, self);
@@ -913,6 +936,7 @@ void deepin_wm_background_handle_event(DeepinWMBackground* self, XIDeviceEvent* 
         // send this to active thumb for editting name
         DeepinShadowWorkspace* thumb = _find_workspace(priv->worskpace_thumbs,
                 deepin_shadow_workspace_get_workspace(priv->active_workspace));
+        g_assert(thumb != NULL);
         deepin_shadow_workspace_handle_event(thumb, event, keysym, action);
 
     } else {
