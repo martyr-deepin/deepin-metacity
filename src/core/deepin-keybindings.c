@@ -155,7 +155,7 @@ static gboolean _do_grab_pointer(MetaScreen* screen, GtkWidget* w)
     g_assert(gdk_device_get_source(pointer) == GDK_SOURCE_MOUSE);
 
     GdkGrabStatus ret = gdk_device_grab(pointer, gtk_widget_get_window(w), 
-            GDK_OWNERSHIP_NONE, TRUE,
+            GDK_OWNERSHIP_APPLICATION, TRUE,
             GDK_BUTTON_PRESS_MASK| GDK_BUTTON_RELEASE_MASK| 
             GDK_ENTER_NOTIFY_MASK| GDK_FOCUS_CHANGE_MASK,
             NULL, gtk_get_current_event_time());

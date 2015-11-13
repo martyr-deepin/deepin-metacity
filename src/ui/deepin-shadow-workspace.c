@@ -728,6 +728,8 @@ static void deepin_shadow_workspace_finalize (GObject *object)
 {
     DeepinShadowWorkspace* self = DEEPIN_SHADOW_WORKSPACE(object);
     DeepinShadowWorkspacePrivate* priv = self->priv;
+    if (priv->disposed) return;
+
     priv->disposed = TRUE;
 
     g_signal_handlers_disconnect_by_data(G_OBJECT(deepin_message_hub_get()), 
@@ -1144,7 +1146,7 @@ static gboolean on_entry_pressed(GtkWidget* entry,
 static gboolean on_entry_key_pressed(GtkWidget* entry,
                GdkEvent* event, gpointer data)
 {
-    meta_verbose("%s\n");
+    meta_verbose("%s\n", __func__);
     DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
 
     if (event->key.keyval == GDK_KEY_Tab) 
@@ -1159,12 +1161,9 @@ static gboolean on_entry_key_pressed(GtkWidget* entry,
         }
 
         if (gtk_widget_has_grab(entry)) {
+            gtk_editable_select_region(GTK_EDITABLE(entry), 0, 0);
             gtk_grab_remove(entry);
-        }
-
-        GtkWidget* top = gtk_widget_get_toplevel(entry);
-        if (gtk_widget_is_toplevel(top)) {
-            gtk_window_set_focus(GTK_WINDOW(top), NULL);
+            g_idle_add((GSourceFunc)on_idle_focus_out_entry, entry);
         }
 
         return TRUE;
@@ -1174,21 +1173,13 @@ static gboolean on_entry_key_pressed(GtkWidget* entry,
     return FALSE;
 }
 
-static gboolean on_entry_focus_out(GtkWidget* entry,
-               GdkEvent* event, gpointer user_data)
-{
-    meta_verbose("%s\n", __func__);
-    return FALSE;
-}
-
 static void _create_entry(DeepinShadowWorkspace* self)
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
+    if (priv->entry) return;
 
     GtkWidget* w = deepin_name_entry_new();
     gtk_entry_set_text(GTK_ENTRY(w), meta_workspace_get_name(priv->workspace));
-
-    gtk_widget_show(w);
 
     GtkAllocation alloc;
     gtk_widget_get_allocation(w, &alloc);
@@ -1199,10 +1190,8 @@ static void _create_entry(DeepinShadowWorkspace* self)
 
     g_object_connect(G_OBJECT(w),
             "signal::button-press-event", on_entry_pressed, self,
-            "signal::focus-out-event", on_entry_focus_out, self,
             "signal::key-press-event", on_entry_key_pressed, self,
             NULL);
-
     gtk_widget_show(w);
 
     priv->entry = w;
@@ -1259,10 +1248,10 @@ static gboolean on_deepin_cloned_widget_entered(MetaDeepinClonedWidget* cloned,
     return TRUE;
 }
 
-static gboolean on_idle_end_grab(DeepinShadowWorkspace* self)
+static gboolean on_idle_end_grab(guint timestamp)
 {
-    meta_display_end_grab_op(self->priv->workspace->screen->display,
-            gtk_get_current_event_time());
+    meta_verbose ("%s\n", __func__);
+    meta_display_end_grab_op(meta_get_display(), timestamp);
     return G_SOURCE_REMOVE;
 }
 
@@ -1284,7 +1273,7 @@ static gboolean on_deepin_cloned_widget_released(MetaDeepinClonedWidget* cloned,
             meta_workspace_activate(mw->workspace, gdk_event_get_time(event));
         }
         meta_window_activate(mw, gdk_event_get_time(event));
-        g_idle_add((GSourceFunc)on_idle_end_grab, self);
+        g_idle_add((GSourceFunc)on_idle_end_grab, gdk_event_get_time(event));
         return TRUE;
     }
 
@@ -1439,9 +1428,6 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
 static void on_deepin_shadow_workspace_show(DeepinShadowWorkspace* self, gpointer data)
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
-    /*if (priv->thumb_mode && priv->entry) {*/
-        /*if (priv->selected) gtk_widget_grab_focus(priv->entry);*/
-    /*}*/
     g_idle_add((GSourceFunc)on_idle, self);
 }
 
@@ -1455,7 +1441,7 @@ static gboolean on_deepin_shadow_workspace_released(DeepinShadowWorkspace* self,
     if (!priv->ready || priv->hovered_clone) return TRUE;
 
     if (!priv->thumb_mode) {
-        g_idle_add((GSourceFunc)on_idle_end_grab, self);
+        g_idle_add((GSourceFunc)on_idle_end_grab, gdk_event_get_time(event));
         return TRUE;
     }
     
@@ -1812,6 +1798,7 @@ static void _entry_handle_event(GtkWidget* w, XIDeviceEvent* event)
     kev->key.type = event->evtype == XI_KeyPress ? GDK_KEY_PRESS : GDK_KEY_RELEASE;
 
     kev->key.window = gtk_widget_get_window(w);
+    g_object_ref(kev->key.window);
 
     kev->key.time = event->time;
     kev->key.state = _gdk_x11_device_xi2_translate_state (&event->mods,
@@ -1887,7 +1874,7 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
             meta_window_activate(mw, event->time);
         }
 
-        g_idle_add((GSourceFunc)on_idle_end_grab, self);
+        g_idle_add((GSourceFunc)on_idle_end_grab, event->time);
 
     } else if (keysym == XK_F2) {
         gtk_grab_add(priv->entry);
