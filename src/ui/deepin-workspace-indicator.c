@@ -62,6 +62,8 @@ static gboolean on_popup_timeout(DeepinWorkspaceIndicator* self)
 {
     /*meta_verbose("%s", __func__);*/
     DeepinWorkspaceIndicatorPrivate *priv = self->priv;
+    priv->timeout_id = 0;
+
     if (!priv->timeline) return G_SOURCE_REMOVE;
 
     deepin_timeline_start(priv->timeline);

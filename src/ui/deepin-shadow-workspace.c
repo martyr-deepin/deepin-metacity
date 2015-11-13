@@ -1092,6 +1092,8 @@ static void deepin_shadow_workspace_class_init (DeepinShadowWorkspaceClass *klas
 
 static gboolean on_idle_focus_out_entry(GtkWidget* entry)
 {
+    if (!GTK_IS_ENTRY(entry)) return G_SOURCE_REMOVE;
+
     meta_verbose("%s\n", __func__);
     GdkEvent *fevent = gdk_event_new (GDK_FOCUS_CHANGE);
     fevent->focus_change.type = GDK_FOCUS_CHANGE;
