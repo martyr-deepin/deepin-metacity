@@ -836,9 +836,11 @@ static void _handle_workspace_deletion(DeepinWMBackground* self,
         XIDeviceEvent* event, KeySym keysym, MetaKeyBindingAction action)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
-    if (self->priv->creating_workspace 
-            || self->priv->deleting_workspace
-            || self->priv->switching_workspace) {
+
+    if (!_show_closer(priv->screen)
+        || self->priv->creating_workspace 
+        || self->priv->deleting_workspace
+        || self->priv->switching_workspace) {
         return;
     }
 
