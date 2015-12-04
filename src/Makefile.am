@@ -4,6 +4,10 @@ lib_LTLIBRARIES = libdeepin-metacity-private.la
 
 SUBDIRS = tools themes
 
+BUILT_SOURCES =					\
+	$(deepin_metacity_built_sources)
+
+
 AM_CPPFLAGS = \
 	-DMETACITY_LIBEXECDIR=\"$(libexecdir)\" \
 	-DHOST_ALIAS=\"@HOST_ALIAS@\" \
@@ -47,6 +51,16 @@ libdeepin_metacity_private_la_SOURCES=			\
 	core/delete.c				\
 	core/display.c				\
 	core/display-private.h		\
+	core/edid-parse.c			\
+	core/edid.h					\
+	core/meta-monitor-config.c		\
+	core/meta-monitor-config.h		\
+	core/meta-monitor-manager.c		\
+	core/meta-monitor-manager.h		\
+	core/meta-monitor-manager-private.h	\
+	core/meta-monitor-manager-xrandr.c	\
+	core/meta-monitor-manager-xrandr.h	\
+	core/meta-display-config-shared.h 	\
 	include/display.h			\
 	ui/draw-workspace.c			\
 	ui/draw-workspace.h			\
@@ -163,6 +177,8 @@ libdeepin_metacity_private_la_SOURCES=			\
 	ui/theme.h				\
 	ui/ui.c
 
+nodist_libdeepin_metacity_private_la_SOURCES = $(deepin_metacity_built_sources)
+
 libdeepin_metacity_private_la_LDFLAGS = -no-undefined -version-info 3:0:0 $(WARN_LDFLAGS) $(AM_LDFLAGS)
 libdeepin_metacity_private_la_LIBADD  = @METACITY_LIBS@
 
@@ -225,7 +241,10 @@ xml_DATA     = $(xml_in_files:.xml.in=.xml)
 @INTLTOOL_SCHEMAS_RULE@
 
 CLEANFILES = \
-	metacity.desktop metacity-wm.desktop org.gnome.metacity.gschema.xml 50-metacity-launchers.xml 50-metacity-navigation.xml 50-metacity-screenshot.xml 50-metacity-system.xml 50-metacity-windows.xml
+	metacity.desktop metacity-wm.desktop org.gnome.metacity.gschema.xml  \
+	50-metacity-launchers.xml 50-metacity-navigation.xml  \
+	50-metacity-screenshot.xml 50-metacity-system.xml 50-metacity-windows.xml \
+	$(deepin_metacity_built_sources)
 
 pkgconfigdir = $(libdir)/pkgconfig
 
@@ -241,6 +260,7 @@ EXTRA_DIST=$(desktopfiles_files)	 	\
 	$(wmproperties_in_files)		\
 	metacity-schemas.convert		\
 	org.gnome.metacity.gschema.xml.in	\
+	com.deepin.Metacity.DisplayConfig.xml \
 	$(xml_in_files)				\
 	libmetacity-private.pc.in \
 	deepin-wm.css \
@@ -248,6 +268,20 @@ EXTRA_DIST=$(desktopfiles_files)	 	\
 	texture.png 
 
 -include $(top_srcdir)/git.mk
+
+deepin_metacity_built_sources = \
+	  $(dbus_display_config_built_sources)    \
+	  $(NULL)
+
+
+dbus_display_config_built_sources = meta-dbus-display-config.c meta-dbus-display-config.h
+
+$(dbus_display_config_built_sources) : Makefile.am com.deepin.Metacity.DisplayConfig.xml
+	$(AM_V_GEN)gdbus-codegen                            \
+		--interface-prefix com.deepin.Metacity                 \
+		--c-namespace MetaDBus                          \
+		--generate-c-code meta-dbus-display-config              \
+		$(srcdir)/com.deepin.Metacity.DisplayConfig.xml
 
 # add prefix 'deepin-'
 install-data-hook:

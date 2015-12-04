@@ -88,7 +88,12 @@ GTK_MIN_VERSION=3.15.2
 GIO_MIN_VERSION=2.25.10
 CANBERRA_GTK=libcanberra-gtk3
 
-METACITY_PC_MODULES="gtk+-3.0 >= $GTK_MIN_VERSION gio-2.0 >= $GIO_MIN_VERSION pango >= 1.2.0 gsettings-desktop-schemas >= 3.3.0 xi >= 1.6.0"
+METACITY_PC_MODULES="
+    gtk+-3.0 >= $GTK_MIN_VERSION gio-2.0 >= $GIO_MIN_VERSION pango >= 1.2.0 gsettings-desktop-schemas >= 3.3.0 xi >= 1.6.0
+    gnome-desktop-3.0
+   upower-glib >= 0.99.0
+   xcb-randr
+"
 
 GLIB_GSETTINGS
 
@@ -362,6 +367,8 @@ AC_CHECK_LIB(Xrandr, XRRUpdateConfiguration,
 
 if test "x$found_randr" = "xyes"; then
    AC_DEFINE(HAVE_RANDR, , [Have the Xrandr extension library])
+   PKG_CHECK_EXISTS([xrandr >= 1.5.0],
+                    AC_DEFINE([HAVE_XRANDR15],[1],[Define if you have support for XRandR 1.5 or greater]))
 fi
 
 METACITY_LIBS="$ALL_LIBS $METACITY_LIBS $RANDR_LIBS -lX11 -lXext $X_EXTRA_LIBS $LIBM"
