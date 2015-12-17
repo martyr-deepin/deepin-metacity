@@ -2218,7 +2218,7 @@ event_callback (XEvent   *event,
         {
           window = meta_window_new (display, event->xmaprequest.window,
                                     FALSE);
-          if (!window->decorated) 
+          if (window && !window->decorated) 
             {
               XWindowAttributes attrs;
               if (XGetWindowAttributes (display->xdisplay, window->xwindow, &attrs))
