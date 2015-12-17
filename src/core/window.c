@@ -72,6 +72,7 @@ static gboolean process_property_notify   (MetaWindow     *window,
                                            XPropertyEvent *event);
 static void     meta_window_show          (MetaWindow     *window);
 static void     meta_window_hide          (MetaWindow     *window);
+static void     meta_window_force_placement (MetaWindow     *window);
 
 static gboolean meta_window_same_client (MetaWindow *window,
                                          MetaWindow *other_window);
@@ -1462,21 +1463,50 @@ static void
 finish_minimize (gpointer data)
 {
   MetaWindow *window = data;
-  /* FIXME: It really sucks to put timestamp pinging here; it'd
-   * probably make more sense in implement_showing() so that it's at
-   * least not duplicated in meta_window_show; but since
-   * finish_minimize is a callback making things just slightly icky, I
-   * haven't done that yet.
-   */
-  guint32 timestamp = meta_display_get_current_time_roundtrip (window->display);
 
   meta_window_hide (window);
   if (window->has_focus)
     {
+      /* FIXME: It really sucks to put timestamp pinging here; it'd
+       * probably make more sense in implement_showing() so that it's at
+       * least not duplicated in meta_window_show; but since
+       * finish_minimize is a callback making things just slightly icky, I
+       * haven't done that yet.
+       */
+      guint32 timestamp = meta_display_get_current_time_roundtrip (window->display);
       meta_workspace_focus_default_window (window->screen->active_workspace,
                                            window,
                                            timestamp);
     }
+}
+
+static gboolean
+client_window_should_be_mapped (MetaWindow *window)
+{
+  return !window->shaded;
+}
+
+static void
+sync_client_window_mapped (MetaWindow *window)
+{
+  gboolean should_be_mapped = client_window_should_be_mapped (window);
+
+  if (window->mapped == should_be_mapped)
+    return;
+
+  window->mapped = should_be_mapped;
+
+  meta_error_trap_push (window->display);
+  if (should_be_mapped)
+    {
+      XMapWindow (window->display->xdisplay, window->xwindow);
+    }
+  else
+    {
+      XUnmapWindow (window->display->xdisplay, window->xwindow);
+      window->unmaps_pending ++;
+    }
+  meta_error_trap_pop (window->display, FALSE);
 }
 
 static void
@@ -1489,6 +1519,15 @@ implement_showing (MetaWindow *window,
 
   if (!showing)
     {
+      /* When we manage a new window, we normally delay placing it
+       * until it is is first shown, but if we're previewing hidden
+       * windows we might want to know where they are on the screen,
+       * so we should place the window even if we're hiding it rather
+       * than showing it.
+       */
+      if (!window->placed)
+        meta_window_force_placement (window);
+
       gboolean on_workspace;
 
       on_workspace = meta_window_located_on_workspace (window,
@@ -1538,6 +1577,8 @@ implement_showing (MetaWindow *window,
     {
       meta_window_show (window);
     }
+
+    sync_client_window_mapped (window);
 }
 
 void
@@ -2107,6 +2148,38 @@ window_would_be_covered (const MetaWindow *newbie)
 
   g_list_free (windows);
   return FALSE; /* none found */
+}
+
+static void
+meta_window_force_placement (MetaWindow *window)
+{
+  if (window->placed)
+    return;
+
+  meta_topic (META_DEBUG_PLACEMENT, "force placement");
+
+  /* We have to recalc the placement here since other windows may
+   * have been mapped/placed since we last did constrain_position
+   */
+
+  /* calc_placement is an efficiency hack to avoid
+   * multiple placement calculations before we finally
+   * show the window.
+   */
+  window->calc_placement = TRUE;
+  meta_window_move_resize_now (window);
+  window->calc_placement = FALSE;
+
+  /* don't ever do the initial position constraint thing again.
+   * This is toggled here so that initially-iconified windows
+   * still get placed when they are ultimately shown.
+   */
+  window->placed = TRUE;
+
+  /* Don't want to accidentally reuse the fact that we had been denied
+   * focus in any future constraints unless we're denied focus again.
+   */
+  window->denied_focus_and_not_transient = FALSE;
 }
 
 /* XXX META_EFFECT_*_MAP */
