@@ -117,7 +117,7 @@ meta_window_ensure_frame (MetaWindow *window)
   frame->right_width = 0;
   frame->current_cursor = 0;
 
-  frame->mapped = FALSE;
+  frame->mapped = TRUE;
   frame->need_reapply_frame_shape = TRUE;
   frame->is_flashing = FALSE;
 
@@ -207,6 +207,8 @@ meta_window_ensure_frame (MetaWindow *window)
 
   /* stick frame to the window */
   window->frame = frame;
+
+  meta_ui_map_frame (window->screen->ui, window->frame->xwindow);
 
   /* Now that frame->xwindow is registered with window, we can set its
    * style and background.

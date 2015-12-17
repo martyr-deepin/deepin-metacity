@@ -1494,6 +1494,7 @@ sync_client_window_mapped (MetaWindow *window)
   if (window->mapped == should_be_mapped)
     return;
 
+  meta_verbose ("%s: should_be_mapped = %d\n", __func__, should_be_mapped);
   window->mapped = should_be_mapped;
 
   meta_error_trap_push (window->display);
@@ -2156,7 +2157,7 @@ meta_window_force_placement (MetaWindow *window)
   if (window->placed)
     return;
 
-  meta_topic (META_DEBUG_PLACEMENT, "force placement");
+  meta_topic (META_DEBUG_PLACEMENT, "force placement\n");
 
   /* We have to recalc the placement here since other windows may
    * have been mapped/placed since we last did constrain_position
