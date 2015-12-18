@@ -918,8 +918,11 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
         cairo_set_source_surface(cr, priv->desktop_surface, 0, 0);
         cairo_paint(cr);
     } else {
-        cairo_set_source_surface(cr,
-                deepin_background_cache_get_surface(priv->scale), 0, 0);
+        cairo_surface_t* ref = deepin_background_cache_get_surface(
+                priv->scale);
+        if (ref != NULL) {
+            cairo_set_source_surface(cr, ref, 0, 0);
+        }
     }
 
     cairo_paint(cr);

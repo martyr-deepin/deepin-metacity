@@ -210,8 +210,12 @@ cairo_surface_t* deepin_window_surface_manager_get_combined3(
 
     cairo_t *cr = cairo_create(ret);
     if (scale < 1.0) cairo_scale(cr, scale, scale);
-    cairo_set_source_surface(cr, ref, 0, 0);
-    cairo_paint(cr);
+
+    if (ref) {
+        cairo_set_source_surface(cr, ref, 0, 0);
+        cairo_paint(cr);
+    }
+
     if (surface1) {
         cairo_set_source_surface(cr, surface1, x1, y1);
         cairo_paint(cr);

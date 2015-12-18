@@ -193,10 +193,12 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
 
   if (priv->window->type == META_WINDOW_DESKTOP) {
       cairo_surface_t* ref = deepin_background_cache_get_surface(sx);
-      x = (w - cairo_image_surface_get_width(ref)) / 2.0,
-        y = (h - cairo_image_surface_get_height(ref)) / 2.0;
-      cairo_set_source_surface(cr, ref, x, y);
-      cairo_paint(cr);
+      if (ref) {
+          x = (w - cairo_image_surface_get_width(ref)) / 2.0,
+            y = (h - cairo_image_surface_get_height(ref)) / 2.0;
+          cairo_set_source_surface(cr, ref, x, y);
+          cairo_paint(cr);
+      }
   }
 
   if (priv->render_thumb && priv->snapshot) {

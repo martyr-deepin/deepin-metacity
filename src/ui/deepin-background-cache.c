@@ -137,6 +137,10 @@ static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
         g_assert(!priv->background);
 
         priv->background = gdk_cairo_surface_create_from_pixbuf(pixbuf, 1.0, NULL);
+        if (cairo_surface_status(priv->background) != CAIRO_STATUS_SUCCESS) {
+            meta_verbose("%s create surface failed", __func__);
+            g_clear_pointer(&priv->background, cairo_surface_destroy);
+        }
     }
 
 _cleanup:
