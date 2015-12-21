@@ -203,6 +203,8 @@ cairo_surface_t* deepin_window_surface_manager_get_combined3(
         cairo_surface_t* surface2, int x2, int y2, 
         double scale)
 {
+    if (!ref) return NULL;
+
     cairo_surface_t* ret = cairo_image_surface_create(
             cairo_image_surface_get_format(ref),
             cairo_image_surface_get_width(ref),
@@ -211,10 +213,8 @@ cairo_surface_t* deepin_window_surface_manager_get_combined3(
     cairo_t *cr = cairo_create(ret);
     if (scale < 1.0) cairo_scale(cr, scale, scale);
 
-    if (ref) {
-        cairo_set_source_surface(cr, ref, 0, 0);
-        cairo_paint(cr);
-    }
+    cairo_set_source_surface(cr, ref, 0, 0);
+    cairo_paint(cr);
 
     if (surface1) {
         cairo_set_source_surface(cr, surface1, x1, y1);

@@ -1,0 +1,20 @@
+<!DOCTYPE node PUBLIC
+'-//freedesktop//DTD D-BUS Object Introspection 1.0//EN'
+'http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd'>
+<node>
+  <!--
+      com.deepin.wm:
+      @short_description: deepin-metacity control interface
+
+      This interface is used by deepin-metacity
+  -->
+
+  <interface name="com.deepin.wm">
+
+    <method name="PerformAction">
+      <arg name="type" direction="in" type="i" />
+    </method>
+
+    <method name="ToggleDebug" />
+  </interface>
+</node>

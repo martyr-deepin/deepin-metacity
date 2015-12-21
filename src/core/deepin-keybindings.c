@@ -316,12 +316,13 @@ static void on_drag_end(DeepinMessageHub* hub, GtkWidget* top)
     _do_grab(display->active_screen, top, TRUE);
 }
 
-static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
-        MetaWindow *window, XIDeviceEvent *event,
-        MetaKeyBinding *binding, gpointer user_data)
+void do_preview_workspace(MetaDisplay *display, MetaScreen *screen,
+        MetaWindow *window, guint32 timestamp,
+        MetaKeyBinding *binding, gpointer user_data, 
+        gboolean user_op)
 {
-    meta_verbose("%s", __func__);
-    unsigned int grab_mask = binding->mask;
+    meta_verbose("%s\n", __func__);
+    unsigned int grab_mask = binding ? binding->mask: 0;
     if (meta_display_begin_grab_op (display,
                 screen,
                 NULL,
@@ -330,11 +331,11 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
                 FALSE,
                 0,
                 grab_mask,
-                event->time,
+                timestamp,
                 0, 0))
     {
         gboolean grabbed_before_release = 
-            primary_modifier_still_pressed (display, grab_mask);
+            user_op? primary_modifier_still_pressed (display, grab_mask): TRUE;
 
         meta_topic (META_DEBUG_KEYBINDINGS, "Activating workspace preview\n");
 
@@ -344,8 +345,8 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
              * release event. Must end grab before we can switch
              * spaces.
              */
-            meta_verbose("not grabbed_before_release");
-            meta_display_end_grab_op (display, event->time);
+            meta_verbose("not grabbed_before_release\n");
+            meta_display_end_grab_op (display, timestamp);
             return;
         }
 
@@ -360,6 +361,14 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
         /* rely on auto ungrab when destroyed */
         _do_grab(screen, (GtkWidget*)screen->ws_previewer, TRUE);
     }
+}
+
+static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
+        MetaWindow *window, XIDeviceEvent *event,
+        MetaKeyBinding *binding, gpointer user_data)
+{
+    do_preview_workspace(display, screen, window, event->time, binding,
+            user_data, TRUE);
 }
 
 enum {

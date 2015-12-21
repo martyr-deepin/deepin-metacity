@@ -778,6 +778,8 @@ meta_display_open (void)
       tmp = tmp->next;
     }
 
+  deepin_dbus_service_get();
+
   {
     Window focus;
     int ret_to;

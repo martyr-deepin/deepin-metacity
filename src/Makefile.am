@@ -18,6 +18,10 @@ AM_CPPFLAGS = \
 	$(AM_CFLAGS) \
 	$(NULL)
 
+deepin_metacity_built_sources = \
+	$(deepin_dbus_wm_built_sources)	\
+	$(NULL)
+
 deepin_metacity_SOURCES= 				\
 	core/main.c				\
 	include/main.h
@@ -101,6 +105,8 @@ libdeepin_metacity_private_la_SOURCES=			\
 	core/workspace.c			\
 	core/workspace.h			\
 	core/xprops.c				\
+	core/deepin-dbus-service.c  	\
+	include/deepin-dbus-service.h  	\
 	include/xprops.h			\
 	include/common.h			\
 	include/core.h				\
@@ -162,6 +168,8 @@ libdeepin_metacity_private_la_SOURCES=			\
 	ui/theme.c				\
 	ui/theme.h				\
 	ui/ui.c
+
+nodist_libdeepin_metacity_private_la_SOURCES = $(deepin_metacity_built_sources)
 
 libdeepin_metacity_private_la_LDFLAGS = -no-undefined -version-info 3:0:0 $(WARN_LDFLAGS) $(AM_LDFLAGS)
 libdeepin_metacity_private_la_LIBADD  = @METACITY_LIBS@
@@ -225,6 +233,7 @@ xml_DATA     = $(xml_in_files:.xml.in=.xml)
 @INTLTOOL_SCHEMAS_RULE@
 
 CLEANFILES = \
+	$(deepin_metacity_built_sources)			\
 	metacity.desktop metacity-wm.desktop org.gnome.metacity.gschema.xml 50-metacity-launchers.xml 50-metacity-navigation.xml 50-metacity-screenshot.xml 50-metacity-system.xml 50-metacity-windows.xml
 
 pkgconfigdir = $(libdir)/pkgconfig
@@ -245,9 +254,22 @@ EXTRA_DIST=$(desktopfiles_files)	 	\
 	libmetacity-private.pc.in \
 	deepin-wm.css \
 	close.png \
-	texture.png 
+	texture.png \
+	com.deepin.wm.xml
+
+BUILT_SOURCES =					\
+	$(deepin_metacity_built_sources)
 
 -include $(top_srcdir)/git.mk
+
+deepin_dbus_wm_built_sources = deepin-dbus-wm.c deepin-dbus-wm.h
+
+$(deepin_dbus_wm_built_sources) : Makefile.am com.deepin.wm.xml
+	$(AM_V_GEN)gdbus-codegen							\
+		--interface-prefix com.deepin					\
+		--c-namespace DeepinDBus						\
+		--generate-c-code deepin-dbus-wm 				\
+		$(srcdir)/com.deepin.wm.xml
 
 # add prefix 'deepin-'
 install-data-hook:

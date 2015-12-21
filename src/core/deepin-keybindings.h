@@ -23,8 +23,15 @@
 #define DEEPIN_META_KEYBINDINGS_H
 
 #include <display.h>
+#include <screen.h>
+#include "keybindings.h"
+#include "window-private.h"
 
 void deepin_init_custom_handlers(MetaDisplay* display);
+void do_preview_workspace(MetaDisplay *display, MetaScreen *screen,
+        MetaWindow *window, guint32 timestamp,
+        MetaKeyBinding *binding, gpointer user_data, 
+        gboolean user_op);
 
 #endif
 
