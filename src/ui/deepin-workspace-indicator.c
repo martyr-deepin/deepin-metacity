@@ -172,8 +172,15 @@ void deepin_workspace_indicator_request_workspace_change(
 
     priv->stage = 1;
 
-    char* text = g_strdup_printf("%d %s", meta_workspace_index(workspace),
-            meta_workspace_get_name(workspace));
+    char* text = NULL;
+    const char* name = meta_workspace_get_name(workspace);
+    int workspace_index = meta_workspace_index(workspace);
+    if (!name || name[0] == '\0') {
+        text = g_strdup_printf("%d-%s", workspace_index + 1, _("Workspace"));
+    } else {
+        text = g_strdup_printf("%d %s", workspace_index + 1, name);
+    }
+
     gtk_label_set_text(GTK_LABEL(self), text);
     g_free(text);
 
