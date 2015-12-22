@@ -736,6 +736,7 @@ static void _delete_workspace(DeepinWMBackground* self,
     gtk_container_remove(GTK_CONTAINER(priv->fixed), (GtkWidget*)ws_thumb);
     gtk_container_remove(GTK_CONTAINER(priv->fixed), (GtkWidget*)ws);
 
+    meta_prefs_change_workspace_name(meta_prefs_get_num_workspaces() - 1, "");
     meta_screen_remove_workspace(priv->screen, workspace);
 
     if (need_switch_active) {

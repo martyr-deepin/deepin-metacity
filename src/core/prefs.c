@@ -1686,9 +1686,12 @@ meta_prefs_get_workspace_name (int i)
       g_strv_length (workspace_names) < (guint)i + 1 ||
       !*workspace_names[i])
     {
+#if 0
       char *generated_name = g_strdup_printf (_("Workspace %d"), i + 1);
       name = g_intern_string (generated_name);
       g_free (generated_name);
+#endif
+      name = g_intern_string ("");
     }
   else
     name = workspace_names[i];
