@@ -1460,6 +1460,8 @@ static gboolean on_deepin_shadow_workspace_released(DeepinShadowWorkspace* self,
     meta_verbose("%s: ws %s(%s)\n", __func__, meta_workspace_get_name(priv->workspace),
             priv->thumb_mode ? "thumb":"normal");
 
+    if (!priv->selected) return FALSE;
+
     if (!priv->ready || priv->hovered_clone) return TRUE;
 
     if (!priv->thumb_mode) {

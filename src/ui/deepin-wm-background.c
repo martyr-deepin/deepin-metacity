@@ -365,6 +365,27 @@ static void _create_close_button(DeepinWMBackground* self)
             NULL);
 }
 
+static gboolean on_workspace_released(DeepinShadowWorkspace* ws,
+               GdkEvent* event, gpointer user_data)
+{
+    meta_verbose("%s\n", __func__);
+    DeepinWMBackground* self = (DeepinWMBackground*)user_data;
+    DeepinWMBackgroundPrivate* priv = self->priv;
+    
+    if (priv->switching_workspace) {
+        return TRUE;
+    }
+
+    if (priv->active_workspace != ws) {
+        MetaWorkspace* next = deepin_shadow_workspace_get_workspace(ws);
+        deepin_fixed_cancel_pending_animation(DEEPIN_FIXED(priv->fixed), NULL);
+        deepin_wm_background_switch_workspace(self, next);
+        return TRUE;
+    } 
+
+    return FALSE;
+}
+
 static gboolean on_workspace_thumb_released(DeepinShadowWorkspace* ws_thumb,
                GdkEvent* event, gpointer user_data)
 {
@@ -588,6 +609,10 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
                 deepin_shadow_workspace_set_presentation(dsw, TRUE);
                 deepin_shadow_workspace_set_current(dsw, TRUE);
             }
+
+            g_object_connect(G_OBJECT(dsw), 
+                    "signal::button-release-event", on_workspace_released, self,
+                    NULL);
 
             priv->worskpaces = g_list_append(priv->worskpaces, dsw);
         }
