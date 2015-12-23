@@ -27,6 +27,7 @@
 #include <gdk/gdkdevice.h>
 #include <gdk/gdkx.h>
 #include <screen.h>
+#include "errors.h"
 #include "workspace.h"
 #include "keybindings.h"
 #include "window-private.h"
@@ -146,7 +147,8 @@ static gboolean _grab_device (MetaDisplay* display, Window xwindow,
   return (ret == Success);
 }
 
-static gboolean _do_grab_pointer(MetaScreen* screen, GtkWidget* w)
+static gboolean _do_grab_pointer(MetaScreen* screen, GtkWidget* w, 
+        guint32 timestamp)
 {
     GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(screen->display->xdisplay);
     GdkDeviceManager* dev_man = gdk_display_get_device_manager(gdisplay);
@@ -158,7 +160,7 @@ static gboolean _do_grab_pointer(MetaScreen* screen, GtkWidget* w)
             GDK_OWNERSHIP_APPLICATION, TRUE,
             GDK_BUTTON_PRESS_MASK| GDK_BUTTON_RELEASE_MASK| 
             GDK_ENTER_NOTIFY_MASK| GDK_FOCUS_CHANGE_MASK,
-            NULL, gtk_get_current_event_time());
+            NULL, timestamp);
     return (ret == GDK_GRAB_SUCCESS);
 }
 
@@ -167,14 +169,15 @@ static void _do_grab(MetaScreen* screen, GtkWidget* w, gboolean grab_keyboard)
     MetaDisplay* display = meta_get_display();
     Window xwin = GDK_WINDOW_XID(gtk_widget_get_window(w));
 
+    guint32 timestamp = meta_display_get_current_time_roundtrip(screen->display);
     if (grab_keyboard) {
         if (!_grab_device(display, xwin, META_VIRTUAL_CORE_KEYBOARD_ID,
-                gtk_get_current_event_time())) {
+                timestamp)) {
             meta_verbose("grab keyboard failed\n");
         }
     }
 
-    if (!_do_grab_pointer(screen, w)) {
+    if (!_do_grab_pointer(screen, w, timestamp)) {
         meta_verbose("grab pointer failed\n");
     }
 }
@@ -316,6 +319,18 @@ static void on_drag_end(DeepinMessageHub* hub, GtkWidget* top)
     _do_grab(display->active_screen, top, TRUE);
 }
 
+static void focus_previewer(MetaDisplay *display,
+        GtkWidget* widget, guint32 timestamp)
+{
+  meta_error_trap_push (display);
+  GdkWindow* gdkwin = gtk_widget_get_window(widget);
+  XRaiseWindow(display->xdisplay, GDK_WINDOW_XID(gdkwin));
+  /*XSetInputFocus(display->xdisplay, GDK_WINDOW_XID(gdkwin),*/
+          /*RevertToPointerRoot, timestamp);*/
+
+  meta_error_trap_pop (display, FALSE);
+}
+
 void do_preview_workspace(MetaDisplay *display, MetaScreen *screen,
         MetaWindow *window, guint32 timestamp,
         MetaKeyBinding *binding, gpointer user_data, 
@@ -351,9 +366,9 @@ void do_preview_workspace(MetaDisplay *display, MetaScreen *screen,
         }
 
         deepin_wm_background_setup(screen->ws_previewer);
-        gtk_widget_show_all(GTK_WIDGET(screen->ws_previewer));
-        gtk_window_set_focus(GTK_WINDOW(screen->ws_previewer), NULL);
         gtk_window_move(GTK_WINDOW(screen->ws_previewer), 0, 0);
+        gtk_widget_show_all(GTK_WIDGET(screen->ws_previewer));
+        /*focus_previewer(screen->display, screen->ws_previewer, timestamp);*/
 
         g_signal_connect(G_OBJECT(deepin_message_hub_get()),
                 "drag-end", (GCallback)on_drag_end, screen->ws_previewer);

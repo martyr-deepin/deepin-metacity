@@ -1282,6 +1282,7 @@ meta_display_process_key_event (MetaDisplay *display,
   MetaScreen *screen;
   XIDeviceEvent* device_event;
 
+  meta_verbose ("%s: Window %p\n", __func__, window ? window->xwindow : NULL);
   device_event = (XIDeviceEvent*)meta_display_get_input_event(display, event);
 
   XIAllowEvents(display->xdisplay, META_VIRTUAL_CORE_KEYBOARD_ID,
