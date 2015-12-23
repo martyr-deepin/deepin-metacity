@@ -37,6 +37,9 @@
 #include "deepin-name-entry.h"
 #include "deepin-message-hub.h"
 
+#define SET_STATE(w, state)  \
+    gtk_style_context_set_state(gtk_widget_get_style_context(GTK_WIDGET(w)), (state))
+
 /* TODO: handle live window add/remove events */
 
 static const int SMOOTH_SCROLL_DELAY = 500;
@@ -66,7 +69,10 @@ struct _DeepinShadowWorkspacePrivate
 
     GdkWindow* event_window;
 
+    GtkWidget* name_box;
     GtkWidget* entry;
+    GtkWidget* ws_num;
+
     GtkWidget* close_button; /* for focused clone */
     MetaDeepinClonedWidget* window_need_focused;
 
@@ -1181,23 +1187,34 @@ static void _create_entry(DeepinShadowWorkspace* self)
     DeepinShadowWorkspacePrivate* priv = self->priv;
     if (priv->entry) return;
 
-    GtkWidget* w = deepin_name_entry_new();
-    gtk_entry_set_text(GTK_ENTRY(w), meta_workspace_get_name(priv->workspace));
+    GtkWidget* box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    priv->name_box = box;
+    deepin_setup_style_class(box, "deepin-workspace-thumb-clone-name-box");
+    
+    char* num = g_strdup_printf("%d", meta_workspace_index(priv->workspace) + 1);
+    priv->ws_num = gtk_label_new(num);
+    deepin_setup_style_class(priv->ws_num, "deepin-workspace-thumb-clone-name");
+    g_free(num);
+
+    gtk_box_pack_start(GTK_BOX(box), priv->ws_num, FALSE, FALSE, 0);
+
+    priv->entry = deepin_name_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(priv->entry), meta_workspace_get_name(priv->workspace));
+
+    gtk_box_pack_start(GTK_BOX(box), priv->entry, TRUE, TRUE, 0);
 
     GtkAllocation alloc;
-    gtk_widget_get_allocation(w, &alloc);
+    gtk_widget_get_allocation(box, &alloc);
 
-    deepin_fixed_put(DEEPIN_FIXED(self), w,
+    deepin_fixed_put(DEEPIN_FIXED(self), box,
             (priv->fixed_width - alloc.width)/2, 
             priv->fixed_height + WORKSPACE_NAME_DISTANCE + alloc.height/2);
 
-    g_object_connect(G_OBJECT(w),
+    g_object_connect(G_OBJECT(priv->entry),
             "signal::button-press-event", on_entry_pressed, self,
             "signal::key-press-event", on_entry_key_pressed, self,
             NULL);
-    gtk_widget_show(w);
-
-    priv->entry = w;
+    gtk_widget_show_all(priv->name_box);
 }
 
 // propagate from cloned
@@ -1569,8 +1586,7 @@ GtkWidget* deepin_shadow_workspace_new(void)
     self->priv->fixed_height = gdk_screen_get_height(screen);
     self->priv->scale = 1.0;
 
-    GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(self));
-    gtk_style_context_set_state (context, GTK_STATE_FLAG_NORMAL);
+    SET_STATE (self, GTK_STATE_FLAG_NORMAL);
     deepin_setup_style_class(GTK_WIDGET(self), "deepin-workspace-clone"); 
     
     GtkTargetEntry targets[] = {
@@ -1633,10 +1649,11 @@ void deepin_shadow_workspace_set_current(DeepinShadowWorkspace* self,
 
     GtkStateFlags state = priv->selected? GTK_STATE_FLAG_SELECTED: GTK_STATE_FLAG_NORMAL;
     
-    gtk_style_context_set_state(gtk_widget_get_style_context(GTK_WIDGET(self)), state);
-    if (priv->entry) {
-        gtk_style_context_set_state(
-                gtk_widget_get_style_context(priv->entry), state);
+    SET_STATE (self, state);
+    if (priv->name_box) {
+        SET_STATE (priv->name_box, state);
+        SET_STATE (priv->ws_num, state);
+        SET_STATE (priv->entry, state);
         if (!val && gtk_editable_get_selection_bounds(GTK_EDITABLE(priv->entry), NULL, NULL)) {
             gtk_entry_reset_im_context(GTK_ENTRY(priv->entry));
             gtk_editable_select_region(GTK_EDITABLE(priv->entry), 0, 0);
@@ -1664,7 +1681,7 @@ void deepin_shadow_workspace_set_thumb_mode(DeepinShadowWorkspace* self,
         gtk_style_context_remove_class(context, "deepin-workspace-thumb-clone");
         deepin_setup_style_class(GTK_WIDGET(self), "deepin-workspace-clone"); 
 
-        if (priv->entry) gtk_widget_hide(priv->entry);
+        if (priv->name_box) gtk_widget_hide(priv->name_box);
     }
 }
 
