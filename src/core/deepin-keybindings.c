@@ -382,6 +382,17 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
         MetaWindow *window, XIDeviceEvent *event,
         MetaKeyBinding *binding, gpointer user_data)
 {
+    if (!display->focus_window) {
+        MetaWindow* focus_window = meta_stack_get_default_focus_window (
+                screen->stack, screen->active_workspace, NULL);
+        if (focus_window) {
+            meta_window_focus (focus_window, event->time);
+        } else {
+            XSetInputFocus (display->xdisplay, screen->xroot,
+                    RevertToPointerRoot, event->time);
+        }
+    }
+
     do_preview_workspace(display, screen, window, event->time, binding,
             user_data, TRUE);
 }

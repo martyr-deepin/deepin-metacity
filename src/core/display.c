@@ -825,11 +825,14 @@ meta_display_open (void)
     first_screen = the_display->screens->data;
     window = meta_stack_get_default_focus_window (first_screen->stack,
             first_screen->active_workspace, NULL);
-    if (window &&
-        window->type != META_WINDOW_DOCK &&
-        window->type != META_WINDOW_DESKTOP)
+    if (window)
       {
         meta_window_focus (window, timestamp);
+      }
+    else 
+      {
+        XSetInputFocus (the_display->xdisplay, first_screen->xroot,
+                RevertToPointerRoot, timestamp);
       }
   }
 
