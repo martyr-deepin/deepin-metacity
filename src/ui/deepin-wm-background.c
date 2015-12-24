@@ -196,6 +196,16 @@ static void on_workspace_move_finished(DeepinFixed* fixed,
     }
 }
 
+static void redeclare_workspace_name(DeepinShadowWorkspace* ws, DeepinWMBackground* self)
+{
+    deepin_shadow_workspace_declare_name(ws);
+}
+    
+static void redeclare_workspace_names(DeepinWMBackground* self)
+{
+    DeepinWMBackgroundPrivate* priv = self->priv;
+    g_list_foreach(priv->worskpace_thumbs, (GFunc)redeclare_workspace_name, self);
+}
     
 static void relayout(DeepinWMBackground* self)
 {
@@ -216,6 +226,8 @@ static void relayout(DeepinWMBackground* self)
 
         adder_renewed = TRUE;
     }
+
+    redeclare_workspace_names(self);
 
     GList *l = priv->screen->workspaces;
     gint current = g_list_index(priv->worskpaces, priv->active_workspace);

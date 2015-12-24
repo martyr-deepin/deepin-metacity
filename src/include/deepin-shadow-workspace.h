@@ -90,7 +90,10 @@ MetaWorkspace* deepin_shadow_workspace_get_workspace(DeepinShadowWorkspace*);
 
 GdkWindow* deepin_shadow_workspace_get_event_window(DeepinShadowWorkspace*);
 
-void deepin_shadow_workspace_close(DeepinShadowWorkspace*, gboolean, void (*finished)(GtkWidget*), gpointer user_data);
+void deepin_shadow_workspace_close(DeepinShadowWorkspace*, gboolean, 
+        void (*finished)(GtkWidget*), gpointer user_data);
+
+void deepin_shadow_workspace_declare_name(DeepinShadowWorkspace* self);
 
 G_END_DECLS
 

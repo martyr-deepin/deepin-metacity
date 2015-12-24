@@ -2031,3 +2031,17 @@ void deepin_shadow_workspace_close(DeepinShadowWorkspace* self,
     }
 }
 
+void deepin_shadow_workspace_declare_name(DeepinShadowWorkspace* self)
+{
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+    if (priv->thumb_mode && priv->name_box) {
+        int id = meta_workspace_index(priv->workspace);
+        const char* name = gtk_entry_get_text(GTK_ENTRY(priv->entry));
+        meta_prefs_change_workspace_name(id, name);
+
+        char* num = g_strdup_printf("%d", id + 1);
+        gtk_label_set_text(GTK_LABEL(priv->ws_num), num);
+        g_free(num);
+    }
+}
+
