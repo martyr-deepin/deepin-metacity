@@ -444,6 +444,7 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
 
         DeepinShadowWorkspace* active_workspace = 
             (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
+        deepin_shadow_workspace_set_enable_drag(active_workspace, FALSE);
         deepin_shadow_workspace_set_show_desktop(active_workspace, TRUE);
         if (expose_mode == EXPOSE_ALL_WINDOWS) {
             deepin_shadow_workspace_set_show_all_windows(active_workspace, TRUE);

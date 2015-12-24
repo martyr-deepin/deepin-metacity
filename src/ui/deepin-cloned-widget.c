@@ -73,6 +73,7 @@ typedef struct _MetaDeepinClonedWidgetPrivate
     int render_frame: 1;
     int mouse_over: 1;
     int dragging: 1;
+    int draggable: 1;
 
     MetaWindow* meta_window;
     cairo_surface_t* snapshot;
@@ -712,13 +713,6 @@ GtkWidget * meta_deepin_cloned_widget_new (MetaWindow* meta)
     widget->priv->meta_window = meta;
     deepin_setup_style_class(GTK_WIDGET(widget), "deepin-window-clone");
 
-    GtkTargetEntry targets[] = {
-        {(char*)"window", GTK_TARGET_OTHER_WIDGET, DRAG_TARGET_WINDOW},
-    };
-
-    gtk_drag_source_set(GTK_WIDGET(widget), GDK_BUTTON1_MASK, targets, 
-            G_N_ELEMENTS(targets), GDK_ACTION_COPY);
-
     g_object_connect(G_OBJECT(widget), 
             "signal::drag-data-get", on_drag_data_get, NULL,
             "signal::drag-begin", on_drag_begin, NULL,
@@ -1027,5 +1021,22 @@ gboolean meta_deepin_cloned_widget_is_dragging(MetaDeepinClonedWidget* self)
 GdkWindow* meta_deepin_cloned_widget_get_event_window(MetaDeepinClonedWidget* self)
 {
     return self->priv->event_window;
+}
+
+void meta_deepin_cloned_widget_set_enable_drag(MetaDeepinClonedWidget* self,
+        gboolean val)
+{
+    MetaDeepinClonedWidgetPrivate* priv = self->priv;
+    if (priv->draggable != val) {
+        priv->draggable = val;
+        static GtkTargetEntry targets[] = {
+            {(char*)"window", GTK_TARGET_OTHER_WIDGET, DRAG_TARGET_WINDOW},
+        };
+
+        if (val) {
+            gtk_drag_source_set(GTK_WIDGET(self), GDK_BUTTON1_MASK, targets, 
+                    G_N_ELEMENTS(targets), GDK_ACTION_COPY);
+        }
+    }
 }
 

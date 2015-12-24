@@ -612,6 +612,7 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
         {
             DeepinShadowWorkspace* dsw = 
                 (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
+            deepin_shadow_workspace_set_enable_drag(dsw, TRUE);
             deepin_shadow_workspace_set_scale(dsw, scale);
             deepin_shadow_workspace_populate(dsw, ws);
 
@@ -633,6 +634,7 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
         {
             DeepinShadowWorkspace* dsw = 
                 (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
+            deepin_shadow_workspace_set_enable_drag(dsw, TRUE);
             deepin_shadow_workspace_set_thumb_mode(dsw, TRUE);
             deepin_shadow_workspace_set_scale(dsw, WORKSPACE_WIDTH_PERCENT);
             deepin_shadow_workspace_populate(dsw, ws);
@@ -812,6 +814,7 @@ static void _create_workspace(DeepinWMBackground* self)
     {
         DeepinShadowWorkspace* dsw = 
             (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
+        deepin_shadow_workspace_set_enable_drag(dsw, TRUE);
         deepin_shadow_workspace_set_scale(dsw, priv->scale);
         deepin_shadow_workspace_populate(dsw, new_ws);
         gtk_widget_show(GTK_WIDGET(dsw));
@@ -827,6 +830,7 @@ static void _create_workspace(DeepinWMBackground* self)
     {
         DeepinShadowWorkspace* dsw = 
             (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
+        deepin_shadow_workspace_set_enable_drag(dsw, TRUE);
         deepin_shadow_workspace_set_thumb_mode(dsw, TRUE);
         deepin_shadow_workspace_set_scale(dsw, WORKSPACE_WIDTH_PERCENT);
         deepin_shadow_workspace_populate(dsw, new_ws);

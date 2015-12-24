@@ -57,6 +57,7 @@ struct _DeepinShadowWorkspacePrivate
     gint all_window_mode: 1; // used for Super+a
     gint show_desktop: 1;
     gint closing: 1; 
+    gint draggable: 1;
 
     gint fixed_width, fixed_height;
     gdouble scale; 
@@ -1353,6 +1354,8 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
         if (win->type == META_WINDOW_NORMAL) {
             GtkWidget* widget = meta_deepin_cloned_widget_new(win);
             g_ptr_array_add(priv->clones, widget);
+            meta_deepin_cloned_widget_set_enable_drag(
+                    META_DEEPIN_CLONED_WIDGET(widget), priv->draggable);
 
             MetaRectangle r;
             meta_window_get_outer_rect(win, &r);
@@ -1474,15 +1477,6 @@ static gboolean on_deepin_shadow_workspace_released(DeepinShadowWorkspace* self,
     return FALSE;
 }
 
-static gboolean on_deepin_shadow_workspace_motion(DeepinShadowWorkspace* self,
-               GdkEvent* event, gpointer user_data)
-{
-    /*meta_verbose("%s: %s at (%f, %f)", __func__,*/
-            /*meta_workspace_get_name(self->priv->workspace),*/
-            /*event->motion.x, event->motion.y);*/
-    return FALSE;
-}
-
 static void on_window_change_workspace(DeepinMessageHub* hub, MetaWindow* window,
         MetaWorkspace* new_workspace, gpointer user_data)
 {
@@ -1499,6 +1493,8 @@ static void on_window_change_workspace(DeepinMessageHub* hub, MetaWindow* window
 
         //add window
         GtkWidget* widget = meta_deepin_cloned_widget_new(window);
+        meta_deepin_cloned_widget_set_enable_drag(
+                META_DEEPIN_CLONED_WIDGET(widget), priv->draggable);
         gtk_widget_set_sensitive(widget, TRUE);
         // FIXME: honor stack order
         g_ptr_array_add(priv->clones, widget);
@@ -1593,19 +1589,13 @@ GtkWidget* deepin_shadow_workspace_new(void)
     SET_STATE (self, GTK_STATE_FLAG_NORMAL);
     deepin_setup_style_class(GTK_WIDGET(self), "deepin-workspace-clone"); 
     
-    GtkTargetEntry targets[] = {
-        {(char*)"window", GTK_TARGET_OTHER_WIDGET, DRAG_TARGET_WINDOW},
-    };
 
-    gtk_drag_dest_set(GTK_WIDGET(self),
-            GTK_DEST_DEFAULT_MOTION | GTK_DEST_DEFAULT_DROP,
-            targets, G_N_ELEMENTS(targets), GDK_ACTION_COPY);
+    deepin_shadow_workspace_set_enable_drag(self, TRUE);
 
     g_object_connect(G_OBJECT(self),
             "signal::event", on_deepin_shadow_workspace_event, NULL,
             "signal::show", on_deepin_shadow_workspace_show, NULL,
             "signal::button-release-event", on_deepin_shadow_workspace_released, NULL,
-            "signal::motion-notify-event", on_deepin_shadow_workspace_motion, NULL,
             "signal::drag-data-received", on_drag_data_received, NULL, 
             "signal::drag-drop", on_drag_drop, NULL, 
             NULL);
@@ -2042,6 +2032,28 @@ void deepin_shadow_workspace_declare_name(DeepinShadowWorkspace* self)
         char* num = g_strdup_printf("%d", id + 1);
         gtk_label_set_text(GTK_LABEL(priv->ws_num), num);
         g_free(num);
+    }
+}
+
+void deepin_shadow_workspace_set_enable_drag(DeepinShadowWorkspace* self, gboolean val)
+{
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+    if (priv->draggable != val) {
+        priv->draggable = val;
+        
+        static GtkTargetEntry targets[] = {
+            {(char*)"window", GTK_TARGET_OTHER_WIDGET, DRAG_TARGET_WINDOW},
+        };
+
+        if (val) {
+            gtk_drag_dest_set(GTK_WIDGET(self),
+                    GTK_DEST_DEFAULT_MOTION | GTK_DEST_DEFAULT_DROP,
+                    targets, G_N_ELEMENTS(targets), GDK_ACTION_COPY);
+        } else {
+            gtk_drag_dest_set(NULL,
+                    GTK_DEST_DEFAULT_MOTION | GTK_DEST_DEFAULT_DROP,
+                    targets, G_N_ELEMENTS(targets), GDK_ACTION_COPY);
+        }
     }
 }
 

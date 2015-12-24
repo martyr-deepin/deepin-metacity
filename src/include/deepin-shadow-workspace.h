@@ -68,6 +68,10 @@ void deepin_shadow_workspace_set_thumb_mode(DeepinShadowWorkspace*, gboolean);
  * NOTE: this must be set before populate 
  **/
 void deepin_shadow_workspace_set_show_all_windows(DeepinShadowWorkspace*, gboolean);
+/* 
+ * NOTE: this must be set before populate 
+ */
+void deepin_shadow_workspace_set_enable_drag(DeepinShadowWorkspace*, gboolean);
 
 /* if showing dock & desktop background. 
  * right now, this needs to be called before populate */
