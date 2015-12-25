@@ -669,16 +669,18 @@ static void calculate_places(DeepinShadowWorkspace* self)
 
 static gboolean on_idle(DeepinShadowWorkspace* self)
 {
-    if (self->priv->disposed) return G_SOURCE_REMOVE;
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+    if (priv->disposed) return G_SOURCE_REMOVE;
 
-    if (!self->priv->thumb_mode) {
-        if (self->priv->close_button) {
-            deepin_fixed_raise(DEEPIN_FIXED(self), self->priv->close_button);
+    if (priv->thumb_mode) {
+        priv->ready = TRUE;
+
+    } else {
+        if (priv->close_button) {
+            deepin_fixed_raise(DEEPIN_FIXED(self), priv->close_button);
             _hide_close_button(self);
         }
         calculate_places(self);
-    } else {
-        self->priv->ready = TRUE;
     }
     return G_SOURCE_REMOVE;
 }

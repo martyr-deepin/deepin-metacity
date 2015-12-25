@@ -319,18 +319,6 @@ static void on_drag_end(DeepinMessageHub* hub, GtkWidget* top)
     _do_grab(display->active_screen, top, TRUE);
 }
 
-static void focus_previewer(MetaDisplay *display,
-        GtkWidget* widget, guint32 timestamp)
-{
-  meta_error_trap_push (display);
-  GdkWindow* gdkwin = gtk_widget_get_window(widget);
-  XRaiseWindow(display->xdisplay, GDK_WINDOW_XID(gdkwin));
-  /*XSetInputFocus(display->xdisplay, GDK_WINDOW_XID(gdkwin),*/
-          /*RevertToPointerRoot, timestamp);*/
-
-  meta_error_trap_pop (display, FALSE);
-}
-
 void do_preview_workspace(MetaDisplay *display, MetaScreen *screen,
         MetaWindow *window, guint32 timestamp,
         MetaKeyBinding *binding, gpointer user_data, 
@@ -368,7 +356,7 @@ void do_preview_workspace(MetaDisplay *display, MetaScreen *screen,
         deepin_wm_background_setup(screen->ws_previewer);
         gtk_window_move(GTK_WINDOW(screen->ws_previewer), 0, 0);
         gtk_widget_show_all(GTK_WIDGET(screen->ws_previewer));
-        /*focus_previewer(screen->display, screen->ws_previewer, timestamp);*/
+        gtk_window_set_focus(GTK_WINDOW(screen->ws_previewer), NULL);
 
         g_signal_connect(G_OBJECT(deepin_message_hub_get()),
                 "drag-end", (GCallback)on_drag_end, screen->ws_previewer);
