@@ -39,16 +39,60 @@ static void deepin_name_entry_finalize (GObject *object)
 	G_OBJECT_CLASS (deepin_name_entry_parent_class)->finalize (object);
 }
 
+static void _gtk_entry_get_borders (GtkEntry *entry,
+                        GtkBorder *border_out)
+{
+  GtkWidget *widget = GTK_WIDGET (entry);
+  GtkBorder padding, border;
+  GtkStyleContext *context;
+  GtkStateFlags state;
+
+  context = gtk_widget_get_style_context (widget);
+  state = gtk_style_context_get_state (context);
+  gtk_style_context_get_padding (context, state, &padding);
+  gtk_style_context_get_border (context, state, &border);
+
+  border_out->top = padding.top + border.top;
+  border_out->bottom = padding.bottom + border.bottom;
+  border_out->left = padding.left + border.left;
+  border_out->right = padding.right + border.right;
+}
+
 static void deepin_name_entry_get_preferred_width (GtkWidget *widget,
         gint *minimum, gint *natural)
 {
-    *minimum = *natural = WORKSPACE_NAME_WIDTH;
-}
+	GTK_WIDGET_CLASS (deepin_name_entry_parent_class)->get_preferred_width(
+            widget, minimum, natural);
 
-static void deepin_name_entry_get_preferred_height (GtkWidget *widget,
-        gint *minimum, gint *natural)
-{
-    *minimum = *natural = WORKSPACE_NAME_HEIGHT + 2*NAME_SHAPE_PADDING;
+    GtkEntry *entry = GTK_ENTRY (widget);
+    GtkBorder border;
+    PangoFontMetrics *metrics;
+    PangoContext *context;
+    gint min, nat;
+    gint char_width;
+    gint digit_width;
+    gint char_pixels;
+    gint width_chars;
+
+    _gtk_entry_get_borders(entry, &border);
+
+    context = gtk_widget_get_pango_context (widget);
+    metrics = pango_context_get_metrics (context,
+            pango_context_get_font_description (context),
+            pango_context_get_language (context));
+
+    char_width = pango_font_metrics_get_approximate_char_width (metrics);
+    digit_width = pango_font_metrics_get_approximate_digit_width (metrics);
+    char_pixels = (MAX (char_width, digit_width) + PANGO_SCALE - 1) / PANGO_SCALE;
+
+    pango_font_metrics_unref (metrics);
+
+    width_chars = gtk_entry_buffer_get_bytes(gtk_entry_get_buffer(entry));
+    min = MAX(MIN(char_pixels * width_chars, WORKSPACE_NAME_WIDTH), char_pixels) + border.left + border.right;
+    nat = min;
+
+    *minimum = min;
+    *natural = nat;
 }
 
 static gboolean deepin_name_entry_draw(GtkWidget *widget, cairo_t *cr)
@@ -99,15 +143,12 @@ static void deepin_name_entry_class_init (DeepinNameEntryClass *klass)
 	object_class->finalize = deepin_name_entry_finalize;
 
     widget_class->get_preferred_width = deepin_name_entry_get_preferred_width;
-    /*widget_class->get_preferred_height = deepin_name_entry_get_preferred_height;*/
     widget_class->draw = deepin_name_entry_draw;
 }
 
 GtkWidget* deepin_name_entry_new()
 {
     GtkWidget* w = (GtkWidget*)g_object_new(DEEPIN_TYPE_NAME_ENTRY, NULL);
-    gtk_entry_set_max_length(GTK_ENTRY(w), WORKSPACE_NAME_MAX_LENGTH);
-    gtk_entry_set_width_chars(GTK_ENTRY(w), 6);
     gtk_entry_set_alignment(GTK_ENTRY(w), 0.5);
     gtk_entry_set_has_frame(GTK_ENTRY(w), FALSE);
 

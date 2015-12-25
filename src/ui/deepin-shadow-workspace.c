@@ -1185,6 +1185,20 @@ static gboolean on_entry_key_pressed(GtkWidget* entry,
     return FALSE;
 }
 
+static void on_entry_changed(GtkWidget* entry, gpointer data)
+{
+    DeepinShadowWorkspacePrivate* priv = DEEPIN_SHADOW_WORKSPACE(data)->priv;
+
+    gtk_widget_queue_resize(entry);
+    gtk_widget_queue_draw(priv->name_box);
+}
+
+static void on_entry_preedit_changed(GtkEntry *entry, gchar *preedit,
+               gpointer data)
+{
+    on_entry_changed(entry, data);
+}
+
 static void _create_entry(DeepinShadowWorkspace* self)
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
@@ -1204,6 +1218,8 @@ static void _create_entry(DeepinShadowWorkspace* self)
 
     priv->entry = deepin_name_entry_new();
     gtk_entry_set_text(GTK_ENTRY(priv->entry), meta_workspace_get_name(priv->workspace));
+    gtk_entry_set_width_chars(GTK_ENTRY(priv->entry), 
+            gtk_entry_get_text_length(GTK_ENTRY(priv->entry))+2);
 
     g_object_set(G_OBJECT(priv->entry), "margin-end", 6, NULL);
     gtk_box_pack_start(GTK_BOX(box), priv->entry, TRUE, TRUE, 0);
@@ -1218,6 +1234,8 @@ static void _create_entry(DeepinShadowWorkspace* self)
     g_object_connect(G_OBJECT(priv->entry),
             "signal::button-press-event", on_entry_pressed, self,
             "signal::key-press-event", on_entry_key_pressed, self,
+            "signal::changed", on_entry_changed, self,
+            "signal::preedit-changed", on_entry_preedit_changed, self,
             NULL);
     gtk_widget_show_all(priv->name_box);
 }
