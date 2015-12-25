@@ -1145,6 +1145,10 @@ static gboolean on_entry_pressed(GtkWidget* entry,
             meta_verbose("%s: ungrab and replay\n", __func__);
             /* hack: when click out side of entry, loose grab and replay click,
              * incase some other entry was clicked and cannot get event */
+            const char* new_name = gtk_entry_get_text(GTK_ENTRY(entry));
+            int id = meta_workspace_index(priv->workspace);
+            meta_prefs_change_workspace_name(id, new_name);
+
             gtk_editable_select_region(GTK_EDITABLE(entry), 0, 0);
             gtk_grab_remove(entry);
             g_idle_add((GSourceFunc)on_idle_focus_out_entry, entry);
