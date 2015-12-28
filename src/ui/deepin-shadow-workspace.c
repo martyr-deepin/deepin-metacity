@@ -205,7 +205,7 @@ static void place_window(DeepinShadowWorkspace* self,
     g_signal_connect(G_OBJECT(clone), "transition-finished", 
             (GCallback)on_window_placed, self);
 
-    if (self->priv->dynamic) {
+    if (!meta_prefs_get_reduced_resources() && self->priv->dynamic) {
         meta_deepin_cloned_widget_set_scale(clone, 1.0, 1.0);
         meta_deepin_cloned_widget_push_state(clone);
         meta_deepin_cloned_widget_set_scale(clone, fscale, fscale);
@@ -2020,6 +2020,11 @@ void deepin_shadow_workspace_close(DeepinShadowWorkspace* self,
     DeepinShadowWorkspacePrivate* priv = self->priv;
     priv->close_fnished = finished;
     priv->close_fnished_data = user_data;
+
+    if (meta_prefs_get_reduced_resources()) {
+        // force to reduce animation if user asks
+        animated = FALSE;
+    }
 
     if (!animated || priv->clones->len == 0) {
         g_idle_add((GSourceFunc)on_idle_finish_close, self);

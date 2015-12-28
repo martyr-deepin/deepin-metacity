@@ -3690,10 +3690,12 @@ meta_display_begin_grab_op (MetaDisplay *display,
                                           &display->grab_initial_window_pos);
       display->grab_anchor_window_pos = display->grab_initial_window_pos;
 
+#if 0
       display->grab_wireframe_active =
         (meta_prefs_get_reduced_resources () && !meta_prefs_get_gnome_accessibility ())  &&
         (meta_grab_op_is_resizing (display->grab_op) ||
          meta_grab_op_is_moving (display->grab_op));
+#endif
 
       if (display->grab_wireframe_active)
         {

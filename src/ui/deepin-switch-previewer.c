@@ -23,6 +23,7 @@
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
 #include <cairo-xlib.h>
+#include <prefs.h>
 #include "../core/workspace.h"
 #include "deepin-design.h"
 #include "deepin-switch-previewer.h"
@@ -545,7 +546,7 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
     cairo_region_destroy(reg);
     cairo_restore(cr);
 
-    if (priv->prev_preview) {
+    if (priv->prev_preview && !meta_prefs_get_reduced_resources()) {
         cairo_save(cr);
 
         cairo_region_t* reg = NULL;
@@ -590,7 +591,7 @@ void meta_deepin_switch_previewer_select(MetaDeepinSwitchPreviewer* self,
             priv->prev_preview = priv->current_preview;
             MetaWindow* meta_win = meta_deepin_cloned_widget_get_window(
                     priv->prev_preview);
-            if (meta_win->type != META_WINDOW_DESKTOP) {
+            if (meta_win->type != META_WINDOW_DESKTOP && !meta_prefs_get_reduced_resources()) {
                 meta_deepin_cloned_widget_set_scale(priv->current_preview, 1.0, 1.0);
                 meta_deepin_cloned_widget_set_alpha(priv->current_preview, 1.0);
                 meta_deepin_cloned_widget_push_state(priv->current_preview);
@@ -603,7 +604,7 @@ void meta_deepin_switch_previewer_select(MetaDeepinSwitchPreviewer* self,
 
         priv->current_preview = w;
         MetaWindow* meta_win = meta_deepin_cloned_widget_get_window(w);
-        if (meta_win->type != META_WINDOW_DESKTOP) {
+        if (meta_win->type != META_WINDOW_DESKTOP && !meta_prefs_get_reduced_resources()) {
             meta_deepin_cloned_widget_set_scale(w, SCALE_FACTOR, SCALE_FACTOR);
             meta_deepin_cloned_widget_set_alpha(w, 0.0);
             meta_deepin_cloned_widget_push_state(w);
