@@ -4780,7 +4780,19 @@ meta_window_raise (MetaWindow  *window)
    * the child windows appropriately.
    */
   if (window->screen->stack == ancestor->screen->stack)
-    meta_stack_raise (window->screen->stack, ancestor);
+    {
+      meta_stack_raise (window->screen->stack, ancestor);
+      MetaWindow* target = meta_stack_get_above (window->screen->stack,
+              window, TRUE);
+      if (target != NULL && !target->unmanaging && target->type == META_WINDOW_MODAL_DIALOG) 
+        {
+          MetaWindow* transient_for = meta_display_lookup_x_window (window->display, target->xtransient_for);
+          if (transient_for == window)
+            {
+              deepin_message_hub_unable_to_operate(window);
+            }
+        }
+    }
   else
     {
       meta_warning (

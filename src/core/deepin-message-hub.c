@@ -40,6 +40,7 @@ enum
     SIGNAL_SCREEN_RESIZED,
     SIGNAL_ABOUT_TO_CHANGE_WORKSPACE,
     SIGNAL_DRAG_END,
+    SIGNAL_UNABLE_TO_OPERATE,
 
     LAST_SIGNAL
 };
@@ -130,6 +131,12 @@ void deepin_message_hub_drag_end(void)
     g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_DRAG_END], 0); 
 }
 
+void deepin_message_hub_unable_to_operate(MetaWindow* window)
+{
+    meta_verbose("%s\n", __func__);
+    g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_UNABLE_TO_OPERATE], 0, window); 
+}
+
 static void deepin_message_hub_class_init (DeepinMessageHubClass *klass)
 {
     GObjectClass* object_class = G_OBJECT_CLASS (klass);
@@ -182,12 +189,45 @@ static void deepin_message_hub_class_init (DeepinMessageHubClass *klass)
             G_SIGNAL_RUN_LAST, 0,
             NULL, NULL, NULL,
             G_TYPE_NONE, 0);
+
+    signals[SIGNAL_UNABLE_TO_OPERATE] = g_signal_new ("unable-to-operate",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 1, G_TYPE_POINTER);
+}
+
+static void on_message_unable_to_operate(MetaWindow* window, gpointer data)
+{
+    GError* error = NULL;
+
+    GDBusProxy* sound_effect = g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SESSION, 
+            G_DBUS_PROXY_FLAGS_NONE, NULL, 
+            "com.deepin.daemon.SoundEffect", "/com/deepin/daemon/SoundEffect",
+            "com.deepin.daemon.SoundEffect", NULL, &error);
+
+    if (error) {
+        meta_warning ("%s: %s\n", __func__, error->message);
+        g_error_free(error);
+        return;
+    }
+
+    g_dbus_proxy_call_sync(sound_effect, "PlaySystemSound", g_variant_new("(s)", "app-error"), 
+            G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error);
+
+    if (error) {
+        meta_warning ("%s: %s\n", __func__, error->message);
+        g_error_free(error);
+    }
+
+    g_object_unref(sound_effect);
 }
 
 DeepinMessageHub* deepin_message_hub_get()
 {
     if (!_the_hub) {
         _the_hub = (DeepinMessageHub*)g_object_new(DEEPIN_TYPE_MESSAGE_HUB, NULL);
+        g_signal_connect(_the_hub, "unable-to-operate", G_CALLBACK(on_message_unable_to_operate), NULL);
     }
     return _the_hub;
 }

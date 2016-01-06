@@ -63,6 +63,7 @@ void deepin_message_hub_window_damaged(MetaWindow*, XRectangle*, int);
 void deepin_message_hub_desktop_changed(void);
 void deepin_message_hub_screen_resized(MetaScreen* screen);
 void deepin_message_hub_window_about_to_change_workspace(MetaWindow*, MetaWorkspace*);
+void deepin_message_hub_unable_to_operate(MetaWindow* window);
 void deepin_message_hub_drag_end(void);
 
 G_END_DECLS
