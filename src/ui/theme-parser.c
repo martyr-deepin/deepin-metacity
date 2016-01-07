@@ -31,6 +31,7 @@
  * as a fossil.
  */
 #define THEME_SUBDIR "metacity-1"
+#define ALT_THEME_SUBDIR "deepin-metacity-1"
 
 /* Highest version of the theme format to
  * look out for.
@@ -4311,6 +4312,15 @@ meta_theme_load (const char  *theme_name,
                                     theme_name,
                                     THEME_SUBDIR,
                                     NULL);
+      if (g_access (theme_dir, F_OK) < 0) 
+        {
+          g_free (theme_dir);
+          theme_dir = g_build_filename (g_get_user_data_dir(),
+                                        "themes",
+                                        theme_name,
+                                        ALT_THEME_SUBDIR,
+                                        NULL);
+        }
 
       retval = load_theme (theme_dir, theme_name, major_version, &error);
       g_free (theme_dir);
@@ -4326,6 +4336,15 @@ meta_theme_load (const char  *theme_name,
                                         theme_name,
                                         THEME_SUBDIR,
                                         NULL);
+          if (g_access (theme_dir, F_OK) < 0) 
+            {
+              g_free (theme_dir);
+              theme_dir = g_build_filename (xdg_data_dirs[i],
+                                            "themes",
+                                            theme_name,
+                                            ALT_THEME_SUBDIR,
+                                            NULL);
+            }
 
           retval = load_theme (theme_dir, theme_name, major_version, &error);
           g_free (theme_dir);
@@ -4339,6 +4358,15 @@ meta_theme_load (const char  *theme_name,
                                     theme_name,
                                     THEME_SUBDIR,
                                     NULL);
+      if (g_access (theme_dir, F_OK) < 0) 
+        {
+          g_free (theme_dir);
+          theme_dir = g_build_filename (METACITY_DATADIR,
+                                        "themes",
+                                        theme_name,
+                                        ALT_THEME_SUBDIR,
+                                        NULL);
+        }
       retval = load_theme (theme_dir, theme_name, major_version, &error);
       g_free (theme_dir);
       if (!keep_trying (&error))
