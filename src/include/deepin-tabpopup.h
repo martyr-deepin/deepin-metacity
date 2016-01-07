@@ -55,6 +55,7 @@ struct _DeepinTabPopup
   GtkWidget *outline_window;
   int max_width;
   MetaDeepinSwitchPreviewer* previewer;
+  GList *idle_relayout_ids;
 };
 
 DeepinTabPopup*   deepin_tab_popup_new          (const MetaTabEntry *entries,

@@ -274,7 +274,8 @@ static void on_window_removed(DeepinMessageHub* hub, MetaWindow* window,
         tmp = tmp->next;
     }
 
-    g_idle_add((GSourceFunc)on_idle_relayout, data);
+    self->idle_relayout_ids = g_list_append(self->idle_relayout_ids, 
+            GUINT_TO_POINTER(g_idle_add((GSourceFunc)on_idle_relayout, data)));
 }
 
 static void on_window_change_workspace(DeepinMessageHub* hub, MetaWindow* window,
@@ -420,6 +421,8 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
             "signal::about-to-change-workspace", on_window_change_workspace, popup,
             NULL);
 
+    popup->idle_relayout_ids = NULL;
+
     return popup;
 }
 
@@ -427,18 +430,28 @@ void deepin_tab_popup_free (DeepinTabPopup *popup)
 {
     meta_verbose ("Destroying tab popup window\n");
 
+    /* run at most l->len iteration for source removal */
+    GList* l = popup->idle_relayout_ids;
+    while (l) {
+        g_source_remove_by_user_data(popup);
+        l = l->next;
+    }
+
     g_signal_handlers_disconnect_by_data(G_OBJECT(deepin_message_hub_get()), 
             popup);
 
     if (popup->outline_window != NULL) {
         gtk_widget_destroy (GTK_WIDGET(popup->previewer));
         gtk_widget_destroy (popup->outline_window);
+        popup->previewer = NULL;
+        popup->outline_window = NULL;
     }
-    gtk_widget_destroy (popup->window);
+    gtk_widget_destroy(popup->window);
 
     g_list_foreach (popup->entries, free_deepin_tab_entry, NULL);
 
     g_list_free (popup->entries);
+    popup->entries = NULL;
 
     g_free (popup);
 }
