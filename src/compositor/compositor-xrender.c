@@ -97,6 +97,8 @@ typedef struct _MetaCompositorXRender
 
 #ifdef USE_IDLE_REPAINT
   guint repaint_id;
+  guint fps;
+  guint use_idle_paint: 1;
 #endif
   guint enabled : 1;
   guint show_redraw : 1;
@@ -1517,7 +1519,7 @@ repair_display (MetaDisplay *display)
   MetaCompositorXRender *compositor = DISPLAY_COMPOSITOR (display);
 
 #ifdef USE_IDLE_REPAINT
-  if (compositor->repaint_id > 0)
+  if (compositor->use_idle_paint && compositor->repaint_id > 0)
     {
       g_source_remove (compositor->repaint_id);
       compositor->repaint_id = 0;
@@ -1533,11 +1535,14 @@ static gboolean
 compositor_idle_cb (gpointer data)
 {
   MetaCompositorXRender *compositor = (MetaCompositorXRender *) data;
-  compositor->repaint_id = 0;
+  if (compositor->use_idle_paint) 
+    {
+      compositor->repaint_id = 0;
+    }
 
   repair_display (compositor->display);
 
-  return FALSE;
+  return compositor->use_idle_paint ? FALSE : G_SOURCE_CONTINUE;
 }
 
 static void
@@ -1548,16 +1553,24 @@ add_repair (MetaDisplay *display)
   if (compositor->repaint_id > 0)
     return;
 
-#if 1
-  compositor->repaint_id = g_idle_add_full (G_PRIORITY_HIGH_IDLE,
-                                            compositor_idle_cb, compositor,
-                                            NULL);
-#else
-  /* Limit it to 50fps */
-  compositor->repaint_id = g_timeout_add_full (G_PRIORITY_HIGH, 20,
-                                               compositor_idle_cb, compositor,
-                                               NULL);
-#endif
+  const char* mode = g_getenv("META_IDLE_PAINT_MODE");
+  compositor->use_idle_paint = (mode == NULL || !g_str_equal(mode, "fixed"));
+
+  if (compositor->use_idle_paint) 
+    {
+      compositor->repaint_id = g_idle_add_full (G_PRIORITY_HIGH_IDLE,
+                                                compositor_idle_cb, compositor,
+                                                NULL);
+    }
+  else
+    {
+      const char* fps_str = g_getenv("META_IDLE_PAINT_FPS");
+      compositor->fps = fps_str == NULL ? 30 : (guint)atoi(fps_str);
+      guint interval = 1000 / compositor->fps;
+      compositor->repaint_id = g_timeout_add_full (G_PRIORITY_HIGH, interval,
+                                                   compositor_idle_cb, compositor,
+                                                   NULL);
+    }
 }
 #endif
 
