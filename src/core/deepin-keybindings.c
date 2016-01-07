@@ -238,9 +238,7 @@ static void do_choose_window (MetaDisplay    *display,
     MetaWindow *initial_selection;
 
     /* reverse direction according to initial backward state */
-    if (!backward && event->mods.base & ShiftMask)
-        backward = !backward;
-    else if (backward && !(event->mods.base & ShiftMask))
+    if (event->mods.base & ShiftMask)
         backward = !backward;
 
     initial_selection = meta_display_get_tab_next (display, type,
@@ -308,7 +306,7 @@ static void handle_switch(MetaDisplay *display, MetaScreen *screen,
         MetaKeyBinding *binding, gpointer user_data)
 {
     gint backwards = (binding->handler->flags & META_KEY_BINDING_IS_REVERSED) != 0;
-    meta_verbose("%s: backwards %d", __func__, backwards);
+    meta_verbose("%s: backwards %d\n", __func__, backwards);
     do_choose_window (display, screen, window, event, binding, backwards);
 }
 

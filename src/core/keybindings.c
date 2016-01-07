@@ -2362,9 +2362,7 @@ process_tab_grab (MetaDisplay *display,
                   "Key pressed, moving tab focus in popup\n");
 
       /* reverse direction according to initial backward state */
-      if (!backward && event->mods.base & ShiftMask)
-          backward = !backward;
-      else if (backward && !(event->mods.base & ShiftMask))
+      if (event->mods.base & ShiftMask)
           backward = !backward;
 
       if (backward)
