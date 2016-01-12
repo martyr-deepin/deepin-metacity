@@ -814,7 +814,10 @@ reload_net_wm_state (MetaWindow    *window,
       else if (value->v.atom_list.atoms[i] == window->display->atom__NET_WM_STATE_SKIP_PAGER)
         window->wm_state_skip_pager = TRUE;
       else if (value->v.atom_list.atoms[i] == window->display->atom__NET_WM_STATE_FULLSCREEN)
-        window->fullscreen_after_placement = TRUE;
+        {
+          window->fullscreen_after_placement = TRUE;
+          window->fullscreen = TRUE;
+        }
       else if (value->v.atom_list.atoms[i] == window->display->atom__NET_WM_STATE_ABOVE)
         window->wm_state_above = TRUE;
       else if (value->v.atom_list.atoms[i] == window->display->atom__NET_WM_STATE_BELOW)
