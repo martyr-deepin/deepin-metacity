@@ -1251,6 +1251,7 @@ static gboolean on_deepin_cloned_widget_leaved(MetaDeepinClonedWidget* cloned,
     DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
     if (!self->priv->ready) return FALSE;
 
+    meta_verbose ("%s\n", __func__);
     if (self->priv->thumb_mode) {
         return FALSE;
     }
@@ -1283,6 +1284,7 @@ static gboolean on_deepin_cloned_widget_entered(MetaDeepinClonedWidget* cloned,
     DeepinShadowWorkspacePrivate* priv = self->priv;
 
     if (!priv->ready) return FALSE;
+    meta_verbose ("%s\n", __func__);
 
     if (!priv->thumb_mode) {
         priv->hovered_clone = cloned;
@@ -1326,6 +1328,50 @@ static gboolean on_deepin_cloned_widget_released(MetaDeepinClonedWidget* cloned,
 
     /* pass to parent workspace */
     return FALSE;
+}
+
+static void on_deepin_cloned_widget_drag_begin(GtkWidget* widget,
+        GdkDragContext *context, gpointer data)
+{
+    DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+
+    meta_verbose("%s\n", __func__);
+    if (!priv->ready) return;
+
+    if (!priv->thumb_mode && priv->hovered_clone == widget) {
+        _hide_close_button(self);
+    }
+}
+
+static void on_deepin_cloned_widget_drag_end(GtkWidget* widget,
+        GdkDragContext *context, gpointer data)
+{
+    DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+
+    if (!priv->ready) return;
+
+    if (!priv->thumb_mode && priv->hovered_clone == widget) {
+        GdkDisplay* display = gdk_display_get_default();
+        GdkDeviceManager* dev_manger = gdk_display_get_device_manager(display);
+        GdkDevice* device = gdk_device_manager_get_client_pointer(dev_manger);
+
+        gint x, y;
+        gdk_device_get_position(device, NULL, &x, &y);
+
+        GtkAllocation alloc;
+        gtk_widget_get_allocation(widget, &alloc);
+
+        GdkRectangle r = {alloc.x, alloc.y, alloc.width, alloc.height};
+        if (x > r.x && x < r.x + r.width && y > r.y && y < r.y + r.height) {
+            _move_close_button_for(self, priv->hovered_clone);
+            gtk_widget_set_opacity(priv->close_button, 1.0);
+            return;
+        }
+
+        priv->hovered_clone = NULL;
+    }
 }
 
 static gboolean on_close_button_clicked(GtkWidget* widget,
@@ -1397,6 +1443,8 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
                     "signal::enter-notify-event", on_deepin_cloned_widget_entered, self,
                     "signal::leave-notify-event", on_deepin_cloned_widget_leaved, self,
                     "signal::button-release-event", on_deepin_cloned_widget_released, self,
+                    "signal::drag-begin", on_deepin_cloned_widget_drag_begin, self,
+                    "signal::drag-end", on_deepin_cloned_widget_drag_end, self,
                     NULL);
         }
 
@@ -1539,6 +1587,8 @@ static void on_window_change_workspace(DeepinMessageHub* hub, MetaWindow* window
                 "signal::enter-notify-event", on_deepin_cloned_widget_entered, self,
                 "signal::leave-notify-event", on_deepin_cloned_widget_leaved, self,
                 "signal::button-release-event", on_deepin_cloned_widget_released, self,
+                "signal::drag-begin", on_deepin_cloned_widget_drag_begin, self,
+                "signal::drag-end", on_deepin_cloned_widget_drag_end, self,
                 NULL);
         gtk_widget_show(widget);
         g_idle_add((GSourceFunc)on_idle, self);

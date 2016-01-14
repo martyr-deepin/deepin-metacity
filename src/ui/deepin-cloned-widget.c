@@ -97,8 +97,6 @@ enum {
 enum
 {
     SIGNAL_TRANSITION_FINISHED,
-    SIGNAL_ENTERED,
-    SIGNAL_LEAVED,
     N_SIGNALS
 };
 
@@ -539,29 +537,6 @@ static void meta_deepin_cloned_widget_unmap (GtkWidget *widget)
     GTK_WIDGET_CLASS (meta_deepin_cloned_widget_parent_class)->unmap (widget);
 }
 
-static gboolean meta_deepin_cloned_widget_enter_notify (GtkWidget *widget,
-			 GdkEventCrossing *event)
-{
-    MetaDeepinClonedWidget *self = META_DEEPIN_CLONED_WIDGET (widget);
-    MetaDeepinClonedWidgetPrivate *priv = self->priv;
-
-    priv->mouse_over = TRUE;
-    g_signal_emit(self, signals[SIGNAL_ENTERED], 0);
-
-    return FALSE;
-}
-
-static gboolean meta_deepin_cloned_widget_leave_notify (GtkWidget *widget,
-        GdkEventCrossing *event)
-{
-    MetaDeepinClonedWidget *self = META_DEEPIN_CLONED_WIDGET (widget);
-    MetaDeepinClonedWidgetPrivate *priv = self->priv;
-
-    priv->mouse_over = FALSE;
-    g_signal_emit(self, signals[SIGNAL_LEAVED], 0);
-    return FALSE;
-}
-
 static void meta_deepin_cloned_widget_class_init (MetaDeepinClonedWidgetClass *klass)
 {
     GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
@@ -575,8 +550,6 @@ static void meta_deepin_cloned_widget_class_init (MetaDeepinClonedWidgetClass *k
     widget_class->unrealize = meta_deepin_cloned_widget_unrealize;
     widget_class->map = meta_deepin_cloned_widget_map;
     widget_class->unmap = meta_deepin_cloned_widget_unmap;
-    widget_class->enter_notify_event = meta_deepin_cloned_widget_enter_notify;
-    widget_class->leave_notify_event = meta_deepin_cloned_widget_leave_notify;
 
     gobject_class->set_property = meta_deepin_cloned_widget_set_property;
     gobject_class->get_property = meta_deepin_cloned_widget_get_property;
@@ -617,20 +590,6 @@ static void meta_deepin_cloned_widget_class_init (MetaDeepinClonedWidgetClass *k
 
 
     signals[SIGNAL_TRANSITION_FINISHED] = g_signal_new ("transition-finished",
-            META_TYPE_DEEPIN_CLONED_WIDGET,
-            G_SIGNAL_RUN_LAST,
-            0,
-            NULL, NULL, NULL,
-            G_TYPE_NONE, 0, NULL);
-
-    signals[SIGNAL_ENTERED] = g_signal_new ("entered",
-            META_TYPE_DEEPIN_CLONED_WIDGET,
-            G_SIGNAL_RUN_LAST,
-            0,
-            NULL, NULL, NULL,
-            G_TYPE_NONE, 0, NULL);
-    
-    signals[SIGNAL_LEAVED] = g_signal_new ("leaved",
             META_TYPE_DEEPIN_CLONED_WIDGET,
             G_SIGNAL_RUN_LAST,
             0,
@@ -1006,11 +965,6 @@ void meta_deepin_cloned_widget_get_size(MetaDeepinClonedWidget* self,
 {
     if (w) *w = self->priv->real_size.width;
     if (h) *h = self->priv->real_size.height;
-}
-
-gboolean meta_deepin_cloned_widget_is_mouse_over(MetaDeepinClonedWidget* self)
-{
-    return self->priv->mouse_over;
 }
 
 gboolean meta_deepin_cloned_widget_is_dragging(MetaDeepinClonedWidget* self)
