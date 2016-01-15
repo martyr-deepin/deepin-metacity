@@ -1330,6 +1330,25 @@ static gboolean on_deepin_cloned_widget_released(MetaDeepinClonedWidget* cloned,
     return FALSE;
 }
 
+static gboolean on_deepin_cloned_widget_motion(MetaDeepinClonedWidget* cloned,
+               GdkEvent* event, gpointer data)
+{
+    DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+    if (!priv->ready) return FALSE;
+
+    if (!priv->thumb_mode && priv->hovered_clone == NULL) {
+        meta_verbose("%s\n", __func__);
+        priv->hovered_clone = cloned;
+        _move_close_button_for(self, priv->hovered_clone);
+        gtk_widget_set_opacity(priv->close_button, 1.0);
+        return TRUE;
+    }
+
+    /* pass to parent workspace */
+    return FALSE;
+}
+
 static void on_deepin_cloned_widget_drag_begin(GtkWidget* widget,
         GdkDragContext *context, gpointer data)
 {
@@ -1442,6 +1461,7 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
             g_object_connect(G_OBJECT(widget),
                     "signal::enter-notify-event", on_deepin_cloned_widget_entered, self,
                     "signal::leave-notify-event", on_deepin_cloned_widget_leaved, self,
+                    "signal::motion-notify-event", on_deepin_cloned_widget_motion, self,
                     "signal::button-release-event", on_deepin_cloned_widget_released, self,
                     "signal::drag-begin", on_deepin_cloned_widget_drag_begin, self,
                     "signal::drag-end", on_deepin_cloned_widget_drag_end, self,
@@ -1586,6 +1606,7 @@ static void on_window_change_workspace(DeepinMessageHub* hub, MetaWindow* window
         g_object_connect(G_OBJECT(widget),
                 "signal::enter-notify-event", on_deepin_cloned_widget_entered, self,
                 "signal::leave-notify-event", on_deepin_cloned_widget_leaved, self,
+                "signal::motion-notify-event", on_deepin_cloned_widget_motion, self,
                 "signal::button-release-event", on_deepin_cloned_widget_released, self,
                 "signal::drag-begin", on_deepin_cloned_widget_drag_begin, self,
                 "signal::drag-end", on_deepin_cloned_widget_drag_end, self,
