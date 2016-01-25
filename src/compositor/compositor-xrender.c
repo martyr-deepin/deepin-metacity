@@ -1255,7 +1255,7 @@ paint_windows (MetaScreen   *screen,
     }
 
   meta_screen_get_size (screen, &screen_width, &screen_height);
-
+  
   if (region == None)
     {
       XRectangle r;
@@ -1343,7 +1343,6 @@ paint_windows (MetaScreen   *screen,
             {
               continue;
             }
-
           int x, y, wid, hei;
 
           x = cw->attrs.x;
@@ -1454,6 +1453,7 @@ paint_windows (MetaScreen   *screen,
         }
     }
 
+  XFlush(xdisplay);
   XFixesDestroyRegion (xdisplay, paint_region);
 }
 
@@ -1565,7 +1565,7 @@ add_repair (MetaDisplay *display)
 
   if (compositor->use_idle_paint) 
     {
-      compositor->repaint_id = g_idle_add_full (G_PRIORITY_HIGH_IDLE,
+      compositor->repaint_id = g_timeout_add_full (G_PRIORITY_HIGH, 5,
                                                 compositor_idle_cb, compositor,
                                                 NULL);
     }
@@ -1633,6 +1633,11 @@ repair_win (MetaCompWindow *cw)
   XserverRegion parts;
 
   meta_error_trap_push (display);
+
+#if defined(__alpha__) || defined(__mips__) || defined(__arm__)
+  parts = win_extents (cw);
+  XDamageSubtract (xdisplay, cw->damage, None, None);
+#else
   if (!cw->damaged)
     {
       parts = win_extents (cw);
@@ -1646,6 +1651,7 @@ repair_win (MetaCompWindow *cw)
                              cw->attrs.x + cw->attrs.border_width,
                              cw->attrs.y + cw->attrs.border_width);
     }
+#endif
 
   meta_error_trap_pop (display, FALSE);
   

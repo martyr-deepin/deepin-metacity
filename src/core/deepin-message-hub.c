@@ -76,6 +76,13 @@ void deepin_message_hub_window_removed(MetaWindow* window)
     g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_WINDOW_REMOVED], 0, window);
 }
 
+static gboolean on_idle_emit_window_damage(MetaWindow* window)
+{
+    g_signal_emit(deepin_message_hub_get(),
+            signals[SIGNAL_WINDOW_DAMAGED], 0, window);
+    return G_SOURCE_REMOVE;
+}
+
 //FIXME: my god, some windows constantly send damage ...
 void deepin_message_hub_window_damaged(MetaWindow* window, XRectangle* rects, int n)
 {
@@ -98,8 +105,7 @@ void deepin_message_hub_window_damaged(MetaWindow* window, XRectangle* rects, in
 
     if (surface_need_update) {
         meta_verbose("%s: %s\n", __func__, window->desc);
-        g_signal_emit(deepin_message_hub_get(),
-                signals[SIGNAL_WINDOW_DAMAGED], 0, window);
+        g_idle_add((GSourceFunc)on_idle_emit_window_damage, window);
     }
 }
 
