@@ -1851,7 +1851,7 @@ event_callback (XEvent   *event,
                   /* Don't focus panels--they must explicitly request focus.
                    * See bug 160470
                    */
-		  if (window->type != META_WINDOW_DOCK)
+		            if (window->type != META_WINDOW_DOCK)
                     {
                       meta_topic (META_DEBUG_FOCUS,
                                   "Focusing %s due to unmodified button %u press (display.c)\n",
