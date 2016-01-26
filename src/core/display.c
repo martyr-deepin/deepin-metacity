@@ -2187,6 +2187,11 @@ event_callback (XEvent   *event,
     case UnmapNotify:
       if (window)
         {
+          MetaScreen* screen;
+          screen = meta_display_screen_for_root(display, event->xunmap.event);
+          if (screen == NULL)
+            break;
+
           /* FIXME: It sucks that UnmapNotify events don't come with
            * a timestamp; could we do something better here?  Maybe X
            * will change one day?
