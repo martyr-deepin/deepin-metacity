@@ -618,7 +618,7 @@ shadow_picture_clip (Display          *xdisplay,
   XserverRegion region1;
   XserverRegion region2;
 
-  if (!cw->window)
+  if (cw->attrs.map_state == IsUnmapped || !cw->window)
     return;
 
   visible_region = meta_window_get_frame_bounds (cw->window);
@@ -952,7 +952,7 @@ window_has_shadow (MetaCompWindow *cw)
   /* Always put a shadow around windows with a frame - This should override
      the restriction about not putting a shadow around shaped windows
      as the frame might be the reason the window is shaped */
-  if (cw->window)
+  if (cw->attrs.map_state != IsUnmapped && cw->window)
     {
       /* Do not add shadows for maximized windows */
       if (meta_window_is_maximized (cw->window))
@@ -1028,7 +1028,7 @@ win_extents (MetaCompWindow *cw)
 
       meta_frame_borders_clear (&borders);
 
-      if (cw->window)
+      if (cw->attrs.map_state != IsUnmapped && cw->window)
         {
           MetaFrame *frame = meta_window_get_frame (cw->window);
 
@@ -1112,7 +1112,8 @@ window_size (MetaCompWindow *cw)
   XserverRegion visible = None;
   XserverRegion border;
 
-  if (cw->window)
+  
+  if (cw->attrs.map_state != IsUnmapped && cw->window)
     {
       visible_region = meta_window_get_frame_bounds (cw->window);
 
@@ -1283,7 +1284,7 @@ paint_windows (MetaScreen   *screen,
       last = index;
 
       cw = (MetaCompWindow *) index->data;
-      if (!cw->damaged)
+      if (!cw->damaged || cw->attrs.map_state == IsUnmapped)
         {
           /* Not damaged */
           continue;
@@ -1387,6 +1388,12 @@ paint_windows (MetaScreen   *screen,
   for (index = last; index; index = index->prev)
     {
       cw = (MetaCompWindow *) index->data;
+      if (!cw->damaged || cw->attrs.map_state == IsUnmapped)
+        {
+          /* Not damaged */
+          continue;
+        }
+
       if (cw->window && (cw->window->minimized || cw->window->hidden)) 
         {
           continue;
@@ -2185,7 +2192,7 @@ resize_win (MetaCompWindow *cw,
         {
           /* If the window is shaded, we store the old backing pixmap
              so we can return a proper image of the window */
-          if (cw->window && meta_window_is_shaded (cw->window))
+          if (cw->attrs.map_state != IsUnmapped && cw->window && meta_window_is_shaded (cw->window))
             {
               cw->shaded_back_pixmap = cw->back_pixmap;
               cw->back_pixmap = None;
@@ -2220,6 +2227,16 @@ resize_win (MetaCompWindow *cw,
 
   cw->extents = win_extents (cw);
 
+  if (cw->border_size)
+    XFixesDestroyRegion (xdisplay, cw->border_size);
+
+  cw->border_size = None;
+
+  if (cw->window_size)
+    XFixesDestroyRegion (xdisplay, cw->window_size);
+
+  cw->window_size = None;
+
   if (damage)
     {
       if (debug)
@@ -2239,6 +2256,9 @@ resize_win (MetaCompWindow *cw,
 
   dump_xserver_region ("resize_win", display, damage);
   add_damage (screen, damage);
+
+  XFixesDestroyRegion (xdisplay, cw->extents);
+  cw->extents = None;
 
   if (info != NULL)
     {
@@ -2567,11 +2587,6 @@ process_damage (MetaCompositorXRender *compositor,
     return;
 
   repair_win (cw);
-
-/*#ifdef USE_IDLE_REPAINT*/
-  /*if (event->more == FALSE)*/
-    /*add_repair (compositor->display);*/
-/*#endif*/
 }
 
 static void
@@ -2588,10 +2603,6 @@ process_shape (MetaCompositorXRender *compositor,
     {
       if (!event->shaped && cw->shaped)
         cw->shaped = FALSE;
-
-      resize_win (cw, cw->attrs.x, cw->attrs.y,
-                  event->width + event->x, event->height + event->y,
-                  cw->attrs.border_width, cw->attrs.override_redirect);
 
       if (event->shaped && !cw->shaped)
         cw->shaped = TRUE;
@@ -2610,6 +2621,11 @@ process_shape (MetaCompositorXRender *compositor,
           cw->shape_bounds.width = cw->attrs.width;
           cw->shape_bounds.height = cw->attrs.height;
         }
+
+      resize_win (cw, cw->attrs.x, cw->attrs.y,
+                  event->width + event->x, event->height + event->y,
+                  cw->attrs.border_width, cw->attrs.override_redirect);
+
     }
 }
 
@@ -2908,7 +2924,9 @@ xrender_free_window (MetaCompositor *compositor,
        * window does not get readded if it is subsequentally shown again. See:
        * http://bugzilla.gnome.org/show_bug.cgi?id=504876
        */
-      /* xwindow = meta_window_get_xwindow (window); */
+
+       if (window->withdrawn)
+         xwindow = meta_window_get_xwindow (window); 
     }
 
   if (xwindow != None)
