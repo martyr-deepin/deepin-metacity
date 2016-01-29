@@ -1741,7 +1741,7 @@ event_callback (XEvent   *event,
               if (window->frame)
                 {
                   window->frame->need_reapply_frame_shape = TRUE;
-		  meta_warning("from event callback\n");
+                  meta_warning("from event callback\n");
                   meta_window_queue (window, META_QUEUE_MOVE_RESIZE);
                 }
             }
