@@ -2214,7 +2214,7 @@ event_callback (XEvent   *event,
                   meta_window_free (window, timestamp);
                   window = NULL;
                 }
-              else
+              else if (window->last_unmap_serial != event->xany.serial)
                 {
                   window->unmaps_pending -= 1;
                   meta_topic (META_DEBUG_WINDOW_STATE,
@@ -2222,6 +2222,9 @@ event_callback (XEvent   *event,
                               window->unmaps_pending);
                 }
             }
+
+          if (window)
+              window->last_unmap_serial = event->xany.serial;
 
           /* Unfocus on UnmapNotify, do this after the possible
            * window_free above so that window_free can see if window->has_focus

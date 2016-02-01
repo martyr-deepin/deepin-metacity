@@ -337,6 +337,7 @@ struct _MetaWindow
    * is withdrawing the window.
    */
   int unmaps_pending;
+  guint last_unmap_serial;
 
   /* set to the most recent user-interaction event timestamp that we
      know about for this window */
