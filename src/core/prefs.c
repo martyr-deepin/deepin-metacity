@@ -126,6 +126,10 @@ static gboolean theme_name_handler (GVariant*, gpointer*, gpointer);
 static gboolean mouse_button_mods_handler (GVariant*, gpointer*, gpointer);
 static gboolean button_layout_handler (GVariant*, gpointer*, gpointer);
 
+static void update_cursor_theme_from_gtk (GtkSettings *settings,
+                                         GParamSpec *pspec,
+                                         gpointer data);
+
 static void     init_bindings             (void);
 static void     init_workspace_names      (void);
 
@@ -855,6 +859,9 @@ meta_prefs_init (void)
                     G_CALLBACK (settings_changed), NULL);
   g_hash_table_insert (settings_schemas, g_strdup (SCHEMA_INTERFACE), settings);
 
+  g_signal_connect (gtk_settings_get_default (), "notify::gtk-cursor-theme-name",
+                    G_CALLBACK (update_cursor_theme_from_gtk), NULL);
+
   /* Pick up initial values. */
   handle_preference_init_enum ();
   handle_preference_init_bool ();
@@ -1045,6 +1052,30 @@ titlebar_handler (GVariant *value,
     }
 
   return TRUE;
+}
+
+static void
+update_cursor_theme_from_gtk (GtkSettings *settings,
+                             GParamSpec *pspec,
+                             gpointer data)
+{
+  GdkScreen *screen = gdk_screen_get_default ();
+  GValue value = G_VALUE_INIT;
+  char* xsettings_cursor_theme = NULL;
+
+  g_value_init (&value, G_TYPE_STRING);
+  if (gdk_screen_get_setting (screen, "gtk-cursor-theme-name", &value))
+    {
+      xsettings_cursor_theme = g_strdup (g_value_get_int (&value));
+    }
+
+  if (g_strcmp0(xsettings_cursor_theme, cursor_theme) != 0)
+    {
+      if (cursor_theme)
+        g_free (cursor_theme);
+      cursor_theme = xsettings_cursor_theme;
+      queue_changed (META_PREF_CURSOR_THEME);
+    }
 }
 
 static gboolean
