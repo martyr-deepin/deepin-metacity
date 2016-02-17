@@ -29,12 +29,6 @@ struct _DeepinWMBackgroundPrivate
     GdkScreen* gscreen;
 
     gint disposed: 1;
-    gint switching_workspace: 1;
-    gint interrupted_switching: 1; /* cascading wokspace switching happens.
-                                      which means press and hold ws switching 
-                                      key */
-    gint deleting_workspace: 1;
-    gint creating_workspace: 1;
 
     GtkWidget* fixed;
 
@@ -123,71 +117,6 @@ static void _delete_workspace(DeepinWMBackground*, DeepinShadowWorkspace*);
 static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event,
         gpointer user_data);
 
-static void toggle_workspace_frozen(DeepinShadowWorkspace* ws, gpointer data)
-{
-    gboolean val = GPOINTER_TO_INT(data);
-    deepin_shadow_workspace_set_frozen(ws, val);
-}
-
-static int _move_count = 0;
-static void on_workspace_move_finished(DeepinFixed* fixed,
-        DeepinFixedChild* child, DeepinWMBackground* self)
-{
-    DeepinWMBackgroundPrivate* priv = self->priv;
-
-    _move_count--;
-    if (_move_count == 0) {
-        gint freeze = FALSE;
-        g_list_foreach(priv->worskpace_thumbs,
-                (GFunc)toggle_workspace_frozen,
-                GINT_TO_POINTER(freeze));
-
-        g_list_foreach(priv->worskpaces,
-                (GFunc)toggle_workspace_frozen,
-                GINT_TO_POINTER(freeze));
-
-
-        if (priv->switching_workspace) {
-            meta_verbose("%s: switch done\n", __func__);
-            priv->interrupted_switching = FALSE;
-            priv->switching_workspace = FALSE;
-
-            meta_workspace_activate(
-                    deepin_shadow_workspace_get_workspace(priv->active_workspace), 
-                    gtk_get_current_event_time());
-
-        } else if (priv->deleting_workspace) {
-            meta_verbose("%s: deleting workspace done\n", __func__);
-            priv->deleting_workspace = FALSE;
-
-            meta_workspace_activate(
-                    deepin_shadow_workspace_get_workspace(priv->active_workspace), 
-                    gtk_get_current_event_time());
-
-            if (priv->hover_ws && _show_closer(priv->screen)) {
-                _move_close_button_for(self, priv->hover_ws);
-                gtk_widget_set_opacity(priv->close_button, 1.0);
-            }
-
-        } else if (priv->creating_workspace) {
-            meta_verbose("%s: adding workspace done\n", __func__);
-            priv->creating_workspace = FALSE;
-
-            if (priv->hover_ws && _show_closer(priv->screen)) {
-                _move_close_button_for(self, priv->hover_ws);
-                gtk_widget_set_opacity(priv->close_button, 1.0);
-            }
-
-            DeepinShadowWorkspace* next = g_list_last(priv->worskpaces)->data;
-            MetaWorkspace* next_ws = deepin_shadow_workspace_get_workspace(next); 
-            meta_workspace_activate(next_ws, gtk_get_current_event_time());
-
-            deepin_wm_background_switch_workspace(self, next_ws);
-
-        }
-    }
-}
-
 static void redeclare_workspace_name(DeepinShadowWorkspace* ws, DeepinWMBackground* self)
 {
     deepin_shadow_workspace_declare_name(ws);
@@ -259,9 +188,8 @@ static void relayout(DeepinWMBackground* self)
 
         deepin_fixed_move(DEEPIN_FIXED(priv->fixed), (GtkWidget*)l->data,
                 x + priv->thumb_width/2, thumb_y + real_height/2,
-                TRUE);
+                FALSE);
 
-        _move_count++;
         i++;
         l = l->next;
     }
@@ -275,29 +203,9 @@ static void relayout(DeepinWMBackground* self)
                     x + priv->thumb_width/2, y);
         } else {
             deepin_fixed_move(DEEPIN_FIXED(priv->fixed), (GtkWidget*)priv->adder,
-                    x + priv->thumb_width/2, y, TRUE);
-            _move_count++;
+                    x + priv->thumb_width/2, y, FALSE);
         }
     }
-}
-
-static gboolean delayed_relayout(gpointer user_data)
-{
-    DeepinWMBackground* self = (DeepinWMBackground*)user_data;
-    DeepinWMBackgroundPrivate* priv = self->priv;
-
-    gint freeze = TRUE;
-    g_list_foreach(priv->worskpace_thumbs, (GFunc)toggle_workspace_frozen, 
-            GINT_TO_POINTER(freeze));
-    g_list_foreach(priv->worskpaces, (GFunc)toggle_workspace_frozen,
-            GINT_TO_POINTER(freeze));
-
-    /* relayout happens when delete or increment workspace */
-    _move_count = 0;
-
-    relayout(self);
-
-    return G_SOURCE_REMOVE;
 }
 
 static gboolean on_close_button_clicked(GtkWidget* widget,
@@ -306,12 +214,6 @@ static gboolean on_close_button_clicked(GtkWidget* widget,
     meta_verbose("%s\n", __func__);
     DeepinWMBackground* self = (DeepinWMBackground*)data;
     DeepinWMBackgroundPrivate* priv = self->priv;
-
-    if (priv->creating_workspace 
-            || priv->deleting_workspace
-            || priv->switching_workspace) {
-        return TRUE;
-    }
 
     gint index = g_list_index(priv->worskpace_thumbs, priv->hover_ws);
     DeepinShadowWorkspace* ws = g_list_nth(priv->worskpaces, index)->data;
@@ -376,13 +278,8 @@ static gboolean on_workspace_released(DeepinShadowWorkspace* ws,
     DeepinWMBackground* self = (DeepinWMBackground*)user_data;
     DeepinWMBackgroundPrivate* priv = self->priv;
     
-    if (priv->switching_workspace) {
-        return TRUE;
-    }
-
     if (priv->active_workspace != ws) {
         MetaWorkspace* next = deepin_shadow_workspace_get_workspace(ws);
-        deepin_fixed_cancel_pending_animation(DEEPIN_FIXED(priv->fixed), NULL);
         deepin_wm_background_switch_workspace(self, next);
         return TRUE;
     } 
@@ -397,13 +294,8 @@ static gboolean on_workspace_thumb_released(DeepinShadowWorkspace* ws_thumb,
     DeepinWMBackground* self = (DeepinWMBackground*)user_data;
     DeepinWMBackgroundPrivate* priv = self->priv;
     
-    if (priv->switching_workspace) {
-        return TRUE;
-    }
-
     MetaWorkspace* next = deepin_shadow_workspace_get_workspace(ws_thumb);
     if (deepin_shadow_workspace_get_workspace(priv->active_workspace) != next) {
-        deepin_fixed_cancel_pending_animation(DEEPIN_FIXED(priv->fixed), NULL);
         deepin_wm_background_switch_workspace(self, next);
     } 
     return TRUE;
@@ -437,10 +329,7 @@ static gboolean _idle_show_close_button(DeepinWMBackground* self)
     DeepinWMBackgroundPrivate* priv = self->priv;
     if (priv->disposed) return G_SOURCE_REMOVE;
 
-    if (_show_closer(priv->screen) && priv->hover_ws
-            && !(priv->deleting_workspace 
-                || priv->creating_workspace
-                || priv->switching_workspace)) {
+    if (_show_closer(priv->screen) && priv->hover_ws) {
         _move_close_button_for(self, priv->hover_ws);
         gtk_widget_set_opacity(priv->close_button, 1.0);
     }
@@ -515,7 +404,6 @@ void deepin_wm_background_switch_workspace(DeepinWMBackground* self,
                 deepin_shadow_workspace_get_workspace(priv->active_workspace));
     DeepinShadowWorkspace* current = priv->active_workspace;
 
-    //DO move animation
     deepin_shadow_workspace_set_current(current, FALSE);
     deepin_shadow_workspace_set_current(current_thumb, FALSE);
 
@@ -523,14 +411,6 @@ void deepin_wm_background_switch_workspace(DeepinWMBackground* self,
     deepin_shadow_workspace_set_current(next_thumb, TRUE);
 
     priv->active_workspace = next_ws;
-    priv->switching_workspace = TRUE;
-
-    gint freeze = TRUE;
-    g_list_foreach(priv->worskpace_thumbs, (GFunc)toggle_workspace_frozen, 
-            GINT_TO_POINTER(freeze));
-    g_list_foreach(priv->worskpaces, (GFunc)toggle_workspace_frozen,
-            GINT_TO_POINTER(freeze));
-    _move_count = 0;
 
     GdkRectangle geom;
     gint monitor_index = gdk_screen_get_monitor_at_window(priv->gscreen,
@@ -544,26 +424,23 @@ void deepin_wm_background_switch_workspace(DeepinWMBackground* self,
     GList* l = priv->worskpaces;
     while (l) {
         gint x = (geom.width - priv->width) / 2 +  (i - current_pos) * (priv->width + pad);
-        gboolean animate = abs(i-current_pos) <= 1;
-        if (animate) _move_count++;
 
         deepin_fixed_move(DEEPIN_FIXED(priv->fixed), (GtkWidget*)l->data,
                 x + priv->width/2, priv->top_offset + priv->height/2, 
-                animate);
+                FALSE);
 
         i++;
         l = l->next;
     }
+
+    meta_workspace_activate(
+            deepin_shadow_workspace_get_workspace(priv->active_workspace), 
+            gtk_get_current_event_time());
 }
 
 static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer user_data)
 {
     DeepinWMBackground* self = DEEPIN_WM_BACKGROUND(user_data);
-    if (self->priv->creating_workspace 
-            || self->priv->deleting_workspace
-            || self->priv->switching_workspace) {
-        return TRUE;
-    }
     _create_workspace(self);
     return TRUE;
 }
@@ -580,8 +457,6 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
             
     priv->fixed = deepin_fixed_new();
     gtk_container_add(GTK_CONTAINER(self), priv->fixed);
-    g_signal_connect(G_OBJECT(priv->fixed), "move-finished",
-            (GCallback)on_workspace_move_finished, self);
 
     priv->top_offset = (int)(geom.height * FLOW_CLONE_TOP_OFFSET_PERCENT);
     priv->bottom_offset = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);
@@ -611,7 +486,6 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
             if (ws == priv->screen->active_workspace) {
                 current = g_list_index(priv->screen->workspaces, l->data);
                 priv->active_workspace = dsw;
-                deepin_shadow_workspace_set_presentation(dsw, TRUE);
                 deepin_shadow_workspace_set_current(dsw, TRUE);
             }
 
@@ -781,9 +655,16 @@ static void _delete_workspace(DeepinWMBackground* self,
         deepin_shadow_workspace_set_current(current_thumb, TRUE);
     }
 
-    priv->deleting_workspace = TRUE;
+    relayout(self);
 
-    g_idle_add(delayed_relayout, self);
+    meta_workspace_activate(
+            deepin_shadow_workspace_get_workspace(priv->active_workspace), 
+            gtk_get_current_event_time());
+
+    if (priv->hover_ws && _show_closer(priv->screen)) {
+        _move_close_button_for(self, priv->hover_ws);
+        gtk_widget_set_opacity(priv->close_button, 1.0);
+    }
 }
 
 static void _create_workspace(DeepinWMBackground* self)
@@ -851,18 +732,20 @@ static void _create_workspace(DeepinWMBackground* self)
     }
 
     priv->hover_ws = NULL;
-    priv->creating_workspace = TRUE;
-    g_idle_add(delayed_relayout, self);
+    relayout(self);
+    
+    if (priv->hover_ws && _show_closer(priv->screen)) {
+        _move_close_button_for(self, priv->hover_ws);
+        gtk_widget_set_opacity(priv->close_button, 1.0);
+    }
+
+    meta_workspace_activate(new_ws, gtk_get_current_event_time());
+    deepin_wm_background_switch_workspace(self, new_ws);
 }
 
 static void _handle_workspace_creation(DeepinWMBackground* self,
         XIDeviceEvent* event, KeySym keysym, MetaKeyBindingAction action)
 {
-    if (self->priv->creating_workspace 
-            || self->priv->deleting_workspace
-            || self->priv->switching_workspace) {
-        return;
-    }
     _create_workspace(self);
 }
 
@@ -870,13 +753,6 @@ static void _handle_workspace_deletion(DeepinWMBackground* self,
         XIDeviceEvent* event, KeySym keysym, MetaKeyBindingAction action)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
-
-    if (!_show_closer(priv->screen)
-        || self->priv->creating_workspace 
-        || self->priv->deleting_workspace
-        || self->priv->switching_workspace) {
-        return;
-    }
 
     g_assert(priv->active_workspace);
     _delete_workspace(self, priv->active_workspace);
@@ -896,7 +772,6 @@ static void _handle_workspace_goto(DeepinWMBackground* self,
             return;
         }
 
-        deepin_fixed_cancel_pending_animation(DEEPIN_FIXED(priv->fixed), NULL);
         deepin_wm_background_switch_workspace(self, next);
     }
 }
@@ -915,11 +790,6 @@ static void _handle_workspace_switch(DeepinWMBackground* self, XIDeviceEvent* ev
             return;
         }
 
-        if (priv->switching_workspace) {
-            meta_verbose("interrupt workspace switching\n");
-            priv->interrupted_switching = TRUE;
-        }
-        deepin_fixed_cancel_pending_animation(DEEPIN_FIXED(priv->fixed), NULL);
         deepin_wm_background_switch_workspace(self, next);
     }
 }

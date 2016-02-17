@@ -31,18 +31,6 @@ typedef struct _MetaDeepinTabWidgetPrivate
   gdouble scale; /* this scale does not used for scaling animation, it only means
                     that if thumbnail gets shrinked or expanded */
 
-  gboolean animation; /* in animation */
-
-  gdouble current_pos;
-  gdouble target_pos;
-
-  gint64 start_time;
-  gint64 last_time;
-  gint64 end_time;
-
-  guint tick_id;
-  int  animation_duration;
-
   cairo_surface_t* icon;
   cairo_surface_t* snapshot;
 
@@ -160,7 +148,6 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
   gdouble x, y, w = req.width, h = req.height;
 
   gdouble w2 = w / 2.0, h2 = h / 2.0;
-  gdouble pos = priv->animation ? priv->current_pos : 1.0;
 
   cairo_save(cr);
 
@@ -169,9 +156,9 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
   cairo_translate(cr, w2, h2);
 
   if (priv->selected) {
-      cairo_scale(cr, 1.0 + 0.033 * pos, 1.0 + 0.033 * pos);
+      cairo_scale(cr, 1.0 + 0.033, 1.0 + 0.033);
   } else {
-      cairo_scale(cr, 1.033 - 0.033 * pos, 1.033 - 0.033 * pos);
+      cairo_scale(cr, 1.033 - 0.033, 1.033 - 0.033);
   }
 
   gtk_render_background(context, cr, -w2, -h2, w, h);
@@ -220,47 +207,6 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
   }
 
   return TRUE;
-}
-
-static void meta_deepin_tab_widget_end_animation(MetaDeepinTabWidget* self)
-{
-    MetaDeepinTabWidgetPrivate* priv = self->priv;
-    g_assert(priv->animation == TRUE);
-    g_assert(priv->tick_id != 0);
-    
-    gtk_widget_remove_tick_callback(GTK_WIDGET(self), priv->tick_id);
-    priv->tick_id = 0;
-    priv->animation = FALSE;
-    priv->current_pos = priv->target_pos = 0;
-
-    gtk_widget_queue_draw(GTK_WIDGET(self));
-}
-
-static gboolean on_tick_callback(MetaDeepinTabWidget* self, GdkFrameClock* clock, 
-        gpointer data)
-{
-    MetaDeepinTabWidgetPrivate* priv = self->priv;
-
-    gint64 now = gdk_frame_clock_get_frame_time(clock);
-    gdouble duration = (now - priv->last_time) / 1000000.0;
-    if (priv->last_time != priv->start_time && duration < 0.03) return G_SOURCE_CONTINUE;
-    priv->last_time = now;
-
-    gdouble t = 1.0;
-    if (now < priv->end_time) {
-        t = (now - priv->start_time) / (gdouble)(priv->end_time - priv->start_time);
-    }
-    t = ease_in_out_quad(t);
-    priv->current_pos = t * priv->target_pos;
-    if (priv->current_pos > priv->target_pos) priv->current_pos = priv->target_pos;
-    gtk_widget_queue_draw(GTK_WIDGET(self));
-
-    if (priv->current_pos >= priv->target_pos) {
-        meta_deepin_tab_widget_end_animation(self);
-        return G_SOURCE_REMOVE;
-    }
-
-    return G_SOURCE_CONTINUE;
 }
 
 static inline gint fast_round(double x) 
@@ -333,7 +279,6 @@ static void meta_deepin_tab_widget_size_allocate(GtkWidget* widget,
 static void meta_deepin_tab_widget_init (MetaDeepinTabWidget *self)
 {
   self->priv = (MetaDeepinTabWidgetPrivate*)meta_deepin_tab_widget_get_instance_private (self);
-  self->priv->animation_duration = SWITCHER_SELECT_ANIMATION_DURATION;
   self->priv->scale = 1.0;
   self->priv->render_thumb = TRUE;
   self->priv->real_size.width = SWITCHER_ITEM_PREFER_WIDTH;
@@ -489,32 +434,6 @@ meta_deepin_tab_widget_new (MetaWindow* window)
   return (GtkWidget*)widget;
 }
 
-static void meta_deepin_tab_widget_prepare_animation(MetaDeepinTabWidget* self, 
-        gboolean select)
-{
-    if (!gtk_widget_get_realized(GTK_WIDGET(self))) {
-        gtk_widget_realize(GTK_WIDGET(self));
-    }
-
-    MetaDeepinTabWidgetPrivate* priv = self->priv;
-    if (priv->tick_id) {
-        meta_deepin_tab_widget_end_animation(self);
-    }
-
-    priv->target_pos = 1.0;
-    priv->current_pos = 0.0;
-
-    priv->start_time = gdk_frame_clock_get_frame_time(
-            gtk_widget_get_frame_clock(GTK_WIDGET(self)));
-    priv->last_time = priv->start_time;
-    priv->end_time = priv->start_time + (priv->animation_duration * 1000);
-
-    priv->tick_id = gtk_widget_add_tick_callback(GTK_WIDGET(self),
-            (GtkTickCallback)on_tick_callback, 0, 0);
-
-    priv->animation = TRUE;
-}
-
 void meta_deepin_tab_widget_select (MetaDeepinTabWidget *self)
 {
     MetaDeepinTabWidgetPrivate* priv = self->priv;
@@ -522,7 +441,6 @@ void meta_deepin_tab_widget_select (MetaDeepinTabWidget *self)
     GtkStyleContext* context = gtk_widget_get_style_context (self);
     gtk_style_context_set_state (context, GTK_STATE_FLAG_SELECTED);
 
-    meta_deepin_tab_widget_prepare_animation(self, priv->selected);
     gtk_widget_queue_draw (GTK_WIDGET (self));
 }
 
@@ -533,7 +451,6 @@ void meta_deepin_tab_widget_unselect (MetaDeepinTabWidget *self)
     GtkStyleContext* context = gtk_widget_get_style_context (self);
     gtk_style_context_set_state (context, GTK_STATE_FLAG_NORMAL);
 
-    meta_deepin_tab_widget_prepare_animation(self, priv->selected);
     gtk_widget_queue_draw (GTK_WIDGET (self));
 }
 
@@ -544,9 +461,6 @@ void meta_deepin_tab_widget_set_scale(MetaDeepinTabWidget* self, gdouble val)
 
     gdouble p = val / priv->scale;
     priv->scale = val;
-    if (priv->animation) {
-        meta_deepin_tab_widget_end_animation(self);
-    }
     priv->real_size.width *= p;
     priv->real_size.height *= p;
 

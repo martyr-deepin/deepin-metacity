@@ -73,11 +73,6 @@ void meta_deepin_cloned_widget_get_size(MetaDeepinClonedWidget*, gdouble*, gdoub
 
 void meta_deepin_cloned_widget_set_render_frame(MetaDeepinClonedWidget*, gboolean);
 
-/* setup animaiton */
-void meta_deepin_cloned_widget_push_state(MetaDeepinClonedWidget*);
-/* start animation up */
-void meta_deepin_cloned_widget_pop_state(MetaDeepinClonedWidget*);
-
 MetaWindow* meta_deepin_cloned_widget_get_window(MetaDeepinClonedWidget*);
 
 GdkWindow* meta_deepin_cloned_widget_get_event_window(MetaDeepinClonedWidget*);

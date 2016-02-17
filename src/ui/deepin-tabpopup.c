@@ -194,7 +194,7 @@ static gboolean on_idle_relayout(DeepinTabPopup* self)
                 + (item_width + SWITCHER_COLUMN_SPACING) / 2,
                 top * (item_height + SWITCHER_ROW_SPACING) 
                 + (item_height + SWITCHER_ROW_SPACING) / 2,
-                TRUE);
+                FALSE);
 
         left++;
         if (left >= width) {

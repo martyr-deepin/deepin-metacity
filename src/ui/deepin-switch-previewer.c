@@ -502,34 +502,23 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
     MetaDeepinSwitchPreviewerPrivate *priv = self->priv;
 
     cairo_save(cr);
-    cairo_reset_clip(cr);
 
     GtkRequisition req;
     gtk_widget_get_preferred_size(widget, &req, NULL);
 
-    cairo_rectangle_int_t cur_rect = {0, 0, 0, 0};
     cairo_rectangle_int_t r = {0, 0, req.width, req.height};
     cairo_region_t* reg = cairo_region_create_rectangle(&r);
 
     if (priv->current_preview) {
-        MetaWindow* meta_win = meta_deepin_cloned_widget_get_window(
-                priv->current_preview);
-
-        if (meta_win->type != META_WINDOW_DESKTOP
-            && meta_deepin_cloned_widget_get_alpha(priv->current_preview) > 0.2) {
-
-            double sx = SCALE_FACTOR, sy = SCALE_FACTOR;
-            gtk_widget_get_allocation(GTK_WIDGET(priv->current_preview), &r);
-            r.x += r.width * (1-sx)/2; r.y += r.height * (1-sy)/2;
-            r.width *= sx; r.height *= sy;
-            cur_rect = r;
-            cairo_region_subtract_rectangle(reg, &r);
-        }
+        double sx = SCALE_FACTOR, sy = SCALE_FACTOR;
+        gtk_widget_get_allocation(GTK_WIDGET(priv->current_preview), &r);
+        r.x += r.width * (1-sx)/2; r.y += r.height * (1-sy)/2;
+        r.width *= sx; r.height *= sy;
+        cairo_region_subtract_rectangle(reg, &r);
     }
 
     gdk_cairo_region(cr, reg);
     cairo_clip(cr);
-    cairo_paint(cr);
 
     if (priv->desktop_surface) {
         cairo_set_source_surface(cr, priv->desktop_surface, 0, 0);
@@ -538,25 +527,6 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
 
     cairo_region_destroy(reg);
     cairo_restore(cr);
-
-    if (priv->prev_preview && !meta_prefs_get_reduced_resources()) {
-        cairo_save(cr);
-
-        cairo_region_t* reg = NULL;
-        if (priv->current_preview) {
-            gtk_widget_get_allocation(GTK_WIDGET(priv->prev_preview), &r);
-            reg = cairo_region_create_rectangle(&r);
-            cairo_region_subtract_rectangle(reg, &cur_rect);
-            gdk_cairo_region(cr, reg);
-            cairo_clip(cr);
-        }
-
-        gtk_container_propagate_draw(GTK_CONTAINER(self),
-                GTK_WIDGET(priv->prev_preview), cr);
-
-        cairo_restore(cr);
-        if (reg) cairo_region_destroy(reg);
-    }
 
     gtk_container_propagate_draw(GTK_CONTAINER(self), GTK_WIDGET(priv->current_preview), cr);
     return TRUE;
@@ -582,13 +552,6 @@ void meta_deepin_switch_previewer_select(MetaDeepinSwitchPreviewer* self,
     if (w) {
         if (priv->current_preview) {
             priv->prev_preview = priv->current_preview;
-            MetaWindow* meta_win = meta_deepin_cloned_widget_get_window(
-                    priv->prev_preview);
-            if (meta_win->type != META_WINDOW_DESKTOP && !meta_prefs_get_reduced_resources()) {
-                meta_deepin_cloned_widget_set_scale(priv->current_preview, 1.0, 1.0);
-                meta_deepin_cloned_widget_set_alpha(priv->current_preview, 1.0);
-                meta_deepin_cloned_widget_push_state(priv->current_preview);
-            }
             meta_deepin_cloned_widget_set_scale(priv->current_preview, SCALE_FACTOR, SCALE_FACTOR);
             meta_deepin_cloned_widget_set_alpha(priv->current_preview, 0.0);
 
@@ -596,12 +559,6 @@ void meta_deepin_switch_previewer_select(MetaDeepinSwitchPreviewer* self,
         } 
 
         priv->current_preview = w;
-        MetaWindow* meta_win = meta_deepin_cloned_widget_get_window(w);
-        if (meta_win->type != META_WINDOW_DESKTOP && !meta_prefs_get_reduced_resources()) {
-            meta_deepin_cloned_widget_set_scale(w, SCALE_FACTOR, SCALE_FACTOR);
-            meta_deepin_cloned_widget_set_alpha(w, 0.0);
-            meta_deepin_cloned_widget_push_state(w);
-        }
         meta_deepin_cloned_widget_set_scale(w, 1.0, 1.0);
         meta_deepin_cloned_widget_set_alpha(w, 1.0);
 

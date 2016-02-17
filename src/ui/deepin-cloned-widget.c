@@ -25,42 +25,17 @@
 #include "deepin-message-hub.h"
 #include "deepin-shadow-workspace.h"
 
-/* target values for animation */
-typedef struct _AnimationInfo 
-{
-    gdouble tx, ty;  /* translation */
-    gdouble scale_x, scale_y;   /* scale */
-    gdouble angle;   /* rotation, clockwise is negative */
-    gdouble blur_radius;
-    gdouble alpha; 
-} AnimationInfo;
-
 typedef struct _MetaDeepinClonedWidgetPrivate
 {
     gboolean selected;
 
     gdouble pivot_x, pivot_y; /* around which to scale and rotate */
 
-    AnimationInfo ai;
-    gint animation_stack; /* > 0, animation info needs pushed */
-
     gdouble tx, ty;  /* translation */
     gdouble scale_x, scale_y;   /* scale */
     gdouble angle;   /* rotation, clockwise is negative */
     gdouble blur_radius;
     gdouble alpha;
-
-    gboolean animation; /* in animation */
-
-    gdouble current_pos;
-    gdouble target_pos;
-
-    gint64 start_time;
-    gint64 last_time;
-    gint64 end_time;
-
-    guint tick_id;
-    int  animation_duration;
 
     int render_background: 1;
     int render_frame: 1;
@@ -237,15 +212,10 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
     gdouble w2 = w * priv->pivot_x, h2 = h * priv->pivot_y;
     cairo_translate(cr, w2, h2);
 
-    gdouble pos = priv->animation ? priv->current_pos : 1.0;
-    gdouble sx = priv->ai.scale_x * pos + priv->scale_x * (1.0 - pos),
-            sy = priv->ai.scale_y * pos + priv->scale_y * (1.0 - pos);
-    if (!priv->animation) {
-        sx = priv->scale_x, sy = priv->scale_y;
-    }
+    gdouble sx = priv->scale_x, sy = priv->scale_y;
     cairo_scale(cr, sx, sy);
 
-    gdouble alpha = priv->ai.alpha * pos + priv->alpha * (1.0 - pos);
+    gdouble alpha = priv->alpha;
 
     x = w/2, y = h/2;
     if (priv->render_background) {
@@ -262,8 +232,7 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
 
     if (priv->meta_window->unmanaging || !priv->snapshot) return TRUE;
 
-    gdouble d = priv->ai.blur_radius * pos + priv->blur_radius * (1.0 - pos);
-    if (!priv->animation) d = priv->blur_radius;
+    gdouble d = priv->blur_radius;
     if (d > 0.0) {
         x = cairo_image_surface_get_width(priv->snapshot) / 2.0,
           y = cairo_image_surface_get_height(priv->snapshot) / 2.0;
@@ -291,59 +260,6 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
     }
 
     return TRUE;
-}
-
-static void meta_deepin_cloned_widget_end_animation(MetaDeepinClonedWidget* self)
-{
-    MetaDeepinClonedWidgetPrivate* priv = self->priv;
-    g_assert(priv->animation == TRUE);
-    g_assert(priv->tick_id != 0);
-
-    gtk_widget_remove_tick_callback(GTK_WIDGET(self), priv->tick_id);
-    priv->tick_id = 0;
-    priv->animation = FALSE;
-    priv->current_pos = priv->target_pos = 0;
-
-    priv->tx = priv->ai.tx;
-    priv->ty = priv->ai.ty;
-    priv->scale_x = priv->ai.scale_x;
-    priv->scale_y = priv->ai.scale_y;
-    priv->angle = priv->ai.angle;
-    priv->blur_radius = priv->ai.blur_radius;
-    priv->alpha = priv->ai.alpha;
-
-    gtk_widget_queue_draw(GTK_WIDGET(self));
-
-    g_signal_emit(self, signals[SIGNAL_TRANSITION_FINISHED], 0);
-}
-
-static gboolean on_tick_callback(MetaDeepinClonedWidget* self, GdkFrameClock* clock, 
-        gpointer data)
-{
-    MetaDeepinClonedWidgetPrivate* priv = self->priv;
-
-    gint64 now = gdk_frame_clock_get_frame_time(clock);
-
-    gdouble duration = (now - priv->last_time) / 1000000.0;
-    if (priv->last_time != priv->start_time && duration < 0.048) 
-        return G_SOURCE_CONTINUE;
-    priv->last_time = now;
-
-    gdouble t = 1.0;
-    if (now < priv->end_time) {
-        t = (now - priv->start_time) / (gdouble)(priv->end_time - priv->start_time);
-    }
-    t = ease_in_out_quad(t);
-    priv->current_pos = t * priv->target_pos;
-    if (priv->current_pos > priv->target_pos) priv->current_pos = priv->target_pos;
-    gtk_widget_queue_draw(GTK_WIDGET(self));
-
-    if (priv->current_pos >= priv->target_pos) {
-        meta_deepin_cloned_widget_end_animation(self);
-        return G_SOURCE_REMOVE;
-    }
-
-    return G_SOURCE_CONTINUE;
 }
 
 static inline gint fast_round(double x) 
@@ -406,13 +322,8 @@ static void meta_deepin_cloned_widget_size_allocate(GtkWidget* widget,
     GtkAllocation expanded;
 
     gdouble sx, sy;
-    if (priv->animation) {
-        sx = MAX(priv->ai.scale_x, 1.0);
-        sy = MAX(priv->ai.scale_y, 1.0);
-    } else {
-        sx = MAX(priv->scale_x, 1.0);
-        sy = MAX(priv->scale_y, 1.0);
-    }
+    sx = MAX(priv->scale_x, 1.0);
+    sy = MAX(priv->scale_y, 1.0);
 
     /* FIXME: dirty: need to dynamically adjust best clipping */
     GtkStyleContext* context = gtk_widget_get_style_context (widget);
@@ -433,16 +344,11 @@ static void meta_deepin_cloned_widget_init (MetaDeepinClonedWidget *self)
 {
     MetaDeepinClonedWidgetPrivate* priv = self->priv =
         (MetaDeepinClonedWidgetPrivate*) meta_deepin_cloned_widget_get_instance_private (self);
-    priv->animation_duration = SWITCHER_PREVIEW_DURATION;
     priv->scale_x = 1.0;
     priv->scale_y = 1.0;
     priv->pivot_x = 0.5;
     priv->pivot_y = 0.5;
     priv->alpha = 1.0;
-
-    priv->ai.scale_x = priv->scale_x;
-    priv->ai.scale_y = priv->scale_y;
-    priv->ai.alpha = priv->alpha;
 
     gtk_style_context_set_state (gtk_widget_get_style_context(GTK_WIDGET(self)), 
             GTK_STATE_FLAG_NORMAL);
@@ -676,53 +582,20 @@ GtkWidget * meta_deepin_cloned_widget_new (MetaWindow* meta)
     return (GtkWidget*)widget;
 }
 
-static void meta_deepin_cloned_widget_prepare_animation(MetaDeepinClonedWidget* self) 
-{
-    if (!gtk_widget_get_realized(GTK_WIDGET(self))) {
-        gtk_widget_realize(GTK_WIDGET(self));
-    }
-
-    MetaDeepinClonedWidgetPrivate* priv = self->priv;
-    if (priv->tick_id) {
-        meta_deepin_cloned_widget_end_animation(self);
-    }
-
-    priv->target_pos = 1.0;
-    priv->current_pos = 0.0;
-
-    priv->start_time = gdk_frame_clock_get_frame_time(
-            gtk_widget_get_frame_clock(GTK_WIDGET(self)));
-    priv->last_time = priv->start_time;
-    priv->end_time = priv->start_time + (priv->animation_duration * 1000);
-
-    priv->tick_id = gtk_widget_add_tick_callback(GTK_WIDGET(self),
-            (GtkTickCallback)on_tick_callback, 0, 0);
-
-    priv->animation = TRUE;
-}
-
 void meta_deepin_cloned_widget_select (MetaDeepinClonedWidget *self)
 {
-    if (self->priv->animation) {
-        meta_deepin_cloned_widget_end_animation(self);
-    }
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
     priv->selected = TRUE;
     gtk_style_context_set_state (gtk_widget_get_style_context(GTK_WIDGET(self)), 
             GTK_STATE_FLAG_SELECTED);
-    meta_deepin_cloned_widget_pop_state(self);
 }
 
 void meta_deepin_cloned_widget_unselect (MetaDeepinClonedWidget *self)
 {
-    if (self->priv->animation) {
-        meta_deepin_cloned_widget_end_animation(self);
-    }
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
     priv->selected = FALSE;
     gtk_style_context_set_state (gtk_widget_get_style_context(GTK_WIDGET(self)), 
             GTK_STATE_FLAG_NORMAL);
-    meta_deepin_cloned_widget_pop_state(self);
 }
 
 void meta_deepin_cloned_widget_set_scale(MetaDeepinClonedWidget* self, 
@@ -731,18 +604,9 @@ void meta_deepin_cloned_widget_set_scale(MetaDeepinClonedWidget* self,
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
     sx = MAX(sx, 0.0), sy = MAX(sy, 0.0);
 
-    if (priv->animation) {
-        meta_deepin_cloned_widget_end_animation(self);
-    }
-
-    if (priv->animation_stack) {
-        priv->ai.scale_x = sx;
-        priv->ai.scale_y = sy;
-    } else {
-        priv->scale_x = sx;
-        priv->scale_y = sy;
-        gtk_widget_queue_draw(GTK_WIDGET(self));
-    }
+    priv->scale_x = sx;
+    priv->scale_y = sy;
+    gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
 void meta_deepin_cloned_widget_set_scale_x(MetaDeepinClonedWidget* self, gdouble val)
@@ -760,9 +624,8 @@ void meta_deepin_cloned_widget_get_scale(MetaDeepinClonedWidget* self,
 {
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
 
-    gdouble pos = priv->animation ? priv->current_pos : 1.0;
-    gdouble px = priv->ai.scale_x * pos + priv->scale_x * (1.0 - pos);
-    gdouble py = priv->ai.scale_y * pos + priv->scale_y * (1.0 - pos);
+    gdouble px = priv->scale_x;
+    gdouble py = priv->scale_y;
 
     if (sx) *sx = px;
     if (sy) *sy = py;
@@ -770,23 +633,14 @@ void meta_deepin_cloned_widget_get_scale(MetaDeepinClonedWidget* self,
 
 void meta_deepin_cloned_widget_set_rotate(MetaDeepinClonedWidget* self, gdouble angle)
 {
-    if (self->priv->animation) {
-        meta_deepin_cloned_widget_end_animation(self);
-    }
-    
-    if (self->priv->animation_stack) 
-        self->priv->ai.angle = angle;
-    else {
-        self->priv->angle = angle;
-        gtk_widget_queue_draw(GTK_WIDGET(self));
-    }
+    self->priv->angle = angle;
+    gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
 gdouble meta_deepin_cloned_widget_get_rotate(MetaDeepinClonedWidget* self)
 {
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
-    gdouble pos = priv->animation ? priv->current_pos : 1.0;
-    return priv->ai.angle * pos + priv->angle * (1.0 - pos);
+    return priv->angle;
 }
 
 void meta_deepin_cloned_widget_translate(MetaDeepinClonedWidget* self,
@@ -800,10 +654,8 @@ void meta_deepin_cloned_widget_get_translate(MetaDeepinClonedWidget* self,
         gdouble* tx, gdouble* ty)
 {
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
-    gdouble pos = priv->animation ? priv->current_pos : 1.0;
-
-    gdouble px = priv->ai.tx * pos + priv->tx * (1.0 - pos);
-    gdouble py = priv->ai.ty * pos + priv->ty * (1.0 - pos);
+    gdouble px = priv->tx;
+    gdouble py = priv->ty;
 
     if (tx) *tx = px;
     if (ty) *ty = py;
@@ -811,44 +663,21 @@ void meta_deepin_cloned_widget_get_translate(MetaDeepinClonedWidget* self,
 
 void meta_deepin_cloned_widget_translate_x(MetaDeepinClonedWidget* self, gdouble tx)
 {
-    if (self->priv->animation) {
-        meta_deepin_cloned_widget_end_animation(self);
-    }
-
-    if (self->priv->animation_stack) 
-        self->priv->ai.tx = tx;
-    else {
-        self->priv->tx = tx;
-        gtk_widget_queue_draw(GTK_WIDGET(self));
-    }
+    self->priv->tx = tx;
+    gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
 void meta_deepin_cloned_widget_translate_y(MetaDeepinClonedWidget* self, gdouble ty)
 {
-    if (self->priv->animation) {
-        meta_deepin_cloned_widget_end_animation(self);
-    }
-    if (self->priv->animation_stack) 
-        self->priv->ai.ty = ty;
-    else {
-        self->priv->ty = ty;
-        gtk_widget_queue_draw(GTK_WIDGET(self));
-    }
+    self->priv->ty = ty;
+    gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
 void meta_deepin_cloned_widget_set_blur_radius(MetaDeepinClonedWidget* self, gdouble val)
 {
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
-    if (priv->animation) {
-        meta_deepin_cloned_widget_end_animation(self);
-    }
-
-    if (priv->animation_stack) {
-        priv->ai.blur_radius = MAX(val, 0.0);
-    } else {
-        priv->blur_radius = MAX(val, 0.0);
-        gtk_widget_queue_draw(GTK_WIDGET(self));
-    }
+    priv->blur_radius = MAX(val, 0.0);
+    gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
 void meta_deepin_cloned_widget_set_size(MetaDeepinClonedWidget* self,
@@ -875,70 +704,22 @@ void meta_deepin_cloned_widget_set_size(MetaDeepinClonedWidget* self,
     priv->ty = 0;
     priv->blur_radius = 0;
 
-    priv->ai.tx = priv->tx;
-    priv->ai.ty = priv->ty;
-    priv->ai.scale_x = priv->scale_x;
-    priv->ai.scale_y = priv->scale_y;
-    priv->ai.angle = priv->angle;
-    priv->ai.blur_radius = priv->blur_radius;
-
-    g_assert(priv->animation == FALSE);
-
     gtk_widget_queue_resize(GTK_WIDGET(self));
-}
-
-void meta_deepin_cloned_widget_push_state(MetaDeepinClonedWidget* self)
-{
-    MetaDeepinClonedWidgetPrivate* priv = self->priv;
-    priv->animation_stack++;
-
-    priv->ai.tx = priv->tx;
-    priv->ai.ty = priv->ty;
-    priv->ai.scale_x = priv->scale_x;
-    priv->ai.scale_y = priv->scale_y;
-    priv->ai.angle = priv->angle;
-    priv->ai.blur_radius = priv->blur_radius;
-}
-
-void meta_deepin_cloned_widget_pop_state(MetaDeepinClonedWidget* self)
-{
-    if (self->priv->animation_stack <= 0) {
-        if (self->priv->animation) {
-            meta_deepin_cloned_widget_end_animation(self);
-        } else {
-            gtk_widget_queue_draw(GTK_WIDGET(self));
-        }
-        return;
-    } 
-    self->priv->animation_stack--;
-    if (self->priv->animation_stack == 0) {
-        meta_deepin_cloned_widget_prepare_animation(self);
-    }
 }
 
 void meta_deepin_cloned_widget_set_alpha(MetaDeepinClonedWidget* self, gdouble val)
 {
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
-    if (priv->animation) {
-        meta_deepin_cloned_widget_end_animation(self);
-    }
 
     val = MIN(MAX(val, 0.0), 1.0);
-    if (priv->animation_stack) {
-        priv->ai.alpha = val;
-    } else {
-        priv->alpha = val;
-        gtk_widget_queue_draw(GTK_WIDGET(self));
-    }
+    priv->alpha = val;
+    gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
 gdouble meta_deepin_cloned_widget_get_alpha(MetaDeepinClonedWidget* self)
 {
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
-
-    gdouble pos = priv->animation ? priv->current_pos : 1.0;
-    gdouble alpha = priv->ai.alpha * pos + priv->alpha * (1.0 - pos);
-    return alpha;
+    return priv->alpha;
 }
 
 MetaWindow* meta_deepin_cloned_widget_get_window(MetaDeepinClonedWidget* self)

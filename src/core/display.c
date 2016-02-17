@@ -3880,13 +3880,6 @@ meta_display_begin_grab_op (MetaDisplay *display,
   return TRUE;
 }
 
-static void 
-on_expose_finished(GtkWidget* top)
-{
-    MetaDisplay* display = meta_get_display();
-    gtk_widget_destroy(top);
-}
-
 void
 meta_display_end_grab_op (MetaDisplay *display,
                           guint32      timestamp)
@@ -3950,12 +3943,9 @@ meta_display_end_grab_op (MetaDisplay *display,
       GtkWidget* top = display->grab_screen->exposing_windows_popup;
       if (top) 
         {
-          g_signal_handlers_disconnect_by_data(deepin_message_hub_get(), 
-                  top);
-          GtkWidget* ws = gtk_bin_get_child( GTK_BIN(top));
-          deepin_shadow_workspace_close(DEEPIN_SHADOW_WORKSPACE(ws), 
-                  TRUE, on_expose_finished, top);
+          g_signal_handlers_disconnect_by_data(deepin_message_hub_get(), top);
           display->grab_screen->exposing_windows_popup = NULL;
+          gtk_widget_destroy(top);
         }
     }
 

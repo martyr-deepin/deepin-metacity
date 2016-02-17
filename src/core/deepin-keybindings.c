@@ -429,7 +429,6 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
             deepin_shadow_workspace_set_show_all_windows(active_workspace, TRUE);
         }
         deepin_shadow_workspace_populate(active_workspace, screen->active_workspace);
-        deepin_shadow_workspace_set_presentation(active_workspace, TRUE);
         deepin_shadow_workspace_set_current(active_workspace, TRUE);
 
         gtk_container_add(GTK_CONTAINER(top), (GtkWidget*)active_workspace);

@@ -68,31 +68,13 @@ void deepin_message_hub_window_removed(MetaWindow* window)
     g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_WINDOW_REMOVED], 0, window);
 }
 
-//FIXME: my god, some windows constantly send damage ...
 void deepin_message_hub_window_damaged(MetaWindow* window, XRectangle* rects, int n)
 {
     if (window == NULL || window->unmanaging || window->withdrawn)
         return;
 
-    gboolean surface_need_update = window->type != META_WINDOW_NORMAL;
-
-    MetaRectangle bound;
-    meta_window_get_input_rect(window, &bound);
-
-    for (int i = 0; i < n; i++) {
-        double sx = (double)rects[i].width / bound.width,
-               sy = (double)rects[i].height / bound.height;
-        if (sx > 0.15 && sy > 0.15) {
-            surface_need_update = TRUE;
-            break;
-        }
-    }
-
-    if (surface_need_update) {
-        meta_verbose("%s: %s\n", __func__, window->desc);
-        g_signal_emit(deepin_message_hub_get(),
-                signals[SIGNAL_WINDOW_DAMAGED], 0, window);
-    }
+    g_signal_emit(deepin_message_hub_get(),
+            signals[SIGNAL_WINDOW_DAMAGED], 0, window);
 }
 
 void deepin_message_hub_desktop_changed(void)

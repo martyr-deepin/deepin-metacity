@@ -52,8 +52,6 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
 void deepin_shadow_workspace_set_scale(DeepinShadowWorkspace*, gdouble);
 gdouble deepin_shadow_workspace_get_scale(DeepinShadowWorkspace*);
 
-// true to do presentation animation during show up
-void deepin_shadow_workspace_set_presentation(DeepinShadowWorkspace*, gboolean);
 void deepin_shadow_workspace_set_current(DeepinShadowWorkspace*, gboolean);
 void deepin_shadow_workspace_set_thumb_mode(DeepinShadowWorkspace*, gboolean);
 /* show all windows of all workspaces on the screen, 
@@ -69,12 +67,8 @@ void deepin_shadow_workspace_set_enable_drag(DeepinShadowWorkspace*, gboolean);
  * right now, this needs to be called before populate */
 void deepin_shadow_workspace_set_show_desktop(DeepinShadowWorkspace*, gboolean);
 
-/* frozen workspace when do animation makes it faster */
-void deepin_shadow_workspace_set_frozen(DeepinShadowWorkspace*, gboolean);
-
 gboolean deepin_shadow_workspace_get_is_thumb_mode(DeepinShadowWorkspace*);
 gboolean deepin_shadow_workspace_get_is_current(DeepinShadowWorkspace*);
-gboolean deepin_shadow_workspace_get_is_freezed(DeepinShadowWorkspace*);
 gboolean deepin_shadow_workspace_get_is_all_window_mode(DeepinShadowWorkspace*);
 
 /* initially, no window is focused on previewing */
@@ -85,9 +79,6 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
 MetaWorkspace* deepin_shadow_workspace_get_workspace(DeepinShadowWorkspace*);
 
 GdkWindow* deepin_shadow_workspace_get_event_window(DeepinShadowWorkspace*);
-
-void deepin_shadow_workspace_close(DeepinShadowWorkspace*, gboolean, 
-        void (*finished)(GtkWidget*), gpointer user_data);
 
 void deepin_shadow_workspace_declare_name(DeepinShadowWorkspace* self);
 
