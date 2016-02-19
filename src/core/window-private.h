@@ -129,6 +129,11 @@ struct _MetaWindow
   /* Initial timestamp property */
   guint32 initial_timestamp;
 
+  /* deepin specialized flag to make a normal window bypass some controls
+   * of wm. e.g constraints 
+   */
+  guint deepin_override: 1;
+
   /* Whether we're maximized */
   guint maximized_horizontally : 1;
   guint maximized_vertically : 1;

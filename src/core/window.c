@@ -443,6 +443,8 @@ meta_window_new_with_attrs (MetaDisplay       *display,
   /* avoid tons of stack updates */
   meta_stack_freeze (window->screen->stack);
 
+  window->deepin_override = FALSE;
+
   window->has_shape = has_shape;
 
   window->rect.x = attrs->x;
@@ -3576,12 +3578,13 @@ meta_window_move_resize_internal (MetaWindow          *window,
                   new_rect.x, new_rect.y);
     }
 
-  meta_window_constrain (window,
-                         window->frame ? &borders : NULL,
-                         flags,
-                         gravity,
-                         &old_rect,
-                         &new_rect);
+  if (!window->deepin_override)
+    meta_window_constrain (window,
+                           window->frame ? &borders : NULL,
+                           flags,
+                           gravity,
+                           &old_rect,
+                           &new_rect);
 
   w = new_rect.width;
   h = new_rect.height;
