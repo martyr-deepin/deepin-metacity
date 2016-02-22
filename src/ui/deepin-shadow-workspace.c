@@ -1047,6 +1047,23 @@ static gboolean on_entry_pressed(GtkWidget* entry,
     return FALSE;
 }
 
+static gboolean on_entry_focus_out(GtkWidget* entry,
+               GdkEvent* event, gpointer user_data)
+{
+    meta_verbose("%s \n", __func__);
+    gtk_widget_queue_resize(entry);
+}
+
+static gboolean on_name_box_pressed(GtkWidget* box,
+               GdkEvent* event, gpointer user_data)
+{
+    DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)user_data;
+    DeepinShadowWorkspacePrivate* priv =self->priv;
+    meta_verbose("%s \n", __func__);
+    gtk_widget_queue_resize(priv->entry);
+    return on_entry_pressed(priv->entry, event, user_data);
+}
+
 static gboolean on_entry_key_pressed(GtkWidget* entry,
                GdkEvent* event, gpointer data)
 {
@@ -1096,9 +1113,16 @@ static void _create_entry(DeepinShadowWorkspace* self)
     DeepinShadowWorkspacePrivate* priv = self->priv;
     if (priv->entry) return;
 
+    GtkWidget* evbox = gtk_event_box_new();
+    gtk_event_box_set_above_child(GTK_EVENT_BOX(evbox), FALSE);
+    gtk_event_box_set_visible_window(GTK_EVENT_BOX(evbox), FALSE);
+
+    priv->name_box = evbox;
+    deepin_setup_style_class(priv->name_box, "deepin-workspace-thumb-clone-name-box");
+
     GtkWidget* box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-    priv->name_box = box;
     deepin_setup_style_class(box, "deepin-workspace-thumb-clone-name-box");
+    gtk_widget_set_size_request(box, WORKSPACE_NAME_WIDTH, WORKSPACE_NAME_HEIGHT);
     
     char* num = g_strdup_printf("%d", meta_workspace_index(priv->workspace) + 1);
     priv->ws_num = gtk_label_new(num);
@@ -1106,20 +1130,20 @@ static void _create_entry(DeepinShadowWorkspace* self)
     g_free(num);
 
     g_object_set(G_OBJECT(priv->ws_num), "margin-start", 6, NULL);
-    gtk_box_pack_start(GTK_BOX(box), priv->ws_num, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), priv->ws_num, TRUE, FALSE, 0);
 
     priv->entry = deepin_name_entry_new();
     gtk_entry_set_text(GTK_ENTRY(priv->entry), meta_workspace_get_name(priv->workspace));
-    gtk_entry_set_width_chars(GTK_ENTRY(priv->entry), 
-            gtk_entry_get_text_length(GTK_ENTRY(priv->entry))+2);
 
     g_object_set(G_OBJECT(priv->entry), "margin-end", 6, NULL);
-    gtk_box_pack_start(GTK_BOX(box), priv->entry, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(box), priv->entry, FALSE, FALSE, 0);
+
+    gtk_container_add(GTK_CONTAINER(evbox), box);
 
     GtkAllocation alloc;
-    gtk_widget_get_allocation(box, &alloc);
+    gtk_widget_get_allocation(evbox, &alloc);
 
-    deepin_fixed_put(DEEPIN_FIXED(self), box,
+    deepin_fixed_put(DEEPIN_FIXED(self), evbox,
             (priv->fixed_width - alloc.width)/2, 
             priv->fixed_height + WORKSPACE_NAME_DISTANCE + alloc.height/2);
 
@@ -1127,7 +1151,12 @@ static void _create_entry(DeepinShadowWorkspace* self)
             "signal::button-press-event", on_entry_pressed, self,
             "signal::key-press-event", on_entry_key_pressed, self,
             "signal::changed", on_entry_changed, self,
+            "signal::focus-out-event", on_entry_focus_out, self,
             "signal::preedit-changed", on_entry_preedit_changed, self,
+            NULL);
+
+    g_object_connect(G_OBJECT(priv->name_box),
+            "signal::button-press-event", on_name_box_pressed, self,
             NULL);
     gtk_widget_show_all(priv->name_box);
 }
@@ -1614,6 +1643,7 @@ void deepin_shadow_workspace_set_current(DeepinShadowWorkspace* self,
     SET_STATE (self, state);
     if (priv->name_box) {
         SET_STATE (priv->name_box, state);
+        SET_STATE (gtk_bin_get_child(priv->name_box), state);
         SET_STATE (priv->ws_num, state);
         SET_STATE (priv->entry, state);
         if (!val && gtk_editable_get_selection_bounds(GTK_EDITABLE(priv->entry), NULL, NULL)) {

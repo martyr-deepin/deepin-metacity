@@ -80,7 +80,10 @@ static void deepin_name_entry_get_preferred_width (GtkWidget *widget,
     pango_font_metrics_unref (metrics);
 
     width_chars = gtk_entry_buffer_get_bytes(gtk_entry_get_buffer(entry));
-    min = MAX(MIN(char_pixels * width_chars, WORKSPACE_NAME_WIDTH), char_pixels) + border.left + border.right;
+    if (width_chars == 0)
+        min = gtk_widget_has_focus(widget) ? char_pixels: 0;
+    else
+        min = MAX(MIN(char_pixels * width_chars, WORKSPACE_NAME_WIDTH), char_pixels) + border.left + border.right;
     nat = min;
 
     *minimum = min;
