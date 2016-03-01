@@ -12,6 +12,7 @@
 #include <config.h>
 #include <string.h>
 #include <util.h>
+#include <gdk/gdkx.h>
 #include "deepin-message-hub.h"
 #include "window-private.h"
 
@@ -29,7 +30,7 @@ enum
     SIGNAL_WINDOW_ADDED,
     SIGNAL_WINDOW_DAMAGED,
     SIGNAL_DESKTOP_CHANGED,
-    SIGNAL_SCREEN_RESIZED,
+    SIGNAL_SCREEN_CHANGED,
     SIGNAL_ABOUT_TO_CHANGE_WORKSPACE,
     SIGNAL_DRAG_END,
     SIGNAL_UNABLE_TO_OPERATE,
@@ -81,12 +82,6 @@ void deepin_message_hub_desktop_changed(void)
 {
     meta_verbose("%s\n", __func__);
     g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_DESKTOP_CHANGED], 0);
-}
-
-void deepin_message_hub_screen_resized(MetaScreen* screen)
-{
-    meta_verbose("%s\n", __func__);
-    g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_SCREEN_RESIZED], 0, screen);
 }
 
 void deepin_message_hub_window_about_to_change_workspace(
@@ -143,7 +138,7 @@ static void deepin_message_hub_class_init (DeepinMessageHubClass *klass)
             NULL, NULL, NULL,
             G_TYPE_NONE, 0);
 
-    signals[SIGNAL_SCREEN_RESIZED] = g_signal_new ("screen-resized",
+    signals[SIGNAL_SCREEN_CHANGED] = g_signal_new ("screen-changed",
             G_OBJECT_CLASS_TYPE (klass),
             G_SIGNAL_RUN_LAST, 0,
             NULL, NULL, NULL,
@@ -197,11 +192,28 @@ static void on_message_unable_to_operate(MetaWindow* window, gpointer data)
     g_object_unref(sound_effect);
 }
 
+static void on_monitors_changed(GdkScreen *gdkscreen, gpointer user_data)
+{
+    meta_verbose("%s\n", __func__);
+    MetaScreen* screen = meta_screen_for_x_screen(gdk_x11_screen_get_xscreen(gdkscreen));
+    g_assert(screen != NULL);
+    g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_SCREEN_CHANGED], 0, screen);
+}
+
+static void on_screen_resized(GdkScreen *screen, gpointer user_data)
+{
+    meta_verbose("%s\n", __func__);
+}
+
 DeepinMessageHub* deepin_message_hub_get()
 {
     if (!_the_hub) {
         _the_hub = (DeepinMessageHub*)g_object_new(DEEPIN_TYPE_MESSAGE_HUB, NULL);
         g_signal_connect(_the_hub, "unable-to-operate", G_CALLBACK(on_message_unable_to_operate), NULL);
+        GdkScreen* screen = gdk_screen_get_default();
+        g_object_connect(screen,
+                "signal::monitors-changed", on_monitors_changed, NULL, 
+                "signal::size-changed", on_screen_resized, NULL, NULL);
     }
     return _the_hub;
 }

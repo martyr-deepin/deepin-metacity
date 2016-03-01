@@ -2289,10 +2289,6 @@ event_callback (XEvent   *event,
             screen->xscreen->width   = event->xconfigure.width;
             screen->xscreen->height  = event->xconfigure.height;
 #endif
-
-            meta_screen_resize (screen,
-                                event->xconfigure.width,
-                                event->xconfigure.height);
           }
       }
       break;

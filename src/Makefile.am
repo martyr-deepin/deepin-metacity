@@ -150,7 +150,9 @@ libdeepin_metacity_private_la_SOURCES=			\
 	ui/deepin-background-cache.c		\
 	include/deepin-background-cache.h	\
 	ui/deepin-shadow-workspace.c		\
+	ui/deepin-workspace-overview.c		\
 	include/deepin-shadow-workspace.h	\
+	include/deepin-workspace-overview.h	\
 	ui/deepin-window-surface-manager.c	\
 	include/deepin-window-surface-manager.h	\
 	ui/deepin-workspace-adder.c 		\

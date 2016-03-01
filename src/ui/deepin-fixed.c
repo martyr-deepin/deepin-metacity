@@ -510,8 +510,12 @@ static void deepin_fixed_get_preferred_width (GtkWidget *widget,
     *minimum = 0;
     *natural = 0;
 
-    gint screen_width = gdk_screen_get_width (gtk_widget_get_screen(widget));
-    gint max_width = screen_width - POPUP_SCREEN_PADDING * 2 - POPUP_PADDING * 2;
+    GdkScreen* screen = gtk_widget_get_screen(widget);
+    GdkRectangle mon_geom;
+    gint primary = gdk_screen_get_primary_monitor(screen);
+    gdk_screen_get_monitor_geometry(screen, primary, &mon_geom);
+
+    gint max_width = mon_geom.width - POPUP_SCREEN_PADDING * 2 - POPUP_PADDING * 2;
     float box_width = 0;
     calculate_preferred_size(g_list_length(priv->children), max_width,
             &box_width, NULL, NULL, NULL, NULL);
@@ -528,8 +532,12 @@ static void deepin_fixed_get_preferred_height (GtkWidget *widget,
     GList *children;
     gint child_min, child_nat;
 
-    gint screen_width = gdk_screen_get_width (gtk_widget_get_screen(widget));
-    gint max_width = screen_width - POPUP_SCREEN_PADDING * 2 - POPUP_PADDING * 2;
+    GdkScreen* screen = gtk_widget_get_screen(widget);
+    GdkRectangle mon_geom;
+    gint primary = gdk_screen_get_primary_monitor(screen);
+    gdk_screen_get_monitor_geometry(screen, primary, &mon_geom);
+
+    gint max_width = mon_geom.height - POPUP_SCREEN_PADDING * 2 - POPUP_PADDING * 2;
     float box_height = 0;
     calculate_preferred_size(g_list_length(priv->children), max_width,
             NULL, &box_height, NULL, NULL, NULL);

@@ -147,8 +147,9 @@ struct _MetaScreen
    * this allows us to provide live previews of unmapped windows */
   Window guard_window;
 
-  DeepinDesktopBackground* desktop_bg;
-  Window desktop_bg_window;
+  /* DeepinDesktopBackground's */
+  GPtrArray* desktop_bgs;
+  GArray* desktop_bg_windows;
 };
 
 MetaScreen*   meta_screen_new                 (MetaDisplay                *display,
@@ -230,10 +231,6 @@ void meta_screen_calc_workspace_layout (MetaScreen          *screen,
                                         int                  current_space,
                                         MetaWorkspaceLayout *layout);
 void meta_screen_free_workspace_layout (MetaWorkspaceLayout *layout);
-
-void meta_screen_resize (MetaScreen *screen,
-                         int         width,
-                         int         height);
 
 void     meta_screen_minimize_all_on_active_workspace_except (MetaScreen *screen,
                                                               MetaWindow *keep);

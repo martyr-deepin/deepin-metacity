@@ -39,7 +39,7 @@
 #include "util.h"
 #include "deepin-keybindings.h"
 #include "deepin-wm-background.h"
-#include "deepin-shadow-workspace.h"
+#include "deepin-workspace-overview.h"
 #include "deepin-workspace-indicator.h"
 
 #include <X11/keysym.h>
@@ -2791,7 +2791,7 @@ process_exposing_windows (MetaDisplay *display,
     }
 
   GtkWidget* ws = gtk_bin_get_child(GTK_BIN(screen->exposing_windows_popup));
-  deepin_shadow_workspace_handle_event(ws, event, keysym, action);
+  deepin_workspace_overview_handle_event(ws, event, keysym, action);
 
   return TRUE;
 }

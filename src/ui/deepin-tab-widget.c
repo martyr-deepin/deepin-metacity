@@ -36,6 +36,7 @@ typedef struct _MetaDeepinTabWidgetPrivate
 
   MetaWindow* window;
   MetaRectangle outer_rect; /* cache of window outer rect */
+  GdkRectangle mon_geom; /* primary monitor geometry */
 
   gint disposed: 1;
   gint render_thumb: 1; /* if size is too small, do not render it */
@@ -133,6 +134,7 @@ static void _do_clip(MetaDeepinTabWidget* self, cairo_t* cr)
 
     gdk_cairo_region(cr, reg);
     cairo_clip(cr);
+    cairo_region_destroy(reg);
 }
 
 static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
@@ -151,7 +153,7 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
 
   cairo_save(cr);
 
-  if (priv->render_thumb && priv->snapshot) _do_clip(self, cr);
+  /*if (priv->render_thumb && priv->snapshot) _do_clip(self, cr);*/
 
   cairo_translate(cr, w2, h2);
 
@@ -166,13 +168,14 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
 
   MetaRectangle r = priv->outer_rect;
 
+  int primary = gdk_screen_get_primary_monitor(gdk_screen_get_default());
+
   double sx = RECT_PREFER_WIDTH / (double)r.width;
   double sy = RECT_PREFER_HEIGHT / (double)r.height;
-
   sx = MIN(sx, sy) * priv->scale;
 
   if (priv->window->type == META_WINDOW_DESKTOP) {
-      cairo_surface_t* ref = deepin_background_cache_get_surface(sx);
+      cairo_surface_t* ref = deepin_background_cache_get_surface(primary, sx);
       if (ref) {
           x = (w - cairo_image_surface_get_width(ref)) / 2.0,
             y = (h - cairo_image_surface_get_height(ref)) / 2.0;
@@ -182,10 +185,29 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
   }
 
   if (priv->render_thumb && priv->snapshot) {
+      cairo_save(cr);
+      cairo_rectangle_int_t r;
+      r.width = RECT_PREFER_WIDTH;
+      r.height = RECT_PREFER_HEIGHT;
+
+      r.x = (w - r.width) / 2.0;
+      r.y = (h - r.height) / 2.0;
+
+      cairo_region_t* reg = cairo_region_create_rectangle(&r);
+      gdk_cairo_region(cr, reg);
+      cairo_clip(cr);
+      cairo_region_destroy(reg);
+
       x = (w - cairo_image_surface_get_width(priv->snapshot)) / 2.0;
       y = (h - cairo_image_surface_get_height(priv->snapshot)) / 2.0;
+      if (priv->window->type == META_WINDOW_DESKTOP) {
+          x -= priv->mon_geom.x;
+          y -= priv->mon_geom.y;
+      }
+
       cairo_set_source_surface(cr, priv->snapshot, x, y);
       cairo_paint(cr);
+      cairo_restore(cr);
   }
   
   if (priv->icon) {
@@ -402,7 +424,17 @@ meta_deepin_tab_widget_new (MetaWindow* window)
   widget->priv->window = window;
   meta_window_get_outer_rect(window, &widget->priv->outer_rect);
 
-  if (window->type != META_WINDOW_DESKTOP) {
+  GdkRectangle mon_geom;
+  int primary = gdk_screen_get_primary_monitor(gdk_screen_get_default());
+  gdk_screen_get_monitor_geometry(gdk_screen_get_default(), primary,
+          &mon_geom);
+  widget->priv->mon_geom = mon_geom;
+
+  if (window->type == META_WINDOW_DESKTOP) {
+      /* clip out part that resides on primary */
+      widget->priv->outer_rect = *(MetaRectangle*)&mon_geom;
+
+  } else {
       meta_verbose("WM_CLASS: %s, %s", window->res_name, window->res_class);
 
       /* try to load icon from res_class first, cause window->icon may

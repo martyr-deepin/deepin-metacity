@@ -281,6 +281,39 @@ static void on_window_change_workspace(DeepinMessageHub* hub, MetaWindow* window
     }
 }
 
+static void on_screen_changed(DeepinMessageHub* hub, MetaScreen* screen,
+        gpointer data)
+{
+    DeepinTabPopup* self = (DeepinTabPopup*)data;
+
+    GdkScreen* gdkscreen = gdk_screen_get_default();
+    GdkRectangle mon_geom;
+    gint primary = gdk_screen_get_primary_monitor(gdkscreen);
+    gdk_screen_get_monitor_geometry(gdkscreen, primary, &mon_geom);
+
+    gdk_window_move_resize(gtk_widget_get_window(GTK_WIDGET(self->outline_window)),
+            0, 0,
+            gdk_screen_get_width(gdkscreen), gdk_screen_get_height(gdkscreen));
+
+    GtkAllocation alloc;
+    gtk_widget_get_allocation(self->window, &alloc);
+    gtk_window_move (GTK_WINDOW (self->window), 
+            mon_geom.x + (mon_geom.width - alloc.width)/2,
+            mon_geom.y + (mon_geom.height - alloc.height)/2);
+}
+
+static void on_size_changed(GtkWidget *top, GdkRectangle *alloc,
+               gpointer data)
+{
+    GdkRectangle mon_geom;
+    gint primary = gdk_screen_get_primary_monitor(gdk_screen_get_default());
+    gdk_screen_get_monitor_geometry(gdk_screen_get_default(), primary, &mon_geom);
+
+    gtk_window_move (GTK_WINDOW (top), 
+            mon_geom.x + (mon_geom.width - alloc->width)/2,
+            mon_geom.y + (mon_geom.height - alloc->height)/2);
+}
+
 DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
         int                 screen_number,
         int                 entry_count,
@@ -294,7 +327,7 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
     GList *tmp;
     GdkScreen *screen;
     GdkVisual *visual;
-    int screen_width;
+    GdkRectangle mon_geom;
     int max_width;
     float box_width, box_height;
     double item_scale = 1.0;
@@ -314,12 +347,14 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
     gtk_window_set_screen (GTK_WINDOW (popup->outline_window),
             screen);
 
+
+    gint primary = gdk_screen_get_primary_monitor(screen);
+    gdk_screen_get_monitor_geometry(screen, primary, &mon_geom);
+
     gtk_widget_set_app_paintable(popup->outline_window, TRUE);
-    gtk_window_set_position (GTK_WINDOW (popup->outline_window),
-            GTK_WIN_POS_CENTER_ALWAYS);
+    gtk_window_move (GTK_WINDOW (popup->outline_window), 0, 0);
     gtk_window_set_default_size(GTK_WINDOW(popup->outline_window), 
-            gdk_screen_get_width(screen), 
-            gdk_screen_get_height(screen));
+            gdk_screen_get_width(screen), gdk_screen_get_height(screen));
     gtk_widget_realize (popup->outline_window);
 
     popup->previewer = (MetaDeepinSwitchPreviewer*)meta_deepin_switch_previewer_new(popup);
@@ -332,18 +367,14 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
     gtk_window_set_screen (GTK_WINDOW (popup->window),
             screen);
 
-    gtk_window_set_position (GTK_WINDOW (popup->window),
-            GTK_WIN_POS_CENTER_ALWAYS);
     /* enable resizing, to get never-shrink behavior */
-    gtk_window_set_resizable (GTK_WINDOW (popup->window),
-            TRUE);
+    gtk_window_set_resizable (GTK_WINDOW (popup->window), TRUE);
     popup->current = NULL;
     popup->entries = NULL;
     popup->current_selected_entry = NULL;
 
-    screen_width = gdk_screen_get_width (screen);
     popup->max_width = max_width = 
-        screen_width - POPUP_SCREEN_PADDING * 2 - POPUP_PADDING * 2;
+        mon_geom.width - POPUP_SCREEN_PADDING * 2 - POPUP_PADDING * 2;
     for (i = 0; i < entry_count; ++i) {
         DeepinTabEntry* new_entry = deepin_tab_entry_new (&entries[i]);
         popup->entries = g_list_prepend (popup->entries, new_entry);
@@ -371,7 +402,6 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
     height = i / width;
     if (i % width)
         height += 1;
-
 
     grid = deepin_fixed_new();
     g_object_set(G_OBJECT(grid), "margin", POPUP_PADDING, NULL);
@@ -412,7 +442,10 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
     g_object_connect(G_OBJECT(deepin_message_hub_get()), 
             "signal::window-removed", on_window_removed, popup,
             "signal::about-to-change-workspace", on_window_change_workspace, popup,
+            "signal::screen-changed", on_screen_changed, popup,
             NULL);
+
+    g_signal_connect(popup->window, "size-allocate", (GCallback)on_size_changed, popup);
 
     popup->idle_relayout_ids = NULL;
 

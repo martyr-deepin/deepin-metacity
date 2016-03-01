@@ -68,6 +68,9 @@ static void prefs_changed_callback (MetaPreference pref,
 
 static void set_desktop_geometry_hint (MetaScreen *screen);
 static void set_desktop_viewport_hint (MetaScreen *screen);
+static void on_screen_changed         (DeepinMessageHub* hub,
+                                       MetaScreen* screen,
+                                       gpointer data);
 
 #ifdef HAVE_STARTUP_NOTIFICATION
 static void meta_screen_sn_event   (SnMonitorEvent *event,
@@ -384,13 +387,12 @@ create_guard_window (Display *xdisplay, MetaScreen *screen)
   return guard_window;
 }
 
-static DeepinDesktopBackground* create_desktop_background(MetaScreen* screen)
+static DeepinDesktopBackground* create_desktop_background(MetaScreen* screen, gint monitor)
 {
-    GtkWidget* widget = (GtkWidget*)deepin_desktop_background_new(screen);
+    GtkWidget* widget = (GtkWidget*)deepin_desktop_background_new(screen, monitor);
 
     gtk_widget_realize (widget);
 
-    screen->desktop_bg_window = GDK_WINDOW_XID(gtk_widget_get_window(widget));
     gdk_window_lower(gtk_widget_get_window(widget));
     gtk_widget_show_all(widget);
 
@@ -588,7 +590,8 @@ meta_screen_new (MetaDisplay *display,
   screen->starting_corner = META_SCREEN_TOPLEFT;
   screen->compositor_data = NULL;
   screen->guard_window = None;
-  screen->desktop_bg = NULL;
+  screen->desktop_bgs = NULL;
+  screen->desktop_bg_windows = NULL;
 
   {
     XFontStruct *font_info;
@@ -708,6 +711,9 @@ meta_screen_new (MetaDisplay *display,
     if (space != NULL)
       meta_workspace_activate (space, timestamp);
   }
+
+  g_signal_connect(deepin_message_hub_get(), "screen-changed", 
+          (GCallback)on_screen_changed, NULL);
 
   meta_verbose ("Added screen %d ('%s') root 0x%lx\n",
                 screen->number, screen->screen_name, screen->xroot);
@@ -862,8 +868,19 @@ meta_screen_manage_all_windows (MetaScreen *screen)
   if (screen->guard_window == None)
     screen->guard_window = create_guard_window (screen->display->xdisplay,
                                                 screen);
-  if (!screen->desktop_bg) 
-      screen->desktop_bg = create_desktop_background(screen);
+  if (!screen->desktop_bgs) {
+      gint n_monitors = gdk_screen_get_n_monitors(gdk_screen_get_default());
+      screen->desktop_bgs = g_ptr_array_new_full(n_monitors,
+              (GDestroyNotify)gtk_widget_destroy);
+      screen->desktop_bg_windows = g_array_sized_new(FALSE, FALSE, sizeof(Window), n_monitors);
+
+      for (int monitor = 0; monitor < n_monitors; monitor++) {
+          DeepinDesktopBackground* widget = create_desktop_background(screen, monitor);
+          g_ptr_array_add(screen->desktop_bgs, widget);
+          Window xid = GDK_WINDOW_XID(gtk_widget_get_window(widget));
+          g_array_append_val(screen->desktop_bg_windows, xid);
+      }
+  }
 
   meta_display_grab (screen->display);
 
@@ -2412,13 +2429,13 @@ meta_screen_resize_func (MetaScreen *screen,
   meta_window_recalc_features (window);
 }
 
-void
-meta_screen_resize (MetaScreen *screen,
-                    int         width,
-                    int         height)
+static void
+on_screen_changed(DeepinMessageHub* hub, MetaScreen* screen,
+        gpointer data)
 {
-  screen->rect.width = width;
-  screen->rect.height = height;
+  GdkScreen* gdkscreen = gdk_screen_get_default(); 
+  screen->rect.width = gdk_screen_get_width(gdkscreen);
+  screen->rect.height = gdk_screen_get_height(gdkscreen);
 
   /* Resize the guard window to fill the screen again. */
   if (screen->guard_window != None)
@@ -2436,10 +2453,29 @@ meta_screen_resize (MetaScreen *screen,
                        &changes);
     }
 
-  if (screen->desktop_bg) 
-    {
-        deepin_message_hub_screen_resized(screen);
-    }
+  if (screen->desktop_bgs) {
+      gint n_monitors = gdk_screen_get_n_monitors(gdk_screen_get_default());
+      guint old_len = screen->desktop_bgs->len;
+      if (old_len < n_monitors) {
+          meta_stack_freeze(screen->stack);
+          for (int monitor = old_len; monitor < n_monitors; monitor++) {
+              DeepinDesktopBackground* widget = create_desktop_background(screen, monitor);
+              g_ptr_array_add(screen->desktop_bgs, widget);
+              Window xid = GDK_WINDOW_XID(gtk_widget_get_window(widget));
+              g_array_append_val(screen->desktop_bg_windows, xid);
+          }
+
+          meta_stack_thaw(screen->stack);
+
+      } else if (old_len > n_monitors) {
+          meta_stack_freeze(screen->stack);
+
+          g_ptr_array_remove_range(screen->desktop_bgs, n_monitors, old_len - n_monitors);
+          g_array_remove_range(screen->desktop_bg_windows, n_monitors, old_len - n_monitors);
+
+          meta_stack_thaw(screen->stack);
+      }
+  }
 
   reload_xinerama_infos (screen);
   set_desktop_geometry_hint (screen);

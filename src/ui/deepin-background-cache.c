@@ -23,16 +23,15 @@
 
 typedef struct _ScaledCacheInfo
 {
+    gint monitor;
     double scale;
     cairo_surface_t* surface;
 } ScaledCacheInfo;
 
 struct _DeepinBackgroundCachePrivate
 {
-    cairo_surface_t* background;
     GList* caches;
 
-    gint fixed_width, fixed_height;
     GSettings *bg_settings;
 };
 
@@ -44,10 +43,6 @@ G_DEFINE_TYPE (DeepinBackgroundCache, deepin_background_cache, G_TYPE_OBJECT);
 static void deepin_background_cache_flush(DeepinBackgroundCache* self)
 {
     DeepinBackgroundCachePrivate* priv = self->priv;
-    if (priv->background) {
-        g_clear_pointer(&priv->background, cairo_surface_destroy);
-    }
-
     if (priv->caches) {
         GList* l = priv->caches;
         while (l) {
@@ -61,16 +56,18 @@ static void deepin_background_cache_flush(DeepinBackgroundCache* self)
     }
 }
 
-static GdkPixbuf* _do_scale(DeepinBackgroundCache* self, GdkPixbuf* pixbuf)
+static GdkPixbuf* _do_scale(DeepinBackgroundCache* self, GdkPixbuf* pixbuf, gint width, gint height)
 {
     GdkPixbuf* new_pixbuf;
-    DeepinBackgroundCachePrivate* priv = self->priv;
 
     int pw = gdk_pixbuf_get_width(pixbuf), ph = gdk_pixbuf_get_height(pixbuf);
 
-    if (pw == priv->fixed_width && ph == priv->fixed_height) return pixbuf;
+    if (pw == width && ph == height) {
+        g_object_ref(pixbuf);
+        return pixbuf;
+    }
 
-    double scale = (double)priv->fixed_width / priv->fixed_height;
+    double scale = (double)width / height;
 
     int w = pw;
     int h = (int)((double)w / scale);
@@ -86,11 +83,10 @@ static GdkPixbuf* _do_scale(DeepinBackgroundCache* self, GdkPixbuf* pixbuf)
     meta_verbose("%s: scale = %f, (%d, %d, %d, %d)\n", __func__, scale, x, y, w, h);
     GdkPixbuf* subpixbuf = gdk_pixbuf_new_subpixbuf(pixbuf, x, y, w, h);
 
-    new_pixbuf = gdk_pixbuf_scale_simple(subpixbuf, priv->fixed_width, 
-            priv->fixed_height, GDK_INTERP_BILINEAR);
+    new_pixbuf = gdk_pixbuf_scale_simple(subpixbuf, width, 
+            height, GDK_INTERP_BILINEAR);
 
     g_object_unref(subpixbuf);
-    g_object_unref(pixbuf);
 
     return new_pixbuf;
 }
@@ -103,8 +99,7 @@ static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
     meta_verbose("uri: %s\n", uri);
 
     GdkScreen* screen = gdk_screen_get_default();
-    priv->fixed_width = gdk_screen_get_width(screen);
-    priv->fixed_height = gdk_screen_get_height(screen);
+    gint n_monitors = gdk_screen_get_n_monitors(screen);
 
     gchar* scheme = g_uri_parse_scheme(uri);
     GFile* f = NULL;
@@ -117,7 +112,7 @@ static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
 
         path = g_file_get_path(f);
         GError* error = NULL;
-        GdkPixbuf* pixbuf = gdk_pixbuf_new_from_file(path, &error);
+        pixbuf = gdk_pixbuf_new_from_file(path, &error);
 
         if (!pixbuf) {
             meta_verbose("%s", error->message);
@@ -125,14 +120,28 @@ static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
             goto _cleanup;
         }
 
-        pixbuf = _do_scale(self, pixbuf);
-        g_assert(!priv->background);
+    }
 
-        priv->background = gdk_cairo_surface_create_from_pixbuf(pixbuf, 1.0, NULL);
-        if (!priv->background || cairo_surface_status(priv->background) != CAIRO_STATUS_SUCCESS) {
+    for (int monitor = 0; monitor < n_monitors; monitor++) {
+        GdkRectangle r;
+        gdk_screen_get_monitor_geometry(screen, monitor, &r);
+        GdkPixbuf* scaled_pixbuf = _do_scale(self, pixbuf, r.width, r.height);
+
+        cairo_surface_t* background = gdk_cairo_surface_create_from_pixbuf(scaled_pixbuf, 1.0, NULL);
+        if (!background || cairo_surface_status(background) != CAIRO_STATUS_SUCCESS) {
             meta_verbose("%s create surface failed", __func__);
-            if (priv->background) g_clear_pointer(&priv->background, cairo_surface_destroy);
+            if (background) g_clear_pointer(&background, cairo_surface_destroy);
         }
+
+        g_object_unref(scaled_pixbuf);
+
+        ScaledCacheInfo* sci = g_slice_new(ScaledCacheInfo);
+        sci->scale = 1.0;
+        sci->monitor = monitor;
+        sci->surface = background;
+        priv->caches = g_list_append(priv->caches, sci);
+
+        meta_verbose("%s: create scaled(1.0) for monitor #%d\n", __func__, monitor);
     }
 
 _cleanup:
@@ -172,7 +181,7 @@ static void deepin_background_cache_init (DeepinBackgroundCache *self)
             (GCallback)deepin_background_cache_settings_chagned, self);
 
     g_signal_connect(G_OBJECT(deepin_message_hub_get()),
-            "screen-resized", (GCallback)on_screen_resized, self);
+            "screen-changed", (GCallback)on_screen_resized, self);
 }
 
 static void deepin_background_cache_finalize (GObject *object)
@@ -206,36 +215,42 @@ DeepinBackgroundCache* deepin_get_background()
     return _the_cache;
 }
 
-cairo_surface_t* deepin_background_cache_get_surface(double scale)
+cairo_surface_t* deepin_background_cache_get_surface(gint monitor, double scale)
 {
     DeepinBackgroundCachePrivate* priv = deepin_get_background()->priv;
-    if (!priv->background) return NULL;
-
-    if (scale == 1.0) return priv->background;
+    cairo_surface_t* base = NULL;
 
     GList* l = priv->caches;
     while (l) {
         ScaledCacheInfo* sci = (ScaledCacheInfo*)l->data;
-        if (sci->scale == scale) return sci->surface;
+        if (sci->monitor == monitor) {
+            if (sci->scale == scale) {
+                meta_verbose("%s: reuse scaled(%f) for monitor #%d\n", __func__, scale, monitor);
+                return sci->surface;
+            } else if (sci->scale == 1.0) 
+                base = sci->surface;
+        }
         l = l->next;
     }
     
-    gint w = scale * priv->fixed_width, h = scale * priv->fixed_height;
+    gint w = scale * cairo_image_surface_get_width(base),
+         h = scale * cairo_image_surface_get_height(base);
     cairo_surface_t* surf = cairo_image_surface_create(
-            cairo_image_surface_get_format(priv->background),
+            cairo_image_surface_get_format(base),
             w, h);
     cairo_t* cr = cairo_create(surf);
     cairo_scale(cr, scale, scale);
-    cairo_set_source_surface(cr, priv->background, 0, 0);
+    cairo_set_source_surface(cr, base, 0, 0);
     cairo_paint(cr);
     cairo_destroy(cr);
 
     ScaledCacheInfo* sci = g_slice_new(ScaledCacheInfo);
     sci->scale = scale;
+    sci->monitor = monitor;
     sci->surface = surf;
     priv->caches = g_list_append(priv->caches, sci);
 
-    meta_verbose("%s: create scaled(%f) background", __func__, scale);
+    meta_verbose("%s: create scaled(%f) for monitor #%d\n", __func__, scale, monitor);
     return sci->surface;
 }
 

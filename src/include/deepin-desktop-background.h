@@ -43,7 +43,7 @@ struct _DeepinDesktopBackground
 };
 
 GType deepin_desktop_background_get_type (void) G_GNUC_CONST;
-DeepinDesktopBackground* deepin_desktop_background_new(MetaScreen*);
+DeepinDesktopBackground* deepin_desktop_background_new(MetaScreen*, gint monitor);
 
 G_END_DECLS
 

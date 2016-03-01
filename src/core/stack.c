@@ -1069,7 +1069,13 @@ stack_sync_to_server (MetaStack *stack)
   /* The screen guard window sits above all hidden windows and acts as
    * a barrier to input reaching these windows. */
   g_array_append_val (all_hidden, stack->screen->guard_window);
-  g_array_append_val (all_hidden, stack->screen->desktop_bg_window);
+
+  GArray* arr = stack->screen->desktop_bg_windows;
+  gint n_bg = arr->len;
+  for (int i = 0; i < n_bg; i++) {
+    Window xid = g_array_index(arr, Window, i);
+    g_array_append_val (all_hidden, xid);
+  }
 
   meta_topic (META_DEBUG_STACK, "Top to bottom: ");
   meta_push_no_msg_prefix ();

@@ -142,14 +142,14 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
 
         int error_code = meta_error_trap_pop_with_return (window->display, FALSE);
         if (error_code != 0) {
-            meta_verbose("draw surface error %d", error_code);
+            meta_verbose("draw surface error %d\n", error_code);
             g_free(s);
             cairo_surface_destroy(ret);
             return NULL;
 
         } else {
             ref = ret;
-            meta_verbose("%s: clip visible rect", window->desc);
+            meta_verbose("%s: clip visible rect\n", window->desc);
             g_tree_insert(t, s, ref);
         }
     } else {
@@ -173,7 +173,7 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
         s = g_new(double, 1);
         *s = scale;
         g_tree_insert(t, s, surface);
-        meta_verbose("%s: (%s) new scale %f", __func__, window->desc, scale);
+        meta_verbose("%s: (%s) new scale %f\n", __func__, window->desc, scale);
     }
     
     return surface;

@@ -47,6 +47,7 @@ struct _MetaDeepinSwitchPreviewerPrivate
     MetaDeepinClonedWidget* prev_preview;
 
     cairo_surface_t* desktop_surface;
+    GdkRectangle mon_geom;
 };
 
 enum {
@@ -183,6 +184,12 @@ GtkWidget* meta_deepin_switch_previewer_new (DeepinTabPopup* popup)
     MetaDeepinSwitchPreviewerPrivate* priv = self->priv;
     priv->popup = popup;
 
+    GdkRectangle mon_geom;
+    GdkScreen* screen = gtk_widget_get_screen(priv->popup->outline_window);
+    int primary = gdk_screen_get_primary_monitor(screen);
+    gdk_screen_get_monitor_geometry(screen, primary, &mon_geom);
+    priv->mon_geom = mon_geom;
+
     return (GtkWidget*)self;
 }
 
@@ -190,6 +197,9 @@ void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self)
 {
     MetaDeepinSwitchPreviewerPrivate* priv = self->priv;
     MetaDisplay* disp = meta_get_display();
+
+    GdkScreen* screen = gtk_widget_get_screen(priv->popup->outline_window);
+    int primary = gdk_screen_get_primary_monitor(screen);
 
     GList* l = priv->popup->entries;
     while (l) {
@@ -240,15 +250,19 @@ void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self)
         if (desktop_win) {
             meta_window_get_outer_rect(desktop_win, &r1);
             aux1 = deepin_window_surface_manager_get_surface(desktop_win, 1.0); 
+            r1.x -= priv->mon_geom.x;
+            r1.y -= priv->mon_geom.y;
         }
 
         if (dock_win) {
             meta_window_get_outer_rect(dock_win, &r2);
             aux2 = deepin_window_surface_manager_get_surface(dock_win, 1.0); 
+            r2.x -= priv->mon_geom.x;
+            r2.y -= priv->mon_geom.y;
         }
 
         priv->desktop_surface = deepin_window_surface_manager_get_combined3(
-                deepin_background_cache_get_surface(1.0), 
+                deepin_background_cache_get_surface(primary, 1.0), 
                 aux1, r1.x, r1.y,
                 aux2, r2.x, r2.y,
                 1.0);
@@ -395,8 +409,7 @@ static void meta_deepin_switch_previewer_get_preferred_width (GtkWidget *widget,
     MetaDeepinSwitchPreviewer *self = META_DEEPIN_SWITCH_PREVIEWER (widget);
     MetaDeepinSwitchPreviewerPrivate *priv = self->priv;
 
-    GdkScreen* screen = gtk_widget_get_screen(priv->popup->outline_window);
-    *minimum = *natural = gdk_screen_get_width(screen);
+    *minimum = *natural = priv->mon_geom.width;
 }
 
 static void meta_deepin_switch_previewer_get_preferred_height (GtkWidget *widget,
@@ -404,8 +417,8 @@ static void meta_deepin_switch_previewer_get_preferred_height (GtkWidget *widget
 {
     MetaDeepinSwitchPreviewer *self = META_DEEPIN_SWITCH_PREVIEWER (widget);
     MetaDeepinSwitchPreviewerPrivate *priv = self->priv;
-    GdkScreen* screen = gtk_widget_get_screen(priv->popup->outline_window);
-    *minimum = *natural = gdk_screen_get_height(screen);
+
+    *minimum = *natural = priv->mon_geom.height;
 }
 
 static void meta_deepin_switch_previewer_size_allocate (GtkWidget* widget,
@@ -521,7 +534,8 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
     cairo_clip(cr);
 
     if (priv->desktop_surface) {
-        cairo_set_source_surface(cr, priv->desktop_surface, 0, 0);
+        cairo_set_source_surface(cr, priv->desktop_surface,
+                priv->mon_geom.x, priv->mon_geom.y);
         cairo_paint(cr);
     }
 

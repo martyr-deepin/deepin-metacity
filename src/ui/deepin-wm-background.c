@@ -451,12 +451,15 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
 
     GdkRectangle geom;
 
-    gint monitor_index = gdk_screen_get_monitor_at_window(priv->gscreen,
-            gtk_widget_get_window(GTK_WIDGET(self)));
+    gint monitor_index = gdk_screen_get_primary_monitor(priv->gscreen);
     gdk_screen_get_monitor_geometry(priv->gscreen, monitor_index, &geom);
             
+    GtkWidget* bin = gtk_fixed_new();
+    gtk_container_add(GTK_CONTAINER(self), bin);
+
     priv->fixed = deepin_fixed_new();
-    gtk_container_add(GTK_CONTAINER(self), priv->fixed);
+    gtk_widget_set_size_request(priv->fixed, geom.width, geom.height);
+    gtk_fixed_put(GTK_FIXED(bin), priv->fixed, geom.x, geom.y);
 
     priv->top_offset = (int)(geom.height * FLOW_CLONE_TOP_OFFSET_PERCENT);
     priv->bottom_offset = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);
@@ -571,6 +574,8 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
     }
 
     _create_close_button(self);
+
+    gtk_window_move(GTK_WINDOW(self), geom.x, geom.y);
 }
 
 static gboolean on_deepin_wm_background_event(DeepinWMBackground* self,
@@ -602,20 +607,24 @@ GtkWidget* deepin_wm_background_new(MetaScreen* screen)
 
     DeepinWMBackground* self = DEEPIN_WM_BACKGROUND(widget);
 
+    self->priv->screen = screen;
     MetaDisplay* display = meta_get_display();
     GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(display->xdisplay);
     self->priv->gscreen = gdk_display_get_default_screen(gdisplay);
 
-    gint w = screen->rect.width, h = screen->rect.height;
-    gtk_window_set_position(GTK_WINDOW(widget), GTK_WIN_POS_CENTER_ALWAYS);
-    gtk_window_set_default_size(GTK_WINDOW(widget), w, h);
     gtk_widget_realize (widget);
+
+    gint w = gdk_screen_get_width(self->priv->gscreen),
+         h = gdk_screen_get_height(self->priv->gscreen);
+    gtk_window_set_default_size(GTK_WINDOW(widget), w, h);
+
+    gtk_window_set_keep_above(GTK_WINDOW(widget), TRUE);
+    gtk_window_set_decorated(GTK_WINDOW(widget), FALSE);
 
     g_object_connect(G_OBJECT(widget),
             "signal::event", on_deepin_wm_background_event, NULL,
             NULL);
 
-    self->priv->screen = screen;
     return widget;
 }
 

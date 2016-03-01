@@ -24,7 +24,7 @@
 #include "workspace.h"
 #include "keybindings.h"
 #include "window-private.h"
-#include "deepin-shadow-workspace.h"
+#include "deepin-workspace-overview.h"
 #include "deepin-window-surface-manager.h"
 #include "deepin-wm-background.h"
 #include "deepin-message-hub.h"
@@ -345,8 +345,9 @@ void do_preview_workspace(MetaDisplay *display, MetaScreen *screen,
         }
 
         deepin_wm_background_setup(screen->ws_previewer);
-        gtk_window_move(GTK_WINDOW(screen->ws_previewer), 0, 0);
+
         gtk_widget_show_all(GTK_WIDGET(screen->ws_previewer));
+        gtk_window_move(GTK_WINDOW(screen->ws_previewer), 0, 0);
         gtk_window_set_focus(GTK_WINDOW(screen->ws_previewer), NULL);
 
         g_signal_connect(G_OBJECT(deepin_message_hub_get()),
@@ -400,38 +401,19 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
                 event->time,
                 0, 0))
     {
-        /* disable fast grab release check cause action may be activated 
-         * programmatically, which is super fast */
-
-        /*gboolean grabbed_before_release = */
-            /*primary_modifier_still_pressed (display, grab_mask);*/
-
         meta_topic (META_DEBUG_KEYBINDINGS, "Activating workspace preview\n");
-
-        /*if (!grabbed_before_release) {*/
-            /* end the grab right away, modifier possibly released
-             * before we could establish the grab and receive the
-             * release event. Must end grab before we can switch
-             * spaces.
-             */
-            /*meta_verbose("not grabbed_before_release\n");*/
-            /*meta_display_end_grab_op (display, event->time);*/
-            /*return;*/
-        /*}*/
 
         GtkWidget* top = screen->exposing_windows_popup;
 
-        DeepinShadowWorkspace* active_workspace = 
-            (DeepinShadowWorkspace*)deepin_shadow_workspace_new();
-        deepin_shadow_workspace_set_enable_drag(active_workspace, FALSE);
-        deepin_shadow_workspace_set_show_desktop(active_workspace, TRUE);
+        DeepinWorkspaceOverview* active_workspace = deepin_workspace_overview_new();
         if (expose_mode == EXPOSE_ALL_WINDOWS) {
-            deepin_shadow_workspace_set_show_all_windows(active_workspace, TRUE);
+            deepin_workspace_overview_set_show_all_windows(active_workspace, TRUE);
         }
-        deepin_shadow_workspace_populate(active_workspace, screen->active_workspace);
-        deepin_shadow_workspace_set_current(active_workspace, TRUE);
+        deepin_workspace_overview_populate(active_workspace, screen->active_workspace);
 
         gtk_container_add(GTK_CONTAINER(top), (GtkWidget*)active_workspace);
+
+        gtk_window_move(GTK_WINDOW(top), 0, 0);
         gtk_widget_show_all(top);
 
         g_signal_connect(G_OBJECT(deepin_message_hub_get()),

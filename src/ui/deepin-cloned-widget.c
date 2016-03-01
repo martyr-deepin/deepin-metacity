@@ -180,10 +180,6 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
     MetaDeepinClonedWidget *self = META_DEEPIN_CLONED_WIDGET (widget);
     MetaDeepinClonedWidgetPrivate* priv = self->priv;
 
-    /*GdkRectangle r;*/
-    /*gdk_cairo_get_clip_rectangle(cr, &r);*/
-    /*meta_verbose("%s: (%s) ", __func__, priv->meta_window->desc);*/
-
     GtkStyleContext* context = gtk_widget_get_style_context (widget);
 
     GtkRequisition req;

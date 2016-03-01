@@ -41,9 +41,10 @@ struct _DeepinShadowWorkspacePrivate
     gint thumb_mode: 1; /* show name and no presentation */
     gint ready: 1; /* if dynamic, this is set after presentation finished, 
                       else, set when window placements are done */
-    gint all_window_mode: 1; // used for Super+a
-    gint show_desktop: 1;
     gint draggable: 1;
+
+    gint primary; /* primary monitor # */
+    GdkRectangle mon_geom; /* primary monitor size */
 
     gint fixed_width, fixed_height;
     gdouble scale; 
@@ -62,9 +63,6 @@ struct _DeepinShadowWorkspacePrivate
 
     GtkWidget* close_button; /* for focused clone */
     MetaDeepinClonedWidget* window_need_focused;
-
-    cairo_surface_t* desktop_surface;
-    int dock_height; /* used only when in show_desktop */
 
     void (*close_fnished)(GtkWidget*);
     gpointer close_fnished_data;
@@ -615,12 +613,11 @@ static void calculate_places(DeepinShadowWorkspace* self)
     DeepinShadowWorkspacePrivate* priv = self->priv;
 
     if (priv->clones && priv->clones->len) {
-        /*g_ptr_array_sort(clones, window_compare);*/
 
         MetaRectangle area = {
             padding_top, padding_left, 
-            priv->fixed_width - padding_left - padding_right - priv->dock_height,
-            priv->fixed_height - padding_top - padding_bottom - priv->dock_height
+            priv->fixed_width - padding_left - padding_right,
+            priv->fixed_height - padding_top - padding_bottom
         };
 
         /*natural_placement(self, area);*/
@@ -711,10 +708,6 @@ static void deepin_shadow_workspace_finalize (GObject *object)
     if (priv->clones) {
         g_ptr_array_free(priv->clones, FALSE);
         priv->clones = NULL;
-    }
-
-    if (priv->desktop_surface) {
-        g_clear_pointer(&priv->desktop_surface, cairo_surface_destroy);
     }
 
     G_OBJECT_CLASS (deepin_shadow_workspace_parent_class)->finalize (object);
@@ -819,21 +812,19 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
         gtk_render_background(context, cr, 0, 0, req.width, req.height);
     }
 
-    if (priv->show_desktop && priv->desktop_surface) {
-        cairo_set_source_surface(cr, priv->desktop_surface, 0, 0);
-        cairo_paint(cr);
-    } else {
-        cairo_surface_t* ref = deepin_background_cache_get_surface(
-                priv->scale);
-        if (ref != NULL) {
-            cairo_set_source_surface(cr, ref, 0, 0);
-        }
+    int primary = gdk_screen_get_primary_monitor(gdk_screen_get_default());
+    cairo_surface_t* ref = deepin_background_cache_get_surface(
+            primary, priv->scale);
+    if (ref != NULL) {
+        cairo_set_source_surface(cr, ref, 0, 0);
     }
 
     cairo_paint(cr);
+
+    GTK_WIDGET_CLASS(deepin_shadow_workspace_parent_class)->draw(widget, cr);
     cairo_restore(cr);
     
-    GTK_WIDGET_CLASS(deepin_shadow_workspace_parent_class)->draw(widget, cr);
+    gtk_container_propagate_draw(GTK_CONTAINER(widget), priv->name_box, cr);
 
     return TRUE;
 }
@@ -1238,7 +1229,7 @@ static gboolean on_deepin_cloned_widget_released(MetaDeepinClonedWidget* cloned,
             meta_workspace_activate(mw->workspace, gdk_event_get_time(event));
         }
         meta_window_activate(mw, gdk_event_get_time(event));
-        g_idle_add((GSourceFunc)on_idle_end_grab, gdk_event_get_time(event));
+        g_idle_add((GSourceFunc)on_idle_end_grab, GUINT_TO_POINTER(gdk_event_get_time(event)));
         return TRUE;
     }
 
@@ -1351,8 +1342,7 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
 
     if (!priv->clones) priv->clones = g_ptr_array_new();
 
-    GList* ls = meta_stack_list_windows(ws->screen->stack,
-            priv->all_window_mode? NULL: ws);
+    GList* ls = meta_stack_list_windows(ws->screen->stack, ws);
     GList* l = ls;
     while (l) {
         MetaWindow* win = (MetaWindow*)l->data;
@@ -1370,6 +1360,10 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
             meta_deepin_cloned_widget_set_render_frame(
                     META_DEEPIN_CLONED_WIDGET(widget), TRUE);
 
+            if (priv->thumb_mode) {
+                if (r.x >= priv->mon_geom.x) r.x -= priv->mon_geom.x;
+                if (r.y >= priv->mon_geom.y) r.y -= priv->mon_geom.y;
+            }
             deepin_fixed_put(DEEPIN_FIXED(self), widget,
                     r.x * priv->scale + w/2,
                     r.y * priv->scale + h/2);
@@ -1408,51 +1402,6 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
                 "signal::leave-notify-event", on_close_button_leaved, self,
                 "signal::button-release-event", on_close_button_clicked, self,
                 NULL);
-    }
-
-    if (priv->show_desktop) {
-        if (priv->desktop_surface) {
-            g_clear_pointer(&priv->desktop_surface, cairo_surface_destroy);
-        }
-
-        priv->dock_height = 0;
-
-        MetaWindow *desktop_win = NULL, *dock_win = NULL;
-
-        GList* windows = priv->workspace->mru_list;
-        while (windows != NULL) {
-            MetaWindow *w = (MetaWindow*)windows->data;
-            if (w->type == META_WINDOW_DESKTOP) {
-                desktop_win = w;
-            }
-
-            if (w->type == META_WINDOW_DOCK) {
-                dock_win = w;
-            }
-
-            if (desktop_win && dock_win) break;
-            windows = windows->next;
-        }
-
-        MetaRectangle r1 = {0, 0, 0, 0}, r2 = {0, 0, 0, 0};
-        cairo_surface_t* aux1 = NULL, *aux2 = NULL;
-
-        if (desktop_win) {
-            meta_window_get_outer_rect(desktop_win, &r1);
-            aux1 = deepin_window_surface_manager_get_surface(desktop_win, 1.0); 
-        }
-
-        if (dock_win) {
-            meta_window_get_outer_rect(dock_win, &r2);
-            aux2 = deepin_window_surface_manager_get_surface(dock_win, 1.0); 
-            priv->dock_height = r2.height;
-        }
-
-        priv->desktop_surface = deepin_window_surface_manager_get_combined3(
-                deepin_background_cache_get_surface(1.0), 
-                aux1, r1.x, r1.y,
-                aux2, r2.x, r2.y,
-                1.0);
     }
 
     gtk_widget_queue_resize(GTK_WIDGET(self));
@@ -1586,8 +1535,12 @@ GtkWidget* deepin_shadow_workspace_new(void)
             DEEPIN_TYPE_SHADOW_WORKSPACE, NULL);
 
     GdkScreen* screen = gdk_screen_get_default();
-    self->priv->fixed_width = gdk_screen_get_width(screen);
-    self->priv->fixed_height = gdk_screen_get_height(screen);
+    self->priv->primary = gdk_screen_get_primary_monitor(screen);
+    gdk_screen_get_monitor_geometry(screen, self->priv->primary,
+            &self->priv->mon_geom);
+
+    self->priv->fixed_width = self->priv->mon_geom.width;
+    self->priv->fixed_height = self->priv->mon_geom.height;
     self->priv->scale = 1.0;
 
     SET_STATE (self, GTK_STATE_FLAG_NORMAL);
@@ -1616,11 +1569,9 @@ void deepin_shadow_workspace_set_scale(DeepinShadowWorkspace* self, gdouble s)
     DeepinShadowWorkspacePrivate* priv = self->priv;
 
     MetaDisplay* display = meta_get_display();
-    MetaRectangle r = display->active_screen->rect;
-
     priv->scale = s;
-    priv->fixed_width = r.width * s;
-    priv->fixed_height = r.height * s;
+    priv->fixed_width = priv->mon_geom.width * s;
+    priv->fixed_height = priv->mon_geom.height * s;
 
     /* FIXME: need to check if repopulate */
 
@@ -1643,7 +1594,7 @@ void deepin_shadow_workspace_set_current(DeepinShadowWorkspace* self,
     SET_STATE (self, state);
     if (priv->name_box) {
         SET_STATE (priv->name_box, state);
-        SET_STATE (gtk_bin_get_child(priv->name_box), state);
+        SET_STATE (gtk_bin_get_child(GTK_BIN(priv->name_box)), state);
         SET_STATE (priv->ws_num, state);
         SET_STATE (priv->entry, state);
         if (!val && gtk_editable_get_selection_bounds(GTK_EDITABLE(priv->entry), NULL, NULL)) {
@@ -1865,7 +1816,7 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
             meta_window_activate(mw, event->time);
         }
 
-        g_idle_add((GSourceFunc)on_idle_end_grab, event->time);
+        g_idle_add((GSourceFunc)on_idle_end_grab, GUINT_TO_POINTER(event->time));
 
     } else if (keysym == XK_F2) {
         gtk_grab_add(priv->entry);
@@ -1891,27 +1842,6 @@ gboolean deepin_shadow_workspace_get_is_current(DeepinShadowWorkspace* self)
 GdkWindow* deepin_shadow_workspace_get_event_window(DeepinShadowWorkspace* self)
 {
     return self->priv->event_window;
-}
-
-void deepin_shadow_workspace_set_show_all_windows(DeepinShadowWorkspace* self,
-        gboolean val)
-{
-    self->priv->all_window_mode = val;
-}
-
-gboolean deepin_shadow_workspace_get_is_all_window_mode(DeepinShadowWorkspace* self)
-{
-    return self->priv->all_window_mode;
-}
-
-void deepin_shadow_workspace_set_show_desktop(DeepinShadowWorkspace* self, 
-        gboolean val)
-{
-    DeepinShadowWorkspacePrivate* priv = self->priv;
-
-    if (priv->show_desktop != val) {
-        priv->show_desktop = val;
-    }
 }
 
 void deepin_shadow_workspace_declare_name(DeepinShadowWorkspace* self)

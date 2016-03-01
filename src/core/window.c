@@ -288,11 +288,17 @@ meta_window_new_with_attrs (MetaDisplay       *display,
       return NULL;
     }
 
-  if (xwindow == screen->desktop_bg_window)
-    {
-      meta_verbose ("Not to manage screen dekstop window 0x%lx\n", xwindow);
-      return NULL;
-    }
+  GArray* arr = screen->desktop_bg_windows;
+  gint n_bg = arr->len;
+  for (int i = 0; i < n_bg; i++) {
+    Window xid = g_array_index(arr, Window, i);
+    if (xwindow == xid)
+      {
+        meta_verbose ("Not to manage screen dekstop window 0x%lx\n", xwindow);
+        return NULL;
+      }
+  }
+
 
   if (attrs->override_redirect)
     {
