@@ -141,7 +141,7 @@ typedef struct
  */
 static MetaDisplay *the_display = NULL;
 
-static gboolean mousemods_disabled = FALSE;
+static gboolean mousemods_disabled = TRUE;
 
 static void
 meta_spew_xi2_event (MetaDisplay *display,
