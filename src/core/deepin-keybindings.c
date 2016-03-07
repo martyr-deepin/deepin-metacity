@@ -382,14 +382,13 @@ enum {
     EXPOSE_ALL_WINDOWS = 2
 };
 
-static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
-        MetaWindow *window, XIDeviceEvent *event,
-        MetaKeyBinding *binding, gpointer user_data)
+void do_expose_windows(MetaDisplay *display, MetaScreen *screen,
+        MetaWindow *window, guint32 timestamp, MetaKeyBinding *binding,
+        int expose_mode)
 {
     meta_verbose("%s\n", __func__);
-    int expose_mode = binding->handler->data;
 
-    unsigned int grab_mask = binding->mask;
+    unsigned int grab_mask = binding? binding->mask : 0;
     if (meta_display_begin_grab_op (display,
                 screen,
                 NULL,
@@ -398,7 +397,7 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
                 FALSE,
                 0,
                 grab_mask,
-                event->time,
+                timestamp,
                 0, 0))
     {
         meta_topic (META_DEBUG_KEYBINDINGS, "Activating workspace preview\n");
@@ -421,6 +420,13 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
 
         _do_grab(screen, top, TRUE);
     }
+}
+
+static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
+        MetaWindow *window, XIDeviceEvent *event,
+        MetaKeyBinding *binding, gpointer user_data)
+{
+    do_expose_windows(display, screen, window, event->time, binding, binding->handler->data);
 }
 
 static void handle_workspace_switch(MetaDisplay *display, MetaScreen *screen,

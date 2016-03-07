@@ -64,16 +64,22 @@ static gboolean deepin_dbus_service_handle_perform_action(DeepinDBusWm *object,
     DeepinDBusService* self = DEEPIN_DBUS_SERVICE(object);
     meta_verbose("%s\n", __func__);
 
+    MetaDisplay* display = meta_get_display();
+    guint32 timestamp = meta_display_get_current_time_roundtrip(display);
     switch((enum ActionType)type) {
         case SHOW_WORKSPACE_VIEW: 
-        {
-            MetaDisplay* display = meta_get_display();
-            guint32 timestamp = meta_display_get_current_time_roundtrip(display);
             do_preview_workspace(display, display->active_screen, 
                     NULL, timestamp, NULL, NULL, FALSE);
             
             break;
-        }
+
+        case WINDOW_OVERVIEW:
+            do_expose_windows(display, display->active_screen, NULL, 
+                    timestamp, NULL, 1);
+
+        case WINDOW_OVERVIEW_ALL:
+            do_expose_windows(display, display->active_screen, NULL, 
+                    timestamp, NULL, 2);
 
         default: break;
     }
