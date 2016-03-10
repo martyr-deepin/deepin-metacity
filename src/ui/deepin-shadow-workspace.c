@@ -824,7 +824,8 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
     GTK_WIDGET_CLASS(deepin_shadow_workspace_parent_class)->draw(widget, cr);
     cairo_restore(cr);
     
-    gtk_container_propagate_draw(GTK_CONTAINER(widget), priv->name_box, cr);
+    if (priv->name_box)
+        gtk_container_propagate_draw(GTK_CONTAINER(widget), priv->name_box, cr);
 
     return TRUE;
 }
