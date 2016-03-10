@@ -1112,9 +1112,13 @@ mouse_button_mods_handler (GVariant *value,
   MetaVirtualModifier mods;
   const gchar *string_value;
 
+  *result = NULL;
   string_value = g_variant_get_string (value, NULL);
 
-  if (!string_value || !meta_ui_parse_modifier (string_value, &mods))
+  if (!string_value)
+    return TRUE;
+
+  if (!meta_ui_parse_modifier (string_value, &mods))
     {
       meta_topic (META_DEBUG_KEYBINDINGS,
                   "Failed to parse new GSettings value\n");
