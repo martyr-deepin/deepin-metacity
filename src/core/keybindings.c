@@ -2857,6 +2857,24 @@ handle_panel (MetaDisplay    *display,
   meta_error_trap_pop (display, FALSE);
 }
 
+struct _IdleData 
+{
+    int x, y;
+    MetaWindow* focus_window;
+    guint32 timestamp;
+};
+
+static gboolean on_idle_popup_menu(gpointer data)
+{
+  struct _IdleData* p = (struct _IdleData*)data;
+  meta_window_show_menu (p->focus_window,
+                         p->x, p->y,
+                         0,
+                         p->timestamp);
+  g_free(p);
+  return G_SOURCE_REMOVE;
+}
+
 static void
 handle_activate_window_menu (MetaDisplay    *display,
                       MetaScreen     *screen,
@@ -2866,18 +2884,18 @@ handle_activate_window_menu (MetaDisplay    *display,
 {
   if (display->focus_window)
     {
-      int x, y;
+      struct _IdleData* p = (struct _IdleData*)malloc(sizeof *p);
 
       meta_window_get_position (display->focus_window,
-                                &x, &y);
+                                &p->x, &p->y);
 
       if (meta_ui_get_direction() == META_UI_DIRECTION_RTL)
-	  x += display->focus_window->rect.width;
+        p->x += display->focus_window->rect.width;
 
-      meta_window_show_menu (display->focus_window,
-                             x, y,
-                             0,
-                             event->time);
+      p->focus_window = display->focus_window;
+      p->timestamp = event->time;
+
+      g_timeout_add(200, on_idle_popup_menu, p);
     }
 }
 
