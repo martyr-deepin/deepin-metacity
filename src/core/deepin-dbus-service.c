@@ -93,6 +93,19 @@ static gboolean deepin_dbus_service_handle_toggle_debug( DeepinDBusWm *object,
 {
     DeepinDBusService* self = DEEPIN_DBUS_SERVICE(object);
     meta_verbose("%s\n", __func__);
+    gboolean new_val = !meta_is_debugging ();
+
+    if (new_val) {
+        g_setenv ("METACITY_DEBUG", "1", TRUE);
+        g_setenv ("METACITY_VERBOSE", "1", TRUE);
+        g_setenv ("METACITY_USE_LOGFILE", "1", TRUE);
+    } else {
+        g_unsetenv ("METACITY_DEBUG");
+        g_unsetenv ("METACITY_VERBOSE");
+        g_unsetenv ("METACITY_USE_LOGFILE");
+    }
+    meta_set_debugging (new_val);
+    meta_set_verbose (new_val);
     deepin_dbus_wm_complete_toggle_debug(object, invocation);
     return TRUE;
 }
