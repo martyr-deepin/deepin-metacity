@@ -230,6 +230,10 @@ static void do_choose_window (MetaDisplay    *display,
     MetaTabList type = (MetaTabList)binding->handler->data;
     MetaWindow *initial_selection;
 
+    if (display->hiding_windows_mode) {
+        return;
+    }
+
     /* reverse direction according to initial backward state */
     if (event->mods.base & ShiftMask)
         backward = !backward;
@@ -316,6 +320,11 @@ void do_preview_workspace(MetaDisplay *display, MetaScreen *screen,
         gboolean user_op)
 {
     meta_verbose("%s\n", __func__);
+
+    if (display->hiding_windows_mode) {
+        return;
+    }
+
     unsigned int grab_mask = binding ? binding->mask: 0;
     if (meta_display_begin_grab_op (display,
                 screen,
@@ -362,6 +371,10 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
         MetaWindow *window, XIDeviceEvent *event,
         MetaKeyBinding *binding, gpointer user_data)
 {
+    if (display->hiding_windows_mode) {
+        return;
+    }
+
     if (!display->focus_window) {
         MetaWindow* focus_window = meta_stack_get_default_focus_window (
                 screen->stack, screen->active_workspace, NULL);
@@ -387,6 +400,10 @@ void do_expose_windows(MetaDisplay *display, MetaScreen *screen,
         int expose_mode)
 {
     meta_verbose("%s\n", __func__);
+
+    if (display->hiding_windows_mode) {
+        return;
+    }
 
     unsigned int grab_mask = binding? binding->mask : 0;
     if (meta_display_begin_grab_op (display,
@@ -435,6 +452,10 @@ static void handle_workspace_switch(MetaDisplay *display, MetaScreen *screen,
 {
     gint motion;
     unsigned int grab_mask;
+
+    if (display->hiding_windows_mode) {
+        return;
+    }
 
     /* Don't show the ws switcher if we get just one ws */
     if (meta_screen_get_n_workspaces(screen) == 1)

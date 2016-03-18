@@ -247,4 +247,7 @@ gboolean meta_screen_apply_startup_properties (MetaScreen *screen,
                                                MetaWindow *window);
 void	 meta_screen_composite_all_windows (MetaScreen *screen);
 
+void meta_screen_request_hide_windows(MetaScreen* screen);
+void meta_screen_cancel_hide_windows(MetaScreen* screen);
+
 #endif

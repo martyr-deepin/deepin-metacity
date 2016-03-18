@@ -127,6 +127,12 @@ struct _MetaDisplay
 
   guint static_gravity_works : 1;
 
+  /* Activated by RequestHideWindows, which will hide all windows
+   * temperarily until deactivated. during hiding mode, newly created 
+   * windows are still allowed to show up.
+   */
+  guint hiding_windows_mode : 1;
+
   /*< private-ish >*/
   guint error_trap_synced_at_last_pop : 1;
   MetaEventQueue *events;
@@ -146,6 +152,7 @@ struct _MetaDisplay
   Window ungrab_should_not_cause_focus_window;
 
   guint32 current_time;
+
 
   /* Pings which we're waiting for a reply from */
   GSList     *pending_pings;

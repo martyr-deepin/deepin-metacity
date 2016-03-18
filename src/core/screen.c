@@ -3084,4 +3084,71 @@ meta_screen_new_workspace (MetaScreen   *screen)
   meta_screen_queue_workarea_recalc (screen);
   return new_ws;
 }
+
+static GHashTable* kept_state_windows = NULL;
+
+void
+meta_screen_request_hide_windows(MetaScreen* screen)
+{
+  GSList *tmp;
+  GSList *winlist;
+
+  if (kept_state_windows == NULL) {
+    kept_state_windows = g_hash_table_new (g_direct_hash, g_direct_equal);
+  }
+
+  MetaDisplay* display = screen->display;
+  if (display->hiding_windows_mode) {
+    meta_verbose ("already in hiding_windows_mode\n");
+    return;
+  }
+
+  meta_verbose ("%s\n", __func__);
+  winlist = meta_display_list_windows (display);
+
+  tmp = winlist;
+  while (tmp != NULL) {
+    MetaWindow* window = (MetaWindow*)tmp->data;
+    if (!window->mapped || window->hidden) {
+      g_hash_table_insert (kept_state_windows, tmp->data, GINT_TO_POINTER(TRUE));
+
+    } else {
+      meta_window_set_showing (tmp->data, FALSE);
+    }
+
+    tmp = tmp->next;
+  }
+  g_slist_free (winlist);
+
+  meta_display_focus_the_no_focus_window (display, screen, 0);
+  display->hiding_windows_mode = TRUE;
+}
+
+void
+meta_screen_cancel_hide_windows(MetaScreen* screen)
+{
+  GSList *tmp;
+  GSList *winlist;
+
+  if (kept_state_windows == NULL) {
+    kept_state_windows = g_hash_table_new (g_direct_hash, g_direct_equal);
+  }
+
+  meta_verbose ("%s\n", __func__);
+  MetaDisplay* display = screen->display;
+  winlist = meta_display_list_windows (display);
+
+  tmp = winlist;
+  while (tmp != NULL) {
+    if (!g_hash_table_contains (kept_state_windows, tmp->data))
+      meta_window_set_showing (tmp->data, TRUE);
+
+    tmp = tmp->next;
+  }
+  g_slist_free (winlist);
+
+  g_hash_table_remove_all (kept_state_windows);
+  display->hiding_windows_mode = FALSE;
+}
+
 #endif /* HAVE_COMPOSITE_EXTENSIONS */

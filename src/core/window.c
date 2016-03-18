@@ -1590,6 +1590,15 @@ implement_showing (MetaWindow *window,
     sync_client_window_mapped (window);
 }
 
+void meta_window_set_showing (MetaWindow *window, gboolean val)
+{
+  if (window->is_in_queues & META_QUEUE_CALC_SHOWING)
+    {
+      meta_window_unqueue (window, META_QUEUE_CALC_SHOWING);
+    }
+  implement_showing (window, val);
+}
+
 void
 meta_window_calc_showing (MetaWindow  *window)
 {

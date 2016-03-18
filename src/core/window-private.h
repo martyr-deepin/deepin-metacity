@@ -680,4 +680,5 @@ gboolean meta_window_is_client_decorated (MetaWindow *window);
 void meta_window_get_titlebar_rect (MetaWindow    *window,
                                     MetaRectangle *titlebar_rect);
 
+void meta_window_set_showing (MetaWindow *window, gboolean val);
 #endif

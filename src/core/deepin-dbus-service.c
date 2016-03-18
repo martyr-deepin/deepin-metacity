@@ -12,6 +12,7 @@
 #include <config.h>
 #include <gio/gio.h>
 #include <util.h>
+#include "screen-private.h"
 #include "deepin-dbus-service.h"
 #include "deepin-dbus-wm.h"
 #include "deepin-keybindings.h"
@@ -34,6 +35,13 @@ static gboolean deepin_dbus_service_handle_toggle_debug (
         DeepinDBusWm *object,
         GDBusMethodInvocation *invocation);
 
+static gboolean deepin_dbus_service_handle_request_hide_windows (
+        DeepinDBusWm *object,
+        GDBusMethodInvocation *invocation);
+
+static gboolean deepin_dbus_service_handle_cancel_hide_windows (
+        DeepinDBusWm *object,
+        GDBusMethodInvocation *invocation);
 
 G_DEFINE_TYPE_WITH_CODE (DeepinDBusService, deepin_dbus_service,
         DEEPIN_DBUS_TYPE_WM_SKELETON,
@@ -56,6 +64,8 @@ static void deepin_dbus_wm_interface_init (DeepinDBusWmIface *iface)
 {
     iface->handle_perform_action = deepin_dbus_service_handle_perform_action;
     iface->handle_toggle_debug = deepin_dbus_service_handle_toggle_debug;
+    iface->handle_request_hide_windows = deepin_dbus_service_handle_request_hide_windows;
+    iface->handle_cancel_hide_windows = deepin_dbus_service_handle_cancel_hide_windows;
 }
 
 static gboolean deepin_dbus_service_handle_perform_action(DeepinDBusWm *object,
@@ -107,6 +117,30 @@ static gboolean deepin_dbus_service_handle_toggle_debug( DeepinDBusWm *object,
     meta_set_debugging (new_val);
     meta_set_verbose (new_val);
     deepin_dbus_wm_complete_toggle_debug(object, invocation);
+    return TRUE;
+}
+
+static gboolean deepin_dbus_service_handle_request_hide_windows( DeepinDBusWm *object,
+        GDBusMethodInvocation *invocation)
+{
+    DeepinDBusService* self = DEEPIN_DBUS_SERVICE(object);
+    meta_verbose("%s\n", __func__);
+
+    MetaDisplay* display = meta_get_display();
+    meta_screen_request_hide_windows (display->active_screen);
+    deepin_dbus_wm_complete_request_hide_windows(object, invocation);
+    return TRUE;
+}
+
+static gboolean deepin_dbus_service_handle_cancel_hide_windows( DeepinDBusWm *object,
+        GDBusMethodInvocation *invocation)
+{
+    DeepinDBusService* self = DEEPIN_DBUS_SERVICE(object);
+    meta_verbose("%s\n", __func__);
+
+    MetaDisplay* display = meta_get_display();
+    meta_screen_cancel_hide_windows (display->active_screen);
+    deepin_dbus_wm_complete_cancel_hide_windows(object, invocation);
     return TRUE;
 }
 

@@ -1042,7 +1042,7 @@ focus_ancestor_or_mru_window (MetaWorkspace *workspace,
   if (window == NULL)
     window = desktop_window;
 
-  if (window)
+  if (window && window->mapped && !window->hidden && !window->minimized)
     {
       meta_topic (META_DEBUG_FOCUS,
                   "Focusing workspace MRU window %s\n", window->desc);

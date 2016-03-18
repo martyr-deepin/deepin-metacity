@@ -16,5 +16,8 @@
     </method>
 
     <method name="ToggleDebug" />
+
+    <method name="RequestHideWindows" />
+    <method name="CancelHideWindows" />
   </interface>
 </node>

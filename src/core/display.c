@@ -379,6 +379,7 @@ meta_display_open (void)
                                                   terminal has the focus */
 
   the_display->grab_sync_request_alarm = None;
+  the_display->hiding_windows_mode = FALSE;
 
   /* FIXME copy the checks from GDK probably */
   the_display->static_gravity_works = g_getenv ("METACITY_USE_STATIC_GRAVITY") != NULL;
