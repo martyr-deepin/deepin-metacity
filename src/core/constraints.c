@@ -1355,7 +1355,7 @@ constrain_to_single_xinerama (MetaWindow         *window,
       window->type == META_WINDOW_DOCK      ||
       window->screen->n_xinerama_infos == 1 ||
       !window->require_on_single_xinerama   ||
-      !window->frame                        ||
+      !(window->frame || meta_window_is_client_decorated(window)) ||
       info->is_user_action)
     return TRUE;
 
