@@ -19,6 +19,7 @@
 #include "deepin-message-hub.h"
 
 #define GSETTINGS_BG_KEY "picture-uri"
+#define GSETTINGS_PRIM_CLR "primary-color"
 #define BACKGROUND_SCHEMA "com.deepin.wrap.gnome.desktop.background"
 
 typedef struct _ScaledCacheInfo
@@ -31,6 +32,7 @@ typedef struct _ScaledCacheInfo
 struct _DeepinBackgroundCachePrivate
 {
     GList* caches;
+    gboolean solid_mode;  // background is solid color
 
     GSettings *bg_settings;
 };
@@ -91,6 +93,24 @@ static GdkPixbuf* _do_scale(DeepinBackgroundCache* self, GdkPixbuf* pixbuf, gint
     return new_pixbuf;
 }
 
+static cairo_surface_t* _create_solid_background(DeepinBackgroundCache* self, GdkRectangle r)
+{
+    DeepinBackgroundCachePrivate* priv = self->priv;
+
+    gchar* color_str = g_settings_get_string(priv->bg_settings, GSETTINGS_PRIM_CLR);
+    GdkRGBA clr;
+    gdk_rgba_parse(&clr, color_str);
+    g_free(color_str);
+
+    cairo_surface_t* bg = cairo_image_surface_create(CAIRO_FORMAT_RGB24, r.width, r.height);
+    cairo_t* cr = cairo_create(bg);
+    cairo_set_source_rgba(cr, clr.red, clr.green, clr.blue, clr.alpha);
+    cairo_paint(cr);
+    cairo_destroy(cr);
+
+    return bg;
+}
+
 static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
 {
     DeepinBackgroundCachePrivate* priv = self->priv;
@@ -106,9 +126,11 @@ static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
     GdkPixbuf* pixbuf = NULL;
     gchar* path = NULL;
 
+    priv->solid_mode = TRUE;
+
     if (!scheme || g_str_equal(scheme, "file")) {
         f = g_file_new_for_uri(uri);
-        if (!f) goto _cleanup;
+        if (!f) goto _next;
 
         path = g_file_get_path(f);
         GError* error = NULL;
@@ -117,23 +139,33 @@ static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
         if (!pixbuf) {
             meta_verbose("%s", error->message);
             g_error_free(error);
-            goto _cleanup;
+            goto _next;
         }
 
+        priv->solid_mode = FALSE;
     }
 
+_next:
     for (int monitor = 0; monitor < n_monitors; monitor++) {
         GdkRectangle r;
+        cairo_surface_t* background;
+
         gdk_screen_get_monitor_geometry(screen, monitor, &r);
-        GdkPixbuf* scaled_pixbuf = _do_scale(self, pixbuf, r.width, r.height);
 
-        cairo_surface_t* background = gdk_cairo_surface_create_from_pixbuf(scaled_pixbuf, 1.0, NULL);
-        if (!background || cairo_surface_status(background) != CAIRO_STATUS_SUCCESS) {
-            meta_verbose("%s create surface failed", __func__);
-            if (background) g_clear_pointer(&background, cairo_surface_destroy);
+        if (!priv->solid_mode) {
+            GdkPixbuf* scaled_pixbuf = _do_scale(self, pixbuf, r.width, r.height);
+
+            background = gdk_cairo_surface_create_from_pixbuf(scaled_pixbuf, 1.0, NULL);
+            if (!background || cairo_surface_status(background) != CAIRO_STATUS_SUCCESS) {
+                meta_verbose("%s create surface failed", __func__);
+                if (background) g_clear_pointer(&background, cairo_surface_destroy);
+            }
+
+            g_object_unref(scaled_pixbuf);
+
+        } else {
+            background = _create_solid_background(self, r);
         }
-
-        g_object_unref(scaled_pixbuf);
 
         ScaledCacheInfo* sci = g_slice_new(ScaledCacheInfo);
         sci->scale = 1.0;
@@ -144,7 +176,6 @@ static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
         meta_verbose("%s: create scaled(1.0) for monitor #%d\n", __func__, monitor);
     }
 
-_cleanup:
     if (path) g_free(path);
     if (pixbuf) g_object_unref(pixbuf);
     if (scheme) g_free(scheme);
@@ -155,7 +186,7 @@ _cleanup:
 static void deepin_background_cache_settings_chagned(GSettings *settings,
         gchar* key, gpointer user_data)
 {
-    if (g_str_equal(key, GSETTINGS_BG_KEY)) {
+    if (g_str_equal(key, GSETTINGS_BG_KEY) || g_str_equal(key, GSETTINGS_PRIM_CLR)) {
         deepin_background_cache_flush((DeepinBackgroundCache*)user_data);
         deepin_background_cache_load_background((DeepinBackgroundCache*)user_data);
         deepin_message_hub_desktop_changed();
