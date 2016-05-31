@@ -1113,6 +1113,9 @@ void deepin_workspace_overview_focus_next(DeepinWorkspaceOverview* self,
 {
     DeepinWorkspaceOverviewPrivate* priv = self->priv;
     gint i = 0, j = 0;
+
+    if (priv->monitors->len == 0) return;
+
     if (priv->window_need_focused) {
         gboolean found = FALSE;
         for (i = 0; i < priv->monitors->len; i++) {
@@ -1154,6 +1157,10 @@ void deepin_workspace_overview_focus_next(DeepinWorkspaceOverview* self,
     }
 
     MonitorData* md = (MonitorData*)g_ptr_array_index(priv->monitors, i);
+    if (md->clones->len == 0) {
+        return;
+    }
+
     MetaDeepinClonedWidget* next = g_ptr_array_index(md->clones, j);
     double scale = SCALE_FACTOR;
     meta_deepin_cloned_widget_set_scale(next, scale, scale);
