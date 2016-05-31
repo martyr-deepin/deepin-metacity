@@ -399,6 +399,7 @@ void deepin_wm_background_switch_workspace(DeepinWMBackground* self,
     DeepinWMBackgroundPrivate* priv = self->priv;
     DeepinShadowWorkspace* next_ws = _find_workspace(priv->worskpaces, next);
     DeepinShadowWorkspace* next_thumb = _find_workspace(priv->worskpace_thumbs, next);
+    if (priv->active_workspace == next_ws) return;
 
     DeepinShadowWorkspace* current_thumb = _find_workspace(priv->worskpace_thumbs,
                 deepin_shadow_workspace_get_workspace(priv->active_workspace));
@@ -433,8 +434,10 @@ void deepin_wm_background_switch_workspace(DeepinWMBackground* self,
         l = l->next;
     }
 
-    meta_workspace_activate(
-            deepin_shadow_workspace_get_workspace(priv->active_workspace), 
+    MetaWindow* focus_window = meta_stack_get_default_focus_window(
+            priv->screen->stack, next, NULL);
+    meta_verbose("%s: focus window %s\n", __func__, focus_window?focus_window->desc:NULL);
+    meta_workspace_activate_with_focus(next, focus_window,
             gtk_get_current_event_time());
 }
 
@@ -662,13 +665,14 @@ static void _delete_workspace(DeepinWMBackground* self,
 
         deepin_shadow_workspace_set_current(priv->active_workspace, TRUE);
         deepin_shadow_workspace_set_current(current_thumb, TRUE);
+
+        MetaWindow* focus_window = meta_stack_get_default_focus_window(
+                priv->screen->stack, next_ws, NULL);
+        meta_window_focus(focus_window, gtk_get_current_event_time());
+        meta_window_raise(focus_window);
     }
 
     relayout(self);
-
-    meta_workspace_activate(
-            deepin_shadow_workspace_get_workspace(priv->active_workspace), 
-            gtk_get_current_event_time());
 
     if (priv->hover_ws && _show_closer(priv->screen)) {
         _move_close_button_for(self, priv->hover_ws);
