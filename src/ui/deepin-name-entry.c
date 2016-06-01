@@ -15,6 +15,7 @@
 struct _DeepinNameEntryPrivate
 {
     gint disposed: 1;
+    int recommend_width;
 };
 
 G_DEFINE_TYPE (DeepinNameEntry, deepin_name_entry, GTK_TYPE_ENTRY);
@@ -56,6 +57,7 @@ static void deepin_name_entry_get_preferred_width (GtkWidget *widget,
 	GTK_WIDGET_CLASS (deepin_name_entry_parent_class)->get_preferred_width(
             widget, minimum, natural);
 
+    DeepinNameEntry* self = DEEPIN_NAME_ENTRY(widget);
     GtkEntry *entry = GTK_ENTRY (widget);
     GtkBorder border;
     PangoFontMetrics *metrics;
@@ -82,8 +84,10 @@ static void deepin_name_entry_get_preferred_width (GtkWidget *widget,
     width_chars = gtk_entry_buffer_get_bytes(gtk_entry_get_buffer(entry));
     if (width_chars == 0)
         min = gtk_widget_has_focus(widget) ? char_pixels: 0;
-    else
-        min = MAX(MIN(char_pixels * width_chars, WORKSPACE_NAME_WIDTH), char_pixels) + border.left + border.right;
+    else {
+        min = border.left + border.right + 
+            MAX(MIN(char_pixels * width_chars, self->priv->recommend_width - 26), char_pixels);
+    }
     nat = min;
 
     *minimum = min;
@@ -141,12 +145,14 @@ static void deepin_name_entry_class_init (DeepinNameEntryClass *klass)
     widget_class->draw = deepin_name_entry_draw;
 }
 
-GtkWidget* deepin_name_entry_new()
+GtkWidget* deepin_name_entry_new(int recommend_width)
 {
     GtkWidget* w = (GtkWidget*)g_object_new(DEEPIN_TYPE_NAME_ENTRY, NULL);
     gtk_entry_set_alignment(GTK_ENTRY(w), 0.5);
     gtk_entry_set_has_frame(GTK_ENTRY(w), FALSE);
 
+    DeepinNameEntry* self = DEEPIN_NAME_ENTRY(w);
+    self->priv->recommend_width = recommend_width;
     deepin_setup_style_class(w, "deepin-workspace-thumb-clone-name");
     return w;
 }

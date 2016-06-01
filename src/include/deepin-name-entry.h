@@ -41,7 +41,7 @@ struct _DeepinNameEntry
 };
 
 GType deepin_name_entry_get_type (void) G_GNUC_CONST;
-GtkWidget* deepin_name_entry_new();
+GtkWidget* deepin_name_entry_new(int recommend_width);
 
 G_END_DECLS
 

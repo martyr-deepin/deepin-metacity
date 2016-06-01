@@ -1124,7 +1124,7 @@ static void _create_entry(DeepinShadowWorkspace* self)
     g_object_set(G_OBJECT(priv->ws_num), "margin-start", 6, NULL);
     gtk_box_pack_start(GTK_BOX(box), priv->ws_num, TRUE, FALSE, 0);
 
-    priv->entry = deepin_name_entry_new();
+    priv->entry = deepin_name_entry_new(priv->fixed_width);
     gtk_entry_set_text(GTK_ENTRY(priv->entry), meta_workspace_get_name(priv->workspace));
 
     g_object_set(G_OBJECT(priv->entry), "margin-end", 6, NULL);
