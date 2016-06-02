@@ -23,7 +23,7 @@
 #include "ui.h"
 #include "frames.h"
 #include "util.h"
-#include "menu.h"
+#include "deepin-menu.h"
 #include "core.h"
 #include "theme.h"
 
@@ -508,7 +508,7 @@ meta_ui_window_menu_new  (MetaUI             *ui,
                           MetaWindowMenuFunc  func,
                           gpointer            data)
 {
-  return meta_window_menu_new (ui->frames,
+  return deepin_window_menu_new (ui->frames,
                                ops, insensitive,
                                client_xwindow,
                                active_workspace,
@@ -523,13 +523,13 @@ meta_ui_window_menu_popup (MetaWindowMenu     *menu,
                            int                 button,
                            guint32             timestamp)
 {
-  meta_window_menu_popup (menu, root_x, root_y, button, timestamp);
+  deepin_window_menu_popup (menu, root_x, root_y, button, timestamp);
 }
 
 void
 meta_ui_window_menu_free (MetaWindowMenu *menu)
 {
-  meta_window_menu_free (menu);
+  deepin_window_menu_free (menu);
 }
 
 GdkPixbuf*

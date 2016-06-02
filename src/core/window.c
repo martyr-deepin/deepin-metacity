@@ -6978,8 +6978,10 @@ meta_window_show_menu (MetaWindow *window,
     ops |= META_MENU_OP_SHADE;
 #endif
 
-  ops |= META_MENU_OP_UNSTICK;
-  ops |= META_MENU_OP_STICK;
+  if (window->on_all_workspaces)
+    ops |= META_MENU_OP_UNSTICK;
+  else
+    ops |= META_MENU_OP_STICK;
 
   if (window->wm_state_above)
     ops |= META_MENU_OP_UNABOVE;
@@ -7010,7 +7012,7 @@ meta_window_show_menu (MetaWindow *window,
   if ((window->type == META_WINDOW_DESKTOP) ||
       (window->type == META_WINDOW_DOCK) ||
       (window->type == META_WINDOW_SPLASHSCREEN))
-    insensitive |= META_MENU_OP_ABOVE | META_MENU_OP_UNABOVE;
+    insensitive |= 0xFFFFFFFF;
 
   /* If all operations are disabled, just quit without showing the menu.
    * This is the case, for example, with META_WINDOW_DESKTOP windows.

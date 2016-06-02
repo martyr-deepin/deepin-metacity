@@ -89,7 +89,7 @@ GTK_MIN_VERSION=3.15.2
 GIO_MIN_VERSION=2.25.10
 CANBERRA_GTK=libcanberra-gtk3
 
-METACITY_PC_MODULES="gtk+-3.0 >= $GTK_MIN_VERSION gio-2.0 >= $GIO_MIN_VERSION pango >= 1.2.0 gsettings-desktop-schemas >= 3.3.0 xi >= 1.6.0"
+METACITY_PC_MODULES="gtk+-3.0 >= $GTK_MIN_VERSION gio-2.0 >= $GIO_MIN_VERSION pango >= 1.2.0 gsettings-desktop-schemas >= 3.3.0 xi >= 1.6.0 json-glib-1.0 >= 1.2.0"
 
 GLIB_GSETTINGS
 

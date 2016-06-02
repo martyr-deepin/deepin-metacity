@@ -117,6 +117,8 @@ libdeepin_metacity_private_la_SOURCES=			\
 	ui/frames.h				\
 	ui/menu.c				\
 	ui/menu.h				\
+	ui/deepin-menu.c			\
+	ui/deepin-menu.h			\
 	ui/metaaccellabel.c			\
 	ui/metaaccellabel.h			\
 	ui/preview-widget.c         \

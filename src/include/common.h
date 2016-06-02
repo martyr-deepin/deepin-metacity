@@ -84,6 +84,7 @@ typedef enum
 } MetaMenuOp;
 
 typedef struct _MetaWindowMenu MetaWindowMenu;
+typedef struct _DeepinWindowMenu DeepinWindowMenu;
 
 typedef void (* MetaWindowMenuFunc) (MetaWindowMenu *menu,
                                      Display        *xdisplay,
