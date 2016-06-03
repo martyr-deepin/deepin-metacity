@@ -181,7 +181,7 @@ static JsonNode* get_item_node(MenuItem item)
     json_builder_add_string_value(builder, item.id);
 
     json_builder_set_member_name(builder, "itemText");
-    json_builder_add_string_value(builder, item.label);
+    json_builder_add_string_value(builder, gettext(item.label));
 
     json_builder_set_member_name(builder, "itemIcon");
     json_builder_add_string_value(builder, "");
