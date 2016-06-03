@@ -3014,7 +3014,8 @@ xrender_get_window_surface (MetaCompositor *compositor,
   MetaCompWindow *cw;
   MetaCompositorXRender *xrc;
   Display *display;
-  Pixmap pixmap;
+  Drawable draw;
+  int error_code;
 
   frame = meta_window_get_frame (window);
 
@@ -3029,15 +3030,24 @@ xrender_get_window_surface (MetaCompositor *compositor,
   if (cw == NULL)
     return NULL;
 
+  draw = cw->id;
+
   xrc = (MetaCompositorXRender *) compositor;
   display = meta_display_get_xdisplay (xrc->display);
 
-  if (meta_window_is_shaded (window))
-    pixmap = cw->shaded_back_pixmap;
-  else
-    pixmap = cw->back_pixmap;
+  meta_error_trap_push (display);
 
-  return cairo_xlib_surface_create (display, pixmap, cw->attrs.visual,
+  if (cw->back_pixmap == None)
+    cw->back_pixmap = XCompositeNameWindowPixmap (display, cw->id);
+
+  error_code = meta_error_trap_pop_with_return (display, FALSE);
+  if (error_code != 0)
+    cw->back_pixmap = None;
+
+  if (cw->back_pixmap != None)
+    draw = cw->back_pixmap;
+
+  return cairo_xlib_surface_create (display, draw, cw->attrs.visual,
                                     cw->attrs.width, cw->attrs.height);
 #endif
 }
