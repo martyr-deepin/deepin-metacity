@@ -26,9 +26,6 @@
 #include "deepin-window-surface-manager.h"
 #include "deepin-background-cache.h"
 
-#define SCALE_FACTOR 0.9
-#define BLUR_RADIUS 10.0
-
 struct _MetaDeepinSwitchPreviewerChild
 {
     GtkWidget *widget;
@@ -193,6 +190,58 @@ GtkWidget* meta_deepin_switch_previewer_new (DeepinTabPopup* popup)
     return (GtkWidget*)self;
 }
 
+static void _delayed_load_desktop_surface(MetaDeepinSwitchPreviewer* self)
+{
+    MetaDeepinSwitchPreviewerPrivate* priv = self->priv;
+    GdkScreen* screen = gtk_widget_get_screen(priv->popup->outline_window);
+    int primary = gdk_screen_get_primary_monitor(screen);
+
+    if (!priv->desktop_surface) {
+        MetaWindow *desktop_win = NULL, *dock_win = NULL;
+
+        GList* windows = priv->active_workspace->mru_list;
+        while (windows != NULL) {
+            MetaWindow *w = (MetaWindow*)windows->data;
+            if (w->screen == priv->screen && w->type == META_WINDOW_DESKTOP) {
+                desktop_win = w;
+            }
+
+            if (w->screen == priv->screen && w->type == META_WINDOW_DOCK) {
+                dock_win = w;
+            }
+
+            if (desktop_win && dock_win) break;
+            windows = windows->next;
+        }
+
+        MetaRectangle r1 = {0, 0, 0, 0}, r2 = {0, 0, 0, 0};
+        cairo_surface_t* aux1 = NULL, *aux2 = NULL;
+
+        if (desktop_win) {
+            meta_window_get_outer_rect(desktop_win, &r1);
+            aux1 = deepin_window_surface_manager_get_surface(desktop_win, 1.0); 
+            r1.x -= priv->mon_geom.x;
+            r1.y -= priv->mon_geom.y;
+        }
+
+        if (dock_win) {
+            meta_window_get_outer_rect(dock_win, &r2);
+            if (r2.height > 1) {
+                aux2 = deepin_window_surface_manager_get_surface(dock_win, 1.0); 
+                r2.x -= priv->mon_geom.x;
+                r2.y -= priv->mon_geom.y;
+            }
+            meta_verbose ("dock_win geom(%d,%d,  %d,%d)\n", r2.x, r2.y, r2.width, r2.height);
+        }
+
+        priv->desktop_surface = deepin_window_surface_manager_get_combined3(
+                deepin_background_cache_get_surface(primary, 1.0), 
+                aux1, r1.x, r1.y,
+                aux2, r2.x, r2.y,
+                1.0);
+    }
+}
+
 void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self)
 {
     MetaDeepinSwitchPreviewerPrivate* priv = self->priv;
@@ -226,47 +275,7 @@ void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self)
         l = l->next;
     }
 
-    if (!priv->desktop_surface) {
-        MetaWindow *desktop_win = NULL, *dock_win = NULL;
-
-        GList* windows = priv->active_workspace->mru_list;
-        while (windows != NULL) {
-            MetaWindow *w = (MetaWindow*)windows->data;
-            if (w->screen == priv->screen && w->type == META_WINDOW_DESKTOP) {
-                desktop_win = w;
-            }
-
-            if (w->screen == priv->screen && w->type == META_WINDOW_DOCK) {
-                dock_win = w;
-            }
-
-            if (desktop_win && dock_win) break;
-            windows = windows->next;
-        }
-
-        MetaRectangle r1 = {0, 0, 0, 0}, r2 = {0, 0, 0, 0};
-        cairo_surface_t* aux1 = NULL, *aux2 = NULL;
-
-        if (desktop_win) {
-            meta_window_get_outer_rect(desktop_win, &r1);
-            aux1 = deepin_window_surface_manager_get_surface(desktop_win, 1.0); 
-            r1.x -= priv->mon_geom.x;
-            r1.y -= priv->mon_geom.y;
-        }
-
-        if (dock_win) {
-            meta_window_get_outer_rect(dock_win, &r2);
-            aux2 = deepin_window_surface_manager_get_surface(dock_win, 1.0); 
-            r2.x -= priv->mon_geom.x;
-            r2.y -= priv->mon_geom.y;
-        }
-
-        priv->desktop_surface = deepin_window_surface_manager_get_combined3(
-                deepin_background_cache_get_surface(primary, 1.0), 
-                aux1, r1.x, r1.y,
-                aux2, r2.x, r2.y,
-                1.0);
-    }
+    _delayed_load_desktop_surface(self);
 
     gtk_widget_queue_resize(GTK_WIDGET(self));
 }
@@ -519,19 +528,23 @@ static gboolean meta_deepin_switch_previewer_draw (GtkWidget *widget,
     GtkRequisition req;
     gtk_widget_get_preferred_size(widget, &req, NULL);
 
+    MetaWindow* win = priv->current_preview ?
+        meta_deepin_cloned_widget_get_window(priv->current_preview) : NULL;
+
     cairo_rectangle_int_t r = {0, 0, req.width, req.height};
     cairo_region_t* reg = cairo_region_create_rectangle(&r);
 
-    if (priv->current_preview) {
-        double sx = SCALE_FACTOR, sy = SCALE_FACTOR;
+    if (win && win->type != META_WINDOW_DESKTOP) {
+        double sx = 1.0, sy = 1.0;
         gtk_widget_get_allocation(GTK_WIDGET(priv->current_preview), &r);
         r.x += r.width * (1-sx)/2; r.y += r.height * (1-sy)/2;
         r.width *= sx; r.height *= sy;
         cairo_region_subtract_rectangle(reg, &r);
+
+        gdk_cairo_region(cr, reg);
+        cairo_clip(cr);
     }
 
-    gdk_cairo_region(cr, reg);
-    cairo_clip(cr);
 
     if (priv->desktop_surface) {
         cairo_set_source_surface(cr, priv->desktop_surface,
@@ -566,14 +579,12 @@ void meta_deepin_switch_previewer_select(MetaDeepinSwitchPreviewer* self,
     if (w) {
         if (priv->current_preview) {
             priv->prev_preview = priv->current_preview;
-            meta_deepin_cloned_widget_set_scale(priv->current_preview, SCALE_FACTOR, SCALE_FACTOR);
             meta_deepin_cloned_widget_set_alpha(priv->current_preview, 0.0);
 
             meta_deepin_cloned_widget_unselect(priv->current_preview);
         } 
 
         priv->current_preview = w;
-        meta_deepin_cloned_widget_set_scale(w, 1.0, 1.0);
         meta_deepin_cloned_widget_set_alpha(w, 1.0);
 
         meta_deepin_cloned_widget_select(w);
