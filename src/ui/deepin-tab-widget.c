@@ -184,7 +184,7 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
       }
   }
 
-  if (priv->render_thumb && priv->snapshot) {
+  if (priv->render_thumb && priv->snapshot && priv->window->type != META_WINDOW_DESKTOP) {
       cairo_save(cr);
       cairo_rectangle_int_t r;
       r.width = RECT_PREFER_WIDTH;
