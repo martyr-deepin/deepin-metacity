@@ -14,6 +14,7 @@
 #define DEEPIN_DESIGN_H
 
 #include <gtk/gtk.h>
+#include "window.h"
 
 /*
  * this file contains some design constants by deepin
@@ -97,6 +98,7 @@ void calculate_preferred_size(gint entry_count, gint max_width,
 GtkCssProvider* deepin_get_default_css_provider(void);
 
 void deepin_setup_style_class(GtkWidget* widget, const char* class_name);
+GdkPixbuf* meta_window_get_application_icon(MetaWindow* window, int icon_size);
 
 #endif
 

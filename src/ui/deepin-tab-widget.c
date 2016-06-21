@@ -416,56 +416,6 @@ static void meta_deepin_tab_widget_class_init (MetaDeepinTabWidgetClass *klass)
   g_object_class_install_properties(gobject_class, N_PROPERTIES, property_specs);
 
 }
-static GdkPixbuf* get_icon_for_application (BamfApplication* app, MetaWindow* window)
-{
-    GdkPixbuf* image = NULL;
-    GtkIconTheme* theme = gtk_icon_theme_get_default();
-
-    const gchar* desktop_filename = bamf_application_get_desktop_file(app);
-    if (desktop_filename) {
-        GIcon* icon = NULL;
-        GtkIconInfo* iconinfo = NULL;
-
-        GDesktopAppInfo* appinfo = g_desktop_app_info_new_from_filename(desktop_filename);
-        if (appinfo) {
-            icon = g_app_info_get_icon(appinfo);
-            if (icon) {
-                iconinfo = gtk_icon_theme_lookup_by_gicon(theme, icon, ICON_SIZE, 0);
-                if (iconinfo) {
-                    image = gtk_icon_info_load_icon(iconinfo, NULL);
-                }
-            }
-
-            g_object_unref(appinfo);
-        }
-        if (iconinfo) g_object_unref(iconinfo);
-
-        if (image) return image;
-    }
-
-    // get icon for application that runs under terminal through wnck
-    if (app && image == NULL) {
-        meta_verbose("WM_CLASS: %s, %s", window->res_name, window->res_class);
-
-        /* try to load icon from res_class first, cause window->icon may
-         * contain a broken one 
-         **/
-        char* icon_name = g_ascii_strdown(window->res_class, -1);
-        image = gtk_icon_theme_load_icon(theme, icon_name, ICON_SIZE, 0, NULL);
-        g_free(icon_name);
-    }
-
-    if (!image) {
-        image = gtk_icon_theme_load_icon(theme, "application-default-icon", ICON_SIZE, 0, NULL);
-    }
-
-    if (!image) {
-        image = gdk_pixbuf_new(GDK_COLORSPACE_RGB, TRUE, 8, ICON_SIZE, ICON_SIZE);
-        gdk_pixbuf_fill(image, 0x00000000);
-    }
-
-    return image;
-}
 
 GtkWidget * meta_deepin_tab_widget_new (MetaWindow* window)
 {
@@ -487,10 +437,8 @@ GtkWidget * meta_deepin_tab_widget_new (MetaWindow* window)
       widget->priv->outer_rect = *(MetaRectangle*)&mon_geom;
 
   } else {
-      BamfMatcher* matcher = bamf_matcher_get_default();
-      BamfApplication* app = bamf_matcher_get_application_for_xid(matcher, window->xwindow);
 
-      GdkPixbuf* pixbuf = get_icon_for_application(app, window);
+      GdkPixbuf* pixbuf = meta_window_get_application_icon(window, ICON_SIZE);
       widget->priv->icon = gdk_cairo_surface_create_from_pixbuf(pixbuf, 1.0, NULL);
       g_object_unref(pixbuf);
   }

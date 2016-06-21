@@ -25,6 +25,8 @@
 #include "deepin-message-hub.h"
 #include "deepin-shadow-workspace.h"
 
+#define ICON_SIZE 64
+
 typedef struct _MetaDeepinClonedWidgetPrivate
 {
     gboolean selected;
@@ -45,6 +47,7 @@ typedef struct _MetaDeepinClonedWidgetPrivate
 
     MetaWindow* meta_window;
     cairo_surface_t* snapshot;
+    cairo_surface_t* icon;
 
     GtkRequisition real_size;
 
@@ -147,6 +150,10 @@ static void meta_deepin_cloned_widget_dispose(GObject *object)
     priv->meta_window = NULL;
     if (priv->snapshot) {
         g_clear_pointer(&priv->snapshot, cairo_surface_destroy);
+    }
+
+    if (priv->icon) {
+        g_clear_pointer(&priv->icon, cairo_surface_destroy);
     }
 
     G_OBJECT_CLASS(meta_deepin_cloned_widget_parent_class)->dispose(object);
@@ -255,6 +262,13 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
         cairo_paint_with_alpha(cr, alpha);
     }
 
+    if (priv->icon) {
+        x = -ICON_SIZE/2;
+        y = (h/2 - ICON_SIZE * 0.85f);
+
+        cairo_set_source_surface(cr, priv->icon, x, y);
+        cairo_paint(cr);
+    }
     return TRUE;
 }
 
@@ -574,6 +588,10 @@ GtkWidget * meta_deepin_cloned_widget_new (MetaWindow* meta)
             "signal::drag-end", on_drag_end, NULL,
             "signal::drag-failed", on_drag_failed, NULL,
             NULL);
+
+    GdkPixbuf* pixbuf = meta_window_get_application_icon(meta, ICON_SIZE);
+    widget->priv->icon = gdk_cairo_surface_create_from_pixbuf(pixbuf, 1.0, NULL);
+    g_object_unref(pixbuf);
 
     return (GtkWidget*)widget;
 }
