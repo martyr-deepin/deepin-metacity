@@ -373,6 +373,34 @@ reload_gtk_frame_extents (MetaWindow    *window,
 }
 
 static void
+reload_gtk_hide_titlebar_when_maximized (MetaWindow    *window,
+                                         MetaPropValue *value,
+                                         gboolean       initial)
+{
+  gboolean requested_value = FALSE;
+  gboolean current_value = window->hide_titlebar_when_maximized;
+
+  if (value->type != META_PROP_VALUE_INVALID)
+    {
+      requested_value = ((int) value->v.cardinal == 1);
+      meta_verbose ("Request to hide titlebar for window %s.\n", window->desc);
+    }
+
+  if (requested_value == current_value)
+    return;
+
+  window->hide_titlebar_when_maximized = requested_value;
+
+  if (META_WINDOW_MAXIMIZED (window))
+    {
+      meta_window_queue (window, META_QUEUE_MOVE_RESIZE);
+
+      if (window->frame)
+        meta_ui_update_frame_style (window->screen->ui, window->frame->xwindow);
+    }
+}
+
+static void
 reload_deepin_override (MetaWindow    *window,
                         MetaPropValue *value,
                         gboolean       initial)
@@ -1826,6 +1854,12 @@ meta_display_init_window_prop_hooks (MetaDisplay *display)
       display->atom__DEEPIN_OVERRIDE,
       META_PROP_VALUE_CARDINAL,
       reload_deepin_override,
+      LOAD_INIT
+    },
+    { 
+      display->atom__GTK_HIDE_TITLEBAR_WHEN_MAXIMIZED,
+      META_PROP_VALUE_CARDINAL,
+      reload_gtk_hide_titlebar_when_maximized,
       LOAD_INIT
     },
     {

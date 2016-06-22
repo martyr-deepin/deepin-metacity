@@ -117,6 +117,7 @@ struct _MetaWindow
   char *startup_id;
   char *gtk_theme_variant;
 
+  int hide_titlebar_when_maximized;
   int net_wm_pid;
 
   Window xtransient_for;
