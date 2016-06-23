@@ -33,6 +33,7 @@ struct _DeepinBackgroundCachePrivate
 {
     GList* caches;
     gboolean solid_mode;  // background is solid color
+    GFileMonitor* file_monitor;
 
     GSettings *bg_settings;
 };
@@ -111,6 +112,17 @@ static cairo_surface_t* _create_solid_background(DeepinBackgroundCache* self, Gd
     return bg;
 }
 
+static void _do_reload_background(DeepinBackgroundCache* self);
+
+static void on_file_changed(GFileMonitor *monitor,
+        GFile            *file,
+        GFile            *other_file,
+        GFileMonitorEvent event_type,
+        gpointer          user_data)
+{
+    _do_reload_background(DEEPIN_BACKGROUND_CACHE(user_data));
+}
+
 static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
 {
     DeepinBackgroundCachePrivate* priv = self->priv;
@@ -137,12 +149,21 @@ static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
         pixbuf = gdk_pixbuf_new_from_file(path, &error);
 
         if (!pixbuf) {
-            meta_verbose("%s", error->message);
+            meta_verbose("%s\n", error->message);
             g_error_free(error);
             goto _next;
         }
 
         priv->solid_mode = FALSE;
+        priv->file_monitor = g_file_monitor_file(f, G_FILE_MONITOR_NONE, NULL, &error);
+        if (!priv->file_monitor) {
+            meta_verbose("%s\n", error->message);
+            g_error_free(error);
+            goto _next;
+        }
+
+        meta_verbose("%s: monitor [%s]\n", __func__, path);
+        g_signal_connect(G_OBJECT(priv->file_monitor), "changed", G_CALLBACK(on_file_changed), self);
     }
 
 _next:
@@ -183,22 +204,32 @@ _next:
     g_free(uri);
 }
 
+static void _do_reload_background(DeepinBackgroundCache* self)
+{
+    DeepinBackgroundCachePrivate* priv = self->priv;
+
+    if (priv->file_monitor) {
+        g_signal_handlers_disconnect_by_func(priv->file_monitor, on_file_changed, self);
+        g_clear_pointer(&priv->file_monitor, g_object_unref);
+    }
+
+    deepin_background_cache_flush(self);
+    deepin_background_cache_load_background(self);
+    deepin_message_hub_desktop_changed();
+}
+
 static void deepin_background_cache_settings_chagned(GSettings *settings,
         gchar* key, gpointer user_data)
 {
     if (g_str_equal(key, GSETTINGS_BG_KEY) || g_str_equal(key, GSETTINGS_PRIM_CLR)) {
-        deepin_background_cache_flush((DeepinBackgroundCache*)user_data);
-        deepin_background_cache_load_background((DeepinBackgroundCache*)user_data);
-        deepin_message_hub_desktop_changed();
+        _do_reload_background((DeepinBackgroundCache*)user_data);
     }
 }
 
 static void on_screen_resized(DeepinMessageHub* hub, MetaScreen* screen,
         DeepinBackgroundCache* self)
 {
-    deepin_background_cache_flush(self);
-    deepin_background_cache_load_background(self);
-    deepin_message_hub_desktop_changed();
+    _do_reload_background(self);
 }
 
 static void deepin_background_cache_init (DeepinBackgroundCache *self)
