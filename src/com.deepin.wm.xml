@@ -19,5 +19,8 @@
 
     <method name="RequestHideWindows" />
     <method name="CancelHideWindows" />
+    <method name="PresentWindows">
+        <arg type="au" name="xids" direction="in"/>
+    </method>
   </interface>
 </node>

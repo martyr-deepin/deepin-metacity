@@ -26,8 +26,9 @@ void do_preview_workspace(MetaDisplay *display, MetaScreen *screen,
         MetaKeyBinding *binding, gpointer user_data, 
         gboolean user_op);
 
+/* when expose_mode == 3, xids is used */
 void do_expose_windows(MetaDisplay *display, MetaScreen *screen,
         MetaWindow *window, guint32 timestamp, MetaKeyBinding *binding,
-        int expose_mode);
+        int expose_mode, GVariant* xids);
 #endif
 

@@ -61,6 +61,8 @@ struct _DeepinWorkspaceOverviewPrivate
                       else, set when window placements are done */
     gint all_window_mode: 1; // used for Super+a
 
+    GHashTable* present_xids; // used if user request presenting specific windows
+
     gint fixed_width, fixed_height;
 
     gint primary;
@@ -451,6 +453,8 @@ static void deepin_workspace_overview_finalize (GObject *object)
         g_clear_pointer(&md->desktop_surface, cairo_surface_destroy);
     }
     g_ptr_array_unref(priv->monitors);
+
+    if (priv->present_xids) g_hash_table_destroy(priv->present_xids);
 
     G_OBJECT_CLASS (deepin_workspace_overview_parent_class)->finalize (object);
 }
@@ -963,7 +967,13 @@ void deepin_workspace_overview_populate(DeepinWorkspaceOverview* self,
     while (l) {
         MetaWindow* win = (MetaWindow*)l->data;
         if (win->type == META_WINDOW_NORMAL) {
-            _clone_window(self, win);
+            if (priv->present_xids && g_hash_table_size(priv->present_xids)) {
+                if (g_hash_table_contains(priv->present_xids, GINT_TO_POINTER(win->xwindow))) {
+                    _clone_window(self, win);
+                }
+            } else {
+                _clone_window(self, win);
+            }
         }
 
         l = l->next;
@@ -1226,6 +1236,23 @@ void deepin_workspace_overview_set_show_all_windows(DeepinWorkspaceOverview* sel
         gboolean val)
 {
     self->priv->all_window_mode = val;
+}
+
+deepin_workspace_overview_set_present_windows(DeepinWorkspaceOverview* self, GVariant* xids)
+{
+    DeepinWorkspaceOverviewPrivate* priv = self->priv;
+    if (xids) {
+        priv->all_window_mode = TRUE;
+        priv->present_xids = g_hash_table_new(g_direct_hash, g_direct_equal);
+
+        guint32 xid;
+        GVariantIter* vi = g_variant_iter_new(xids);
+        while (g_variant_iter_next(vi, "u", &xid, NULL)) {
+            g_hash_table_insert(priv->present_xids, GINT_TO_POINTER(xid), GINT_TO_POINTER(1));
+            meta_verbose("presenting xid %d\n", xid);
+        }
+        g_variant_iter_free(vi);
+    }
 }
 
 gboolean deepin_workspace_overview_get_is_all_window_mode(DeepinWorkspaceOverview* self)

@@ -392,12 +392,13 @@ static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
 
 enum {
     EXPOSE_WORKSPACE = 1,
-    EXPOSE_ALL_WINDOWS = 2
+    EXPOSE_ALL_WINDOWS = 2,
+    PRESENT_WINDOWS = 3
 };
 
 void do_expose_windows(MetaDisplay *display, MetaScreen *screen,
         MetaWindow *window, guint32 timestamp, MetaKeyBinding *binding,
-        int expose_mode)
+        int expose_mode, GVariant* xids)
 {
     meta_verbose("%s\n", __func__);
 
@@ -424,6 +425,8 @@ void do_expose_windows(MetaDisplay *display, MetaScreen *screen,
         DeepinWorkspaceOverview* active_workspace = deepin_workspace_overview_new();
         if (expose_mode == EXPOSE_ALL_WINDOWS) {
             deepin_workspace_overview_set_show_all_windows(active_workspace, TRUE);
+        } else if (expose_mode == PRESENT_WINDOWS) {
+            deepin_workspace_overview_set_present_windows(active_workspace, xids);
         }
         deepin_workspace_overview_populate(active_workspace, screen->active_workspace);
 
@@ -443,7 +446,7 @@ static void handle_expose_windows(MetaDisplay *display, MetaScreen *screen,
         MetaWindow *window, XIDeviceEvent *event,
         MetaKeyBinding *binding, gpointer user_data)
 {
-    do_expose_windows(display, screen, window, event->time, binding, binding->handler->data);
+    do_expose_windows(display, screen, window, event->time, binding, binding->handler->data, NULL);
 }
 
 static void handle_workspace_switch(MetaDisplay *display, MetaScreen *screen,

@@ -43,6 +43,11 @@ static gboolean deepin_dbus_service_handle_cancel_hide_windows (
         DeepinDBusWm *object,
         GDBusMethodInvocation *invocation);
 
+static gboolean deepin_dbus_service_handle_present_windows (
+        DeepinDBusWm *object,
+        GDBusMethodInvocation *invocation,
+        GVariant *xids);
+
 G_DEFINE_TYPE_WITH_CODE (DeepinDBusService, deepin_dbus_service,
         DEEPIN_DBUS_TYPE_WM_SKELETON,
         G_IMPLEMENT_INTERFACE(DEEPIN_DBUS_TYPE_WM, deepin_dbus_wm_interface_init));
@@ -66,6 +71,7 @@ static void deepin_dbus_wm_interface_init (DeepinDBusWmIface *iface)
     iface->handle_toggle_debug = deepin_dbus_service_handle_toggle_debug;
     iface->handle_request_hide_windows = deepin_dbus_service_handle_request_hide_windows;
     iface->handle_cancel_hide_windows = deepin_dbus_service_handle_cancel_hide_windows;
+    iface->handle_present_windows = deepin_dbus_service_handle_present_windows;
 }
 
 static gboolean deepin_dbus_service_handle_perform_action(DeepinDBusWm *object,
@@ -85,11 +91,11 @@ static gboolean deepin_dbus_service_handle_perform_action(DeepinDBusWm *object,
 
         case WINDOW_OVERVIEW:
             do_expose_windows(display, display->active_screen, NULL, 
-                    timestamp, NULL, 1);
+                    timestamp, NULL, 1, NULL);
 
         case WINDOW_OVERVIEW_ALL:
             do_expose_windows(display, display->active_screen, NULL, 
-                    timestamp, NULL, 2);
+                    timestamp, NULL, 2, NULL);
 
         default: break;
     }
@@ -117,6 +123,22 @@ static gboolean deepin_dbus_service_handle_toggle_debug( DeepinDBusWm *object,
     meta_set_debugging (new_val);
     meta_set_verbose (new_val);
     deepin_dbus_wm_complete_toggle_debug(object, invocation);
+    return TRUE;
+}
+
+static gboolean deepin_dbus_service_handle_present_windows (
+        DeepinDBusWm *object,
+        GDBusMethodInvocation *invocation,
+        GVariant *xids)
+{
+    DeepinDBusService* self = DEEPIN_DBUS_SERVICE(object);
+    meta_verbose("%s\n", __func__);
+
+    MetaDisplay* display = meta_get_display();
+    guint32 timestamp = meta_display_get_current_time_roundtrip(display);
+    do_expose_windows(display, display->active_screen, NULL, timestamp, NULL, 3, xids);
+    deepin_dbus_wm_complete_present_windows(object, invocation);
+
     return TRUE;
 }
 
