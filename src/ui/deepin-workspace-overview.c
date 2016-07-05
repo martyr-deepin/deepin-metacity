@@ -18,6 +18,7 @@
 #include <gdk/gdkx.h>
 #include <cairo-xlib.h>
 
+#include "../core/screen-private.h"
 #include "../core/workspace.h"
 #include "boxes.h"
 #include "deepin-cloned-widget.h"
@@ -37,6 +38,7 @@ typedef struct _MonitorData
 {
     gint monitor;
     MetaRectangle mon_rect;
+    MetaRectangle mon_workarea;
     MetaRectangle place_rect;
     GPtrArray* clones;
     cairo_surface_t* desktop_surface;
@@ -365,12 +367,11 @@ static void calculate_places(DeepinWorkspaceOverview* self)
         MonitorData* md = (MonitorData*)g_ptr_array_index(priv->monitors, i);
 
         if (md->clones && md->clones->len) {
-            gint adjust = i == priv->primary ? priv->dock_height : 0;
             MetaRectangle area = {
-                md->mon_rect.x + padding_top,
-                md->mon_rect.y + padding_left, 
-                md->mon_rect.width - padding_left - padding_right - adjust,
-                md->mon_rect.height - padding_top - padding_bottom - adjust
+                md->mon_workarea.x + padding_top,
+                md->mon_workarea.y + padding_left, 
+                md->mon_workarea.width - padding_left - padding_right,
+                md->mon_workarea.height - padding_top - padding_bottom
             };
 
             md->place_rect = area;
@@ -959,6 +960,14 @@ void deepin_workspace_overview_populate(DeepinWorkspaceOverview* self,
         md->monitor = i;
         md->clones = g_ptr_array_new();
         gdk_screen_get_monitor_geometry(screen, i, (GdkRectangle*)&md->mon_rect);
+
+        /**
+         * gdk_screen_get_monitor_workarea fails to honor struts, so I have to use xinerama
+         * to get correct workarea
+         */
+
+        const MetaXineramaScreenInfo* xinerama = meta_screen_get_xinerama_for_rect(ws->screen, &md->mon_rect);
+        meta_workspace_get_work_area_for_xinerama(ws, xinerama->number, (GdkRectangle*)&md->mon_workarea);
     }
 
     GList* ls = meta_stack_list_windows(ws->screen->stack,
