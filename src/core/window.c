@@ -450,6 +450,7 @@ meta_window_new_with_attrs (MetaDisplay       *display,
   meta_stack_freeze (window->screen->stack);
 
   window->deepin_override = FALSE;
+  window->hide_titlebar_when_maximized = FALSE;
 
   window->has_shape = has_shape;
 
