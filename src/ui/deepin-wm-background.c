@@ -12,6 +12,7 @@
 #include <config.h>
 #include <util.h>
 #include <stdlib.h>
+#include <math.h>
 #include <gdk/gdkx.h>
 #include <prefs.h>
 #include "deepin-wm-background.h"
@@ -324,6 +325,72 @@ static gboolean on_workspace_thumb_leaved(DeepinShadowWorkspace* ws_thumb,
     return TRUE;
 }
 
+static const int SMOOTH_SCROLL_DELAY = 500;
+static gboolean is_smooth_scrolling = FALSE;
+static gboolean on_scroll_timeout(gpointer data)
+{
+    is_smooth_scrolling = FALSE;
+    return G_SOURCE_REMOVE;
+}
+
+static gboolean on_background_scrolled(DeepinWMBackground* self,
+               GdkEvent* event, gpointer user_data)
+{
+    GdkEventScroll scroll = event->scroll;
+    DeepinWMBackgroundPrivate* priv = self->priv;
+    MetaMotionDirection direction = META_MOTION_LEFT;
+
+    double dx, dy;
+    gdk_event_get_scroll_deltas(event, &dx, &dy);
+
+    fprintf(stderr, "%s, deltas %f, %f, direction %d\n", __func__, dx, dy, scroll.direction);
+    if (scroll.direction != GDK_SCROLL_SMOOTH) {
+        // non smooth scrolling handling
+        if (scroll.direction == GDK_SCROLL_DOWN || scroll.direction == GDK_SCROLL_RIGHT)
+            direction = META_MOTION_RIGHT;
+    } else {
+        //this is smooth scrolling from deepin-wm
+
+        // concept from maya to detect mouse wheel and proper smooth scroll and prevent too much
+        // repetition on the events
+        if (fabs (dy) == 1.0) {
+            // mouse wheel scroll
+            direction = dy > 0 ? META_MOTION_RIGHT : META_MOTION_LEFT;
+        } else if (!is_smooth_scrolling) {
+            // actual smooth scroll
+            double choice = fabs (dx) > fabs (dy) ? dx : dy;
+
+            if (choice > 0.3) {
+                direction = META_MOTION_RIGHT;
+            } else if (choice < -0.3) {
+                direction = META_MOTION_LEFT;
+            } else {
+                return FALSE;
+            }
+
+            is_smooth_scrolling = TRUE;
+            g_timeout_add(SMOOTH_SCROLL_DELAY, on_scroll_timeout, NULL);
+        } else {
+            // smooth scroll delay still active
+            return FALSE;
+        }
+    }
+
+    MetaWorkspace* current = deepin_shadow_workspace_get_workspace(priv->active_workspace); 
+    MetaWorkspace* next = meta_workspace_get_neighbor(current, direction);
+    if (next) {
+        if (next == current) {
+            //bouncing
+            return FALSE;
+        }
+
+        deepin_wm_background_switch_workspace(self, next);
+    }
+
+
+    return FALSE;
+}
+
 static gboolean _idle_show_close_button(DeepinWMBackground* self)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
@@ -526,6 +593,8 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
 
         l = l->next;
     }
+
+    g_object_connect(G_OBJECT(self), "signal::scroll-event", on_background_scrolled, NULL, NULL);
 
     if (_show_adder(priv->screen) && !priv->adder) {
         priv->adder = (DeepinWorkspaceAdder*)deepin_workspace_adder_new();
