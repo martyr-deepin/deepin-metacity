@@ -30,6 +30,7 @@ struct _DeepinWMBackgroundPrivate
     GdkScreen* gscreen;
 
     gint disposed: 1;
+    gint drag_started: 1; // indicate a workspace is being dragged
 
     GtkWidget* fixed;
 
@@ -515,6 +516,55 @@ static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer use
     return TRUE;
 }
 
+static void on_deepin_wm_background_drag_data_received(GtkWidget* widget, GdkDragContext* context,
+        gint x, gint y, GtkSelectionData *data, guint info,
+        guint time, gpointer user_data)
+{
+    DeepinWMBackground* self = DEEPIN_WM_BACKGROUND(widget);
+    DeepinWMBackgroundPrivate* priv = self->priv;
+
+    meta_verbose("%s: x %d, y %d\n", __func__, x, y);
+
+    const guchar* raw_data = gtk_selection_data_get_data(data);
+    if (raw_data) {
+        gpointer p = (gpointer)atol(raw_data);
+        DeepinShadowWorkspace* ws = DEEPIN_SHADOW_WORKSPACE(p);
+        //TODO: determine to delete or to switch ws location
+        gtk_drag_finish(context, TRUE, FALSE, time);
+
+    } else 
+        gtk_drag_finish(context, FALSE, FALSE, time);
+}
+
+static gboolean on_deepin_wm_background_drag_motion(GtkWidget* widget, GdkDragContext* context,
+               gint x, gint y, guint time, gpointer user_data)
+{
+    DeepinWMBackground* self = DEEPIN_WM_BACKGROUND(widget);
+    DeepinWMBackgroundPrivate* priv = self->priv;
+    static gint ox, oy;
+
+    if (priv->drag_started) {
+        meta_verbose("%s x %d, y %d, dx %d, dy %d\n", __func__, x, y, x-ox, y-oy);
+        fprintf(stderr, "%s x %d, y %d, dx %d, dy %d\n", __func__, x, y, x-ox, y-oy);
+    } else {
+        priv->drag_started = TRUE;
+        ox = x, oy = y;
+    }
+
+    return FALSE;
+}
+    
+static gboolean on_deepin_wm_background_drag_drop(GtkWidget* widget, GdkDragContext* context,
+               gint x, gint y, guint time, gpointer user_data)
+{
+    DeepinWMBackground* self = DEEPIN_WM_BACKGROUND(widget);
+    DeepinWMBackgroundPrivate* priv = self->priv;
+
+    meta_verbose("%s\n", __func__);
+    priv->drag_started = FALSE;
+    return FALSE;
+}
+
 void deepin_wm_background_setup(DeepinWMBackground* self)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
@@ -646,6 +696,20 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
     }
 
     _create_close_button(self);
+
+    static GtkTargetEntry targets[] = {
+        {(char*)"workspace", GTK_TARGET_OTHER_WIDGET, DRAG_TARGET_WORKSPACE},
+    };
+
+    gtk_drag_dest_set(GTK_WIDGET(self),
+            GTK_DEST_DEFAULT_MOTION | GTK_DEST_DEFAULT_DROP,
+            targets, 1, GDK_ACTION_COPY);
+
+    g_object_connect(G_OBJECT(self),
+            "signal::drag-data-received", on_deepin_wm_background_drag_data_received, NULL, 
+            "signal::drag-drop", on_deepin_wm_background_drag_drop, NULL, 
+            "signal::drag-motion", on_deepin_wm_background_drag_motion, NULL, 
+            NULL);
 
     gtk_window_move(GTK_WINDOW(self), geom.x, geom.y);
 }

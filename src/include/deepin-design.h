@@ -91,6 +91,12 @@ static const int CLOSE_BUTTON_SIZE = 31;
 
 static const int MAX_WORKSPACE_NUM = 7; 
 
+enum {
+    DRAG_TARGET_WINDOW,
+    DRAG_TARGET_WORKSPACE,
+};
+
+
 void calculate_preferred_size(gint entry_count, gint max_width,
         float* box_width, float* box_height, float* item_width,
         float* item_height, int* max_items_each_row);

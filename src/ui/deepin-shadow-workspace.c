@@ -42,6 +42,7 @@ struct _DeepinShadowWorkspacePrivate
     gint ready: 1; /* if dynamic, this is set after presentation finished, 
                       else, set when window placements are done */
     gint draggable: 1;
+    gint dragging: 1;
 
     gint primary; /* primary monitor # */
     GdkRectangle mon_geom; /* primary monitor size */
@@ -1860,24 +1861,95 @@ void deepin_shadow_workspace_declare_name(DeepinShadowWorkspace* self)
     }
 }
 
+static void on_deepin_shadow_workspace_drag_data_get(GtkWidget* widget, GdkDragContext* context,
+        GtkSelectionData* data, guint info, guint time, gpointer user_data)
+{
+    static GdkAtom atom_ws = GDK_NONE;
+    
+    if (atom_ws == GDK_NONE) 
+        atom_ws = gdk_atom_intern("deepin-workspace", FALSE);
+    g_assert(atom_ws != GDK_NONE);
+
+    gchar* raw_data = g_strdup_printf("%ld", widget);
+
+    meta_verbose("%s: set data %x", __func__, widget);
+    gtk_selection_data_set(data, atom_ws, 8, raw_data, strlen(raw_data));
+    g_free(raw_data);
+}
+
+static void on_deepin_shadow_workspace_drag_begin(GtkWidget* widget, GdkDragContext *context,
+               gpointer user_data)
+{
+    meta_verbose("%s", __func__);
+    DeepinShadowWorkspacePrivate* priv = DEEPIN_SHADOW_WORKSPACE(widget)->priv;
+
+    cairo_surface_t* dest = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
+            priv->fixed_width, priv->fixed_height);
+
+    cairo_t* cr2 = cairo_create(dest);
+    gtk_widget_draw(widget, cr2);
+    cairo_destroy(cr2);
+
+    /*cairo_surface_set_device_offset(dest, -priv->fixed_width/2 , -priv->fixed_height/2);*/
+    gtk_drag_set_icon_surface(context, dest);
+
+    gtk_widget_set_opacity(widget, 0.0);
+    cairo_surface_destroy(dest);
+
+    priv->dragging = TRUE;
+}
+
+static void on_deepin_shadow_workspace_drag_end(GtkWidget* widget, GdkDragContext *context,
+               gpointer user_data)
+{
+    meta_verbose("%s", __func__);
+    DeepinShadowWorkspace* self = DEEPIN_SHADOW_WORKSPACE(widget);
+    gtk_widget_set_opacity(widget, 1.0);
+
+    self->priv->dragging = FALSE;
+
+    //HACK: drag broken the grab, need to restore here
+    deepin_message_hub_drag_end();
+}
+    
+static gboolean on_deepin_shadow_workspace_drag_failed(GtkWidget      *widget,
+               GdkDragContext *context, GtkDragResult   result,
+               gpointer        user_data)
+{
+    /* cut off default processing (fail animation), which may 
+     * case a confliction when we regrab pointer later */
+    return TRUE;
+}
+
 void deepin_shadow_workspace_set_enable_drag(DeepinShadowWorkspace* self, gboolean val)
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
     if (priv->draggable != val) {
         priv->draggable = val;
         
+        /*
+         * the first target is for dragging clonedwidget
+         * the second is for dragging ws thumb to be deleted
+         */
         static GtkTargetEntry targets[] = {
             {(char*)"window", GTK_TARGET_OTHER_WIDGET, DRAG_TARGET_WINDOW},
+            {(char*)"workspace", GTK_TARGET_OTHER_WIDGET, DRAG_TARGET_WORKSPACE},
         };
 
         if (val) {
             gtk_drag_dest_set(GTK_WIDGET(self),
                     GTK_DEST_DEFAULT_MOTION | GTK_DEST_DEFAULT_DROP,
-                    targets, G_N_ELEMENTS(targets), GDK_ACTION_COPY);
-        } else {
-            gtk_drag_dest_set(NULL,
-                    GTK_DEST_DEFAULT_MOTION | GTK_DEST_DEFAULT_DROP,
-                    targets, G_N_ELEMENTS(targets), GDK_ACTION_COPY);
+                    targets, 1, GDK_ACTION_COPY);
+
+            gtk_drag_source_set(GTK_WIDGET(self), GDK_BUTTON1_MASK, targets+1, 
+                    1, GDK_ACTION_COPY);
+
+            g_object_connect(G_OBJECT(self), 
+                    "signal::drag-data-get", on_deepin_shadow_workspace_drag_data_get, NULL,
+                    "signal::drag-begin", on_deepin_shadow_workspace_drag_begin, NULL,
+                    "signal::drag-end", on_deepin_shadow_workspace_drag_end, NULL,
+                    "signal::drag-failed", on_deepin_shadow_workspace_drag_failed, NULL,
+                    NULL);
         }
     }
 }
