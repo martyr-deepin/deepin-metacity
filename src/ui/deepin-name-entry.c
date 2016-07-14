@@ -42,8 +42,11 @@ static void _gtk_entry_get_borders (GtkEntry *entry,
 
   context = gtk_widget_get_style_context (widget);
   state = gtk_style_context_get_state (context);
+  gtk_style_context_save (context);
+  gtk_style_context_set_state (context, state);
   gtk_style_context_get_padding (context, state, &padding);
   gtk_style_context_get_border (context, state, &border);
+  gtk_style_context_restore (context);
 
   border_out->top = padding.top + border.top;
   border_out->bottom = padding.bottom + border.bottom;
@@ -107,7 +110,10 @@ static gboolean deepin_name_entry_draw(GtkWidget *widget, cairo_t *cr)
 
     state = gtk_widget_get_state_flags (widget);
     context = gtk_widget_get_style_context (widget);
+    gtk_style_context_save (context);
+    gtk_style_context_set_state (context, state);
     gtk_style_context_get_color(context, state, &text_color);
+    gtk_style_context_restore (context);
 
     if (!gtk_widget_has_focus(widget)) {
         gtk_render_background(context, cr, 0, 0, alloc.width, alloc.height);
