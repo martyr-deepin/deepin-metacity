@@ -658,7 +658,10 @@ get_margin (GtkStyleContext *style,
 
   state = gtk_style_context_get_state (style);
 
+  gtk_style_context_save (style);
+  gtk_style_context_set_state (style, state);
   gtk_style_context_get_margin (style, state, border);
+  gtk_style_context_restore (style);
 }
 
 static void
@@ -668,8 +671,11 @@ get_padding_and_border (GtkStyleContext *style,
   GtkBorder tmp;
   GtkStateFlags state = gtk_style_context_get_state (style);
 
+  gtk_style_context_save (style);
+  gtk_style_context_set_state (style, state);
   gtk_style_context_get_border (style, state, border);
   gtk_style_context_get_padding (style, state, &tmp);
+  gtk_style_context_restore (style);
 
   border->left += tmp.left;
   border->top += tmp.top;
@@ -1773,6 +1779,8 @@ meta_set_color_from_style (GdkRGBA               *color,
                            MetaGtkColorComponent  component)
 {
   GdkRGBA other;
+  gtk_style_context_save (context);
+  gtk_style_context_set_state (context, state);
 
   switch (component)
     {
@@ -1811,6 +1819,7 @@ meta_set_color_from_style (GdkRGBA               *color,
       g_assert_not_reached ();
       break;
     }
+  gtk_style_context_restore (context);
 }
 
 static void
@@ -6189,9 +6198,12 @@ meta_style_info_create_font_desc (MetaStyleInfo *style_info)
   PangoFontDescription *font_desc;
   const PangoFontDescription *override = meta_prefs_get_titlebar_font ();
 
+  gtk_style_context_save (style_info->styles[META_STYLE_ELEMENT_TITLE]);
+  gtk_style_context_set_state (style_info->styles[META_STYLE_ELEMENT_TITLE], GTK_STATE_FLAG_NORMAL);
   gtk_style_context_get (style_info->styles[META_STYLE_ELEMENT_TITLE],
                          GTK_STATE_FLAG_NORMAL,
                          "font", &font_desc, NULL);
+  gtk_style_context_restore (style_info->styles[META_STYLE_ELEMENT_TITLE]);
 
   if (override)
     pango_font_description_merge (font_desc, override, TRUE);
@@ -6597,7 +6609,10 @@ meta_gtk_widget_get_font_desc (GtkWidget *widget,
   g_return_val_if_fail (gtk_widget_get_realized (widget), NULL);
 
   style = gtk_widget_get_style_context (widget);
+  gtk_style_context_save (style);
+  gtk_style_context_set_state (style, GTK_STATE_FLAG_NORMAL);
   gtk_style_context_get (style, GTK_STATE_FLAG_NORMAL, "font", &font_desc, NULL);
+  gtk_style_context_restore (style);
 
   if (override)
     pango_font_description_merge (font_desc, override, TRUE);
