@@ -343,7 +343,7 @@ static gboolean on_background_scrolled(DeepinWMBackground* self,
     double dx, dy;
     gdk_event_get_scroll_deltas(event, &dx, &dy);
 
-    fprintf(stderr, "%s, deltas %f, %f, direction %d\n", __func__, dx, dy, scroll.direction);
+    meta_verbose("%s, deltas %f, %f, direction %d\n", __func__, dx, dy, scroll.direction);
     if (scroll.direction != GDK_SCROLL_SMOOTH) {
         // non smooth scrolling handling
         if (scroll.direction == GDK_SCROLL_DOWN || scroll.direction == GDK_SCROLL_RIGHT)

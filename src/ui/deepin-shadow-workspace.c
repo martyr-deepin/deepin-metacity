@@ -1281,8 +1281,9 @@ static void on_deepin_cloned_widget_drag_end(GtkWidget* widget,
 
     if (!priv->thumb_mode && priv->hovered_clone == widget) {
         GdkDisplay* display = gdk_display_get_default();
-        GdkDeviceManager* dev_manger = gdk_display_get_device_manager(display);
-        GdkDevice* device = gdk_device_manager_get_client_pointer(dev_manger);
+        GdkSeat* seat = gdk_display_get_default_seat(display);
+        g_assert(seat != NULL);
+        GdkDevice* device = gdk_seat_get_pointer(seat);
 
         gint x, y;
         gdk_device_get_position(device, NULL, &x, &y);
@@ -1731,8 +1732,7 @@ static void _entry_handle_event(GtkWidget* w, XIDeviceEvent* event)
 
     GdkDisplay* display = gdk_display_get_default();
     GdkKeymap *keymap = gdk_keymap_get_for_display (display);
-    GdkDeviceManager* dev_manger = gdk_display_get_device_manager(display);
-    GdkDevice* client_pointer = gdk_device_manager_get_client_pointer(dev_manger);
+    GdkSeat* seat = gdk_display_get_default_seat(display);
     GdkModifierType consumed, state;
     GdkDevice *device, *source_device;
 
@@ -1751,7 +1751,7 @@ static void _entry_handle_event(GtkWidget* w, XIDeviceEvent* event)
     kev->key.hardware_keycode = event->detail;
     kev->key.is_modifier = gdk_x11_keymap_key_is_modifier (keymap, kev->key.hardware_keycode);
 
-    device = gdk_device_get_associated_device(client_pointer);
+    device = gdk_seat_get_keyboard(seat);
     gdk_event_set_device (kev, device);
 
     source_device = device;
@@ -1789,7 +1789,8 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
 
     GtkWidget* w = gtk_grab_get_current();
     if (w && GTK_IS_ENTRY(w)) {
-        _entry_handle_event(w, event);
+        // just ignore entry key events now
+        /*_entry_handle_event(w, event);*/
         return;
     }
 

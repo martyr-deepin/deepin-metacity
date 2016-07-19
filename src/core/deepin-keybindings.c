@@ -144,17 +144,13 @@ static gboolean _do_grab_pointer(MetaScreen* screen, GtkWidget* w,
         guint32 timestamp)
 {
     GdkDisplay* gdisplay = gdk_x11_lookup_xdisplay(screen->display->xdisplay);
-    GdkDeviceManager* dev_man = gdk_display_get_device_manager(gdisplay);
-    GdkDevice* pointer = gdk_device_manager_get_client_pointer(dev_man);
 
-    g_assert(gdk_device_get_source(pointer) == GDK_SOURCE_MOUSE);
+    GdkSeat* seat = gdk_display_get_default_seat(gdisplay);
+    GdkDevice* pointer = gdk_seat_get_pointer(seat);
+    GdkGrabStatus ret = gdk_seat_grab(seat, gtk_widget_get_window(w), 
+            GDK_SEAT_CAPABILITY_ALL_POINTING, TRUE, NULL, NULL, NULL,
+            NULL);
 
-    GdkGrabStatus ret = gdk_device_grab(pointer, gtk_widget_get_window(w), 
-            GDK_OWNERSHIP_APPLICATION, TRUE,
-            GDK_BUTTON_PRESS_MASK| GDK_BUTTON_RELEASE_MASK| 
-            GDK_SCROLL_MASK|
-            GDK_ENTER_NOTIFY_MASK| GDK_FOCUS_CHANGE_MASK,
-            NULL, timestamp);
     return (ret == GDK_GRAB_SUCCESS);
 }
 

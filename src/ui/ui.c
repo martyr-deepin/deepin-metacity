@@ -50,19 +50,14 @@ struct _MetaUI
   guint32 button_click_time;
 };
 
+/**
+ * since gtk 3.20, DND will be broken if gdk_disable_multidevice called, so all 
+ * event handling code has been ported to XI2 now. no need for gdk_disable_multidevice 
+ * any more
+ */
 void
 meta_ui_init (int *argc, char ***argv)
 {
-  /* As of 2.91.7, Gdk uses XI2 by default, which conflicts with the
-   * direct X calls we use - in particular, events caused by calls to
-   * XGrabPointer/XGrabKeyboard are no longer understood by GDK, while
-   * GDK will no longer generate the core XEvents we process.
-   * So at least for now, enforce the previous behavior.
-   */
-#if GTK_CHECK_VERSION(2, 91, 7)
-  gdk_disable_multidevice ();
-#endif
-
   if (!gtk_init_check (argc, argv))
     meta_fatal ("Unable to open X display %s\n", XDisplayName (NULL));
 }
@@ -92,7 +87,7 @@ static gboolean
 maybe_redirect_mouse_event (XEvent *xevent)
 {
   GdkDisplay *gdisplay;
-  GdkDeviceManager *gmanager;
+  GdkSeat* seat;
   GdkDevice *gdevice;
   MetaUI *ui;
   GdkEvent *gevent;
@@ -125,8 +120,8 @@ maybe_redirect_mouse_event (XEvent *xevent)
   if (gdk_window == NULL)
     return FALSE;
 
-  gmanager = gdk_display_get_device_manager (gdisplay);
-  gdevice = gdk_device_manager_get_client_pointer (gmanager);
+  seat = gdk_display_get_default_seat (gdisplay);
+  gdevice = gdk_seat_get_pointer (seat);
 
   /* If GDK already thinks it has a grab, we better let it see events; this
    * is the menu-navigation case and events need to get sent to the appropriate
@@ -203,6 +198,7 @@ maybe_redirect_mouse_event (XEvent *xevent)
 
   /* If we've gotten here, we've filled in the gdk_event and should send it on */
   gdk_event_set_device (gevent, gdevice);
+  gdk_event_set_source_device (gevent, gdevice);
   gtk_main_do_event (gevent);
   gdk_event_free (gevent);
 

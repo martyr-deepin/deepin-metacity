@@ -45,6 +45,8 @@ typedef struct _MetaDeepinClonedWidgetPrivate
     int dragging: 1;
     int draggable: 1;
 
+    gdouble dx, dy; // press hold coord
+
     MetaWindow* meta_window;
     cairo_surface_t* snapshot;
     cairo_surface_t* icon;
@@ -571,6 +573,7 @@ static gboolean on_drag_failed(GtkWidget      *widget,
 {
     /* cut off default processing (fail animation), which may 
      * case a confliction when we regrab pointer later */
+    meta_verbose ("%s\n", __func__);
     return TRUE;
 }
 

@@ -1580,14 +1580,383 @@ meta_display_get_input_event(MetaDisplay* display, XEvent* event)
             case XI_KeyRelease:
                 if (((XIDeviceEvent *) input_event)->deviceid == META_VIRTUAL_CORE_KEYBOARD_ID)
                     return input_event;
-                else 
-                    g_warning("%s: xi key event from other device", __func__);
+            case XI_Motion:
+            case XI_ButtonPress:
+            case XI_ButtonRelease:
+                if (((XIDeviceEvent *) input_event)->deviceid == META_VIRTUAL_CORE_POINTER_ID)
+                    return input_event;
+                break;
+            case XI_FocusIn:
+            case XI_FocusOut:
+                if (((XIEnterEvent *) input_event)->deviceid == META_VIRTUAL_CORE_KEYBOARD_ID)
+                    return input_event;
+                break;
+            case XI_Enter:
+            case XI_Leave:
+                if (((XIEnterEvent *) input_event)->deviceid == META_VIRTUAL_CORE_POINTER_ID)
+                    return input_event;
+                break;
             default:
                 break;
         }
     }
 
     return NULL;
+}
+
+
+static gboolean
+handle_input_xevent (MetaDisplay  *display, MetaWindow* window, Window modified,
+        gboolean frame_was_receiver, XEvent *xev,
+        XIEvent *input_event)
+{
+    meta_verbose ("%s type %d\n", __func__, input_event->evtype);
+
+    XIDeviceEvent* dev = (XIDeviceEvent*) input_event;
+    XIEnterEvent* enter_ev = (XIEnterEvent*) input_event;
+
+    switch (input_event->evtype) {
+        case XI_KeyPress:
+        case XI_KeyRelease:
+            meta_display_process_key_event (display, window, xev);
+            break;
+
+        case XI_ButtonPress:
+            if ((window &&
+                        grab_op_is_mouse (display->grab_op) &&
+                        display->grab_button != (int) dev->detail &&
+                        display->grab_window == window) ||
+                    grab_op_is_keyboard (display->grab_op))
+            {
+                if (!GRAB_OP_CATCH_MOUSE(display->grab_op))
+                {
+                    /* do not end grab for these */
+                    break;
+                }
+
+                meta_topic (META_DEBUG_WINDOW_OPS,
+                        "Ending grab op %u on window %s due to button press\n",
+                        display->grab_op,
+                        (display->grab_window ?
+                         display->grab_window->desc :
+                         "none"));
+                meta_display_end_grab_op (display, dev->time);
+            }
+            else if (window && display->grab_op == META_GRAB_OP_NONE)
+            {
+                gboolean begin_move = FALSE;
+                unsigned int grab_mask;
+                gboolean unmodified;
+
+                grab_mask = display->window_grab_modifiers;
+                if (g_getenv ("METACITY_DEBUG_BUTTON_GRABS"))
+                    grab_mask |= ControlMask;
+
+                /* Two possible sources of an unmodified event; one is a
+                 * client that's letting button presses pass through to the
+                 * frame, the other is our focus_window_grab on unmodified
+                 * button 1.  So for all such events we focus the window.
+                 */
+                unmodified = (dev->mods.effective & grab_mask) == 0;
+
+                if (unmodified || dev->detail == 1)
+                {
+                    /* don't focus if frame received, will be lowered in
+                     * frames.c or special-cased if the click was on a
+                     * minimize/close button.
+                     */
+                    if (!frame_was_receiver)
+                    {
+                        if (meta_prefs_get_raise_on_click ())
+                            meta_window_raise (window);
+                        else
+                            meta_topic (META_DEBUG_FOCUS,
+                                    "Not raising window on click due to don't-raise-on-click option\n");
+
+                        /* Don't focus panels--they must explicitly request focus.
+                         * See bug 160470
+                         */
+                        if (window->type != META_WINDOW_DOCK)
+                        {
+                            meta_topic (META_DEBUG_FOCUS,
+                                    "Focusing %s due to unmodified button %u press (display.c)\n",
+                                    window->desc, dev->detail);
+                            meta_window_focus (window, dev->time);
+                        }
+                        else
+                            /* However, do allow terminals to lose focus due to new
+                             * window mappings after the user clicks on a panel.
+                             */
+                            display->allow_terminal_deactivation = TRUE;
+                    }
+
+                    /* you can move on alt-click but not on
+                     * the click-to-focus
+                     */
+                    if (!unmodified)
+                        begin_move = TRUE;
+                }
+                else if (!unmodified && dev->detail == meta_prefs_get_mouse_button_resize())
+                {
+                    if (window->has_resize_func)
+                    {
+                        gboolean north, south;
+                        gboolean west, east;
+                        int root_x, root_y;
+                        MetaGrabOp op;
+
+                        meta_window_get_position (window, &root_x, &root_y);
+
+                        west = dev->root_x <  (root_x + 1 * window->rect.width  / 3);
+                        east = dev->root_x >  (root_x + 2 * window->rect.width  / 3);
+                        north = dev->root_y < (root_y + 1 * window->rect.height / 3);
+                        south = dev->root_y > (root_y + 2 * window->rect.height / 3);
+
+                        if (north && west)
+                            op = META_GRAB_OP_RESIZING_NW;
+                        else if (north && east)
+                            op = META_GRAB_OP_RESIZING_NE;
+                        else if (south && west)
+                            op = META_GRAB_OP_RESIZING_SW;
+                        else if (south && east)
+                            op = META_GRAB_OP_RESIZING_SE;
+                        else if (north)
+                            op = META_GRAB_OP_RESIZING_N;
+                        else if (west)
+                            op = META_GRAB_OP_RESIZING_W;
+                        else if (east)
+                            op = META_GRAB_OP_RESIZING_E;
+                        else if (south)
+                            op = META_GRAB_OP_RESIZING_S;
+                        else /* Middle region is no-op to avoid user triggering wrong action */
+                            op = META_GRAB_OP_NONE;
+
+                        if (op != META_GRAB_OP_NONE)
+                            meta_display_begin_grab_op (display,
+                                    window->screen,
+                                    window,
+                                    op,
+                                    TRUE,
+                                    FALSE,
+                                    dev->detail,
+                                    0,
+                                    dev->time,
+                                    dev->root_x,
+                                    dev->root_y);
+                    }
+                }
+                else if (dev->detail == meta_prefs_get_mouse_button_menu())
+                {
+                    if (meta_prefs_get_raise_on_click ())
+                        meta_window_raise (window);
+                    meta_window_show_menu (window,
+                            dev->root_x,
+                            dev->root_y,
+                            dev->detail,
+                            dev->time);
+                }
+
+                if (!frame_was_receiver && unmodified)
+                {
+                    /* This is from our synchronous grab since
+                     * it has no modifiers and was on the client window
+                     */
+
+                    meta_verbose ("Allowing events mode %s time %u\n",
+                            "ReplayPointer",
+                            (unsigned int)dev->time);
+
+                    XAllowEvents (display->xdisplay,
+                            ReplayPointer, dev->time);
+                }
+
+                if (begin_move && window->has_move_func)
+                {
+                    meta_display_begin_grab_op (display,
+                            window->screen,
+                            window,
+                            META_GRAB_OP_MOVING,
+                            TRUE,
+                            FALSE,
+                            dev->detail,
+                            0,
+                            dev->time,
+                            dev->root_x,
+                            dev->root_y);
+                }
+            }
+            break;
+        case XI_ButtonRelease:
+            if (display->grab_window == window &&
+                    grab_op_is_mouse (display->grab_op))
+                meta_window_handle_mouse_grab_op_event (window, xev, input_event);
+            break;
+        case XI_Motion:
+            if (display->grab_window == window &&
+                    grab_op_is_mouse (display->grab_op))
+                meta_window_handle_mouse_grab_op_event (window, xev, input_event);
+            break;
+        case XI_Enter:
+            if (display->grab_window == window &&
+                    grab_op_is_mouse (display->grab_op))
+            {
+                meta_window_handle_mouse_grab_op_event (window, xev, input_event);
+                break;
+            }
+
+            /* If the mouse switches screens, active the default window on the new
+             * screen; this will make keybindings and workspace-launched items
+             * actually appear on the right screen.
+             */
+            {
+                MetaScreen *new_screen =
+                    meta_display_screen_for_root (display, enter_ev->root);
+
+                if (new_screen != NULL && display->active_screen != new_screen)
+                    meta_workspace_focus_default_window (new_screen->active_workspace,
+                            NULL, input_event->time);
+            }
+
+            /* Check if we've entered a window; do this even if window->has_focus to
+             * avoid races.
+             */
+            if (window && !serial_is_ignored (display, xev->xany.serial) &&
+                    enter_ev->mode != NotifyGrab &&
+                    enter_ev->mode != NotifyUngrab &&
+                    enter_ev->detail != NotifyInferior &&
+                    meta_display_focus_sentinel_clear (display))
+            {
+                switch (meta_prefs_get_focus_mode ())
+                {
+                    case G_DESKTOP_FOCUS_MODE_SLOPPY:
+                    case G_DESKTOP_FOCUS_MODE_MOUSE:
+                        display->mouse_mode = TRUE;
+                        if (window->type != META_WINDOW_DOCK &&
+                                window->type != META_WINDOW_DESKTOP)
+                        {
+                            meta_topic (META_DEBUG_FOCUS,
+                                    "Focusing %s due to enter notify with serial %lu "
+                                    "at time %lu, and setting display->mouse_mode to "
+                                    "TRUE.\n",
+                                    window->desc,
+                                    xev->xany.serial,
+                                    input_event->time);
+
+                            meta_window_focus (window, input_event->time);
+
+                            /* stop ignoring stuff */
+                            reset_ignores (display);
+
+                            if (meta_prefs_get_auto_raise ())
+                            {
+                                meta_display_queue_autoraise_callback (display, window);
+                            }
+                            else
+                            {
+                                meta_topic (META_DEBUG_FOCUS,
+                                        "Auto raise is disabled\n");
+                            }
+                        }
+                        /* In mouse focus mode, we defocus when the mouse *enters*
+                         * the DESKTOP window, instead of defocusing on LeaveNotify.
+                         * This is because having the mouse enter override-redirect
+                         * child windows unfortunately causes LeaveNotify events that
+                         * we can't distinguish from the mouse actually leaving the
+                         * toplevel window as we expect.  But, since we filter out
+                         * EnterNotify events on override-redirect windows, this
+                         * alternative mechanism works great.
+                         */
+                        if (window->type == META_WINDOW_DESKTOP &&
+                                meta_prefs_get_focus_mode() == G_DESKTOP_FOCUS_MODE_MOUSE &&
+                                display->expected_focus_window != NULL)
+                        {
+                            meta_topic (META_DEBUG_FOCUS,
+                                    "Unsetting focus from %s due to mouse entering "
+                                    "the DESKTOP window\n",
+                                    display->expected_focus_window->desc);
+                            meta_display_focus_the_no_focus_window (display,
+                                    window->screen,
+                                    input_event->time);
+                        }
+                        break;
+                    case G_DESKTOP_FOCUS_MODE_CLICK:
+                        break;
+                    default:
+                        break;
+                }
+
+                if (window->type == META_WINDOW_DOCK)
+                    meta_window_raise (window);
+            }
+            break;
+        case XI_Leave:
+            if (display->grab_window == window &&
+                    grab_op_is_mouse (display->grab_op))
+                meta_window_handle_mouse_grab_op_event (window, xev, input_event);
+            else if (window != NULL)
+            {
+                if (window->type == META_WINDOW_DOCK &&
+                        enter_ev->mode != NotifyGrab &&
+                        enter_ev->mode != NotifyUngrab &&
+                        !window->has_focus)
+                    meta_window_lower (window);
+            }
+            break;
+        case XI_FocusIn:
+        case XI_FocusOut:
+            if (window) {
+                meta_window_notify_focus (window, xev);
+            } else if (meta_display_xwindow_is_a_no_focus_window (display, xev->xany.window)) {
+                meta_topic (META_DEBUG_FOCUS,
+                        "Focus %s event received on no_focus_window 0x%lx "
+                        "mode %s detail %s\n",
+                        input_event->evtype == XI_FocusIn ? "in" :
+                        input_event->evtype == XI_FocusOut ? "out" :
+                        "???",
+                        xev->xany.window,
+                        meta_event_mode_to_string (enter_ev->mode),
+                        meta_event_detail_to_string (enter_ev->detail));
+            } else {
+                MetaScreen *screen = meta_display_screen_for_root(display, xev->xany.window);
+                if (screen == NULL)
+                    break;
+
+                meta_topic (META_DEBUG_FOCUS,
+                        "Focus %s event received on root window 0x%lx "
+                        "mode %s detail %s\n",
+                        input_event->evtype == XI_FocusIn ? "in" :
+                        input_event->evtype == XI_FocusOut ? "out" :
+                        "???",
+                        xev->xany.window,
+                        meta_event_mode_to_string (enter_ev->mode),
+                        meta_event_detail_to_string (enter_ev->detail));
+
+                if (input_event->evtype == XI_FocusIn && enter_ev->detail == NotifyDetailNone) {
+                    meta_topic (META_DEBUG_FOCUS,
+                            "Focus got set to None, probably due to "
+                            "brain-damage in the X protocol (see bug "
+                            "125492).  Setting the default focus window.\n");
+                    meta_workspace_focus_default_window (screen->active_workspace,
+                            NULL,
+                            meta_display_get_current_time_roundtrip (display));
+                } else if (input_event->evtype == XI_FocusIn &&
+                        enter_ev->mode == NotifyNormal &&
+                        enter_ev->detail == NotifyInferior) {
+                    meta_topic (META_DEBUG_FOCUS,
+                            "Focus got set to root window, probably due to "
+                            "gnome-session logout dialog usage (see bug "
+                            "153220).  Setting the default focus window.\n");
+                    meta_workspace_focus_default_window (screen->active_workspace,
+                            NULL,
+                            meta_display_get_current_time_roundtrip (display));
+                }
+
+            }
+            break;
+        default: 
+            g_warning("unhandled xi event type %d", input_event->evtype);
+            break; /* pass */
+    }
 }
 
 /**
@@ -1616,6 +1985,8 @@ event_callback (XEvent   *event,
   gboolean frame_was_receiver;
   gboolean filter_out_event;
   XIEvent* input_event;
+  XIDeviceEvent* device_event;
+  XIEnterEvent* enter_event;
 
   display = data;
 
@@ -1625,6 +1996,8 @@ event_callback (XEvent   *event,
 #endif
 
   input_event = meta_display_get_input_event(display, event);
+  device_event = (XIDeviceEvent*)input_event;
+  enter_event = (XIEnterEvent*)input_event;
 
 #ifdef HAVE_STARTUP_NOTIFICATION
   sn_display_process_event (display->sn_display, event);
@@ -1643,6 +2016,12 @@ event_callback (XEvent   *event,
 	  event->xbutton.button == 5)
 	return FALSE;
     }
+  if (input_event && input_event->evtype == XI_ButtonPress)
+    {
+      /* filter out scrollwheel */
+      if (device_event->detail == 4 || device_event->detail == 5)
+        return FALSE;
+    }
   else if (event->type == UnmapNotify)
     {
       if (meta_ui_window_should_not_cause_focus (display->xdisplay,
@@ -1656,6 +2035,15 @@ event_callback (XEvent   *event,
     }
   else if (event->type == LeaveNotify &&
            event->xcrossing.mode == NotifyUngrab &&
+           modified == display->ungrab_should_not_cause_focus_window)
+    {
+      add_ignored_serial (display, event->xany.serial);
+      meta_topic (META_DEBUG_FOCUS,
+                  "Adding LeaveNotify serial %lu to ignored focus serials\n",
+                  event->xany.serial);
+    }
+  else if (input_event && input_event->evtype == XI_Leave &&
+           enter_event->mode == NotifyUngrab &&
            modified == display->ungrab_should_not_cause_focus_window)
     {
       add_ignored_serial (display, event->xany.serial);
@@ -1704,7 +2092,7 @@ event_callback (XEvent   *event,
       if (display->grab_op != META_GRAB_OP_NONE &&
           display->grab_window != NULL &&
           grab_op_is_mouse (display->grab_op))
-	meta_window_handle_mouse_grab_op_event (display->grab_window, event);
+        meta_window_handle_mouse_grab_op_event (display->grab_window, event, input_event);
     }
 
   if (META_DISPLAY_HAS_SHAPE (display) &&
@@ -1756,7 +2144,8 @@ event_callback (XEvent   *event,
         }
     }
 
-  if (window && ((input_event && input_event->evtype == XI_KeyPress) || (event->type == KeyPress) || (event->type == ButtonPress)))
+  if (window && ((input_event && (input_event->evtype == XI_KeyPress || input_event->evtype == XI_ButtonPress))
+              || (event->type == KeyPress) || (event->type == ButtonPress)))
     {
       if (CurrentTime == display->current_time)
         {
@@ -1776,372 +2165,11 @@ event_callback (XEvent   *event,
     }
 
   if (input_event) {
-    switch (input_event->evtype)
-      {
-      case XI_KeyPress:
-      case XI_KeyRelease:
-        meta_display_process_key_event (display, window, event);
-        break;
-
-      default: 
-        g_warning("unhandled xi event type %d", input_event->evtype);
-        break; /* pass */
-      }
+      handle_input_xevent (display, window, modified, frame_was_receiver, event, input_event);
   }
 
   switch (event->type)
     {
-    case KeyPress:
-    case KeyRelease:
-      /* xi2 take over key events, should never go here */
-      break;
-    case ButtonPress:
-      if ((window &&
-           grab_op_is_mouse (display->grab_op) &&
-           display->grab_button != (int) event->xbutton.button &&
-           display->grab_window == window) ||
-          grab_op_is_keyboard (display->grab_op))
-        {
-          if (!GRAB_OP_CATCH_MOUSE(display->grab_op))
-            {
-              /* do not end grab for these */
-              break;
-            }
-
-          meta_topic (META_DEBUG_WINDOW_OPS,
-                      "Ending grab op %u on window %s due to button press\n",
-                      display->grab_op,
-                      (display->grab_window ?
-                       display->grab_window->desc :
-                       "none"));
-          meta_display_end_grab_op (display,
-                                    event->xbutton.time);
-        }
-      else if (window && display->grab_op == META_GRAB_OP_NONE)
-        {
-          gboolean begin_move = FALSE;
-          unsigned int grab_mask;
-          gboolean unmodified;
-
-          grab_mask = display->window_grab_modifiers;
-          if (g_getenv ("METACITY_DEBUG_BUTTON_GRABS"))
-            grab_mask |= ControlMask;
-
-          /* Two possible sources of an unmodified event; one is a
-           * client that's letting button presses pass through to the
-           * frame, the other is our focus_window_grab on unmodified
-           * button 1.  So for all such events we focus the window.
-           */
-          unmodified = (event->xbutton.state & grab_mask) == 0;
-
-          if (unmodified ||
-              event->xbutton.button == 1)
-            {
-              /* don't focus if frame received, will be lowered in
-               * frames.c or special-cased if the click was on a
-               * minimize/close button.
-               */
-              if (!frame_was_receiver)
-                {
-                  if (meta_prefs_get_raise_on_click ())
-                    meta_window_raise (window);
-                  else
-                    meta_topic (META_DEBUG_FOCUS,
-                                "Not raising window on click due to don't-raise-on-click option\n");
-
-                  /* Don't focus panels--they must explicitly request focus.
-                   * See bug 160470
-                   */
-		            if (window->type != META_WINDOW_DOCK)
-                    {
-                      meta_topic (META_DEBUG_FOCUS,
-                                  "Focusing %s due to unmodified button %u press (display.c)\n",
-                                  window->desc, event->xbutton.button);
-                      meta_window_focus (window, event->xbutton.time);
-                    }
-                  else
-                    /* However, do allow terminals to lose focus due to new
-                     * window mappings after the user clicks on a panel.
-                     */
-                    display->allow_terminal_deactivation = TRUE;
-                }
-
-              /* you can move on alt-click but not on
-               * the click-to-focus
-               */
-              if (!unmodified)
-                begin_move = TRUE;
-            }
-          else if (!unmodified && event->xbutton.button == meta_prefs_get_mouse_button_resize())
-            {
-              if (window->has_resize_func)
-                {
-                  gboolean north, south;
-                  gboolean west, east;
-                  int root_x, root_y;
-                  MetaGrabOp op;
-
-                  meta_window_get_position (window, &root_x, &root_y);
-
-                  west = event->xbutton.x_root <  (root_x + 1 * window->rect.width  / 3);
-                  east = event->xbutton.x_root >  (root_x + 2 * window->rect.width  / 3);
-                  north = event->xbutton.y_root < (root_y + 1 * window->rect.height / 3);
-                  south = event->xbutton.y_root > (root_y + 2 * window->rect.height / 3);
-
-                  if (north && west)
-                    op = META_GRAB_OP_RESIZING_NW;
-                  else if (north && east)
-                    op = META_GRAB_OP_RESIZING_NE;
-                  else if (south && west)
-                    op = META_GRAB_OP_RESIZING_SW;
-                  else if (south && east)
-                    op = META_GRAB_OP_RESIZING_SE;
-                  else if (north)
-                    op = META_GRAB_OP_RESIZING_N;
-                  else if (west)
-                    op = META_GRAB_OP_RESIZING_W;
-                  else if (east)
-                    op = META_GRAB_OP_RESIZING_E;
-                  else if (south)
-                    op = META_GRAB_OP_RESIZING_S;
-                  else /* Middle region is no-op to avoid user triggering wrong action */
-                    op = META_GRAB_OP_NONE;
-
-                  if (op != META_GRAB_OP_NONE)
-                    meta_display_begin_grab_op (display,
-                                                window->screen,
-                                                window,
-                                                op,
-                                                TRUE,
-                                                FALSE,
-                                                event->xbutton.button,
-                                                0,
-                                                event->xbutton.time,
-                                                event->xbutton.x_root,
-                                                event->xbutton.y_root);
-                }
-            }
-          else if (event->xbutton.button == meta_prefs_get_mouse_button_menu())
-            {
-              if (meta_prefs_get_raise_on_click ())
-                meta_window_raise (window);
-              meta_window_show_menu (window,
-                                     event->xbutton.x_root,
-                                     event->xbutton.y_root,
-                                     event->xbutton.button,
-                                     event->xbutton.time);
-            }
-
-          if (!frame_was_receiver && unmodified)
-            {
-              /* This is from our synchronous grab since
-               * it has no modifiers and was on the client window
-               */
-
-              meta_verbose ("Allowing events mode %s time %u\n",
-                            "ReplayPointer",
-                            (unsigned int)event->xbutton.time);
-
-              XAllowEvents (display->xdisplay,
-                            ReplayPointer, event->xbutton.time);
-            }
-
-          if (begin_move && window->has_move_func)
-            {
-              meta_display_begin_grab_op (display,
-                                          window->screen,
-                                          window,
-                                          META_GRAB_OP_MOVING,
-                                          TRUE,
-                                          FALSE,
-                                          event->xbutton.button,
-                                          0,
-                                          event->xbutton.time,
-                                          event->xbutton.x_root,
-                                          event->xbutton.y_root);
-            }
-        }
-      break;
-    case ButtonRelease:
-      if (display->grab_window == window &&
-          grab_op_is_mouse (display->grab_op))
-        meta_window_handle_mouse_grab_op_event (window, event);
-      break;
-    case MotionNotify:
-      if (display->grab_window == window &&
-          grab_op_is_mouse (display->grab_op))
-        meta_window_handle_mouse_grab_op_event (window, event);
-      break;
-    case EnterNotify:
-      if (display->grab_window == window &&
-          grab_op_is_mouse (display->grab_op))
-        {
-          meta_window_handle_mouse_grab_op_event (window, event);
-          break;
-        }
-
-      /* If the mouse switches screens, active the default window on the new
-       * screen; this will make keybindings and workspace-launched items
-       * actually appear on the right screen.
-       */
-      {
-        MetaScreen *new_screen =
-          meta_display_screen_for_root (display, event->xcrossing.root);
-
-        if (new_screen != NULL && display->active_screen != new_screen)
-          meta_workspace_focus_default_window (new_screen->active_workspace,
-                                               NULL,
-                                               event->xcrossing.time);
-      }
-
-      /* Check if we've entered a window; do this even if window->has_focus to
-       * avoid races.
-       */
-      if (window && !serial_is_ignored (display, event->xany.serial) &&
-               event->xcrossing.mode != NotifyGrab &&
-               event->xcrossing.mode != NotifyUngrab &&
-               event->xcrossing.detail != NotifyInferior &&
-               meta_display_focus_sentinel_clear (display))
-        {
-          switch (meta_prefs_get_focus_mode ())
-            {
-            case G_DESKTOP_FOCUS_MODE_SLOPPY:
-            case G_DESKTOP_FOCUS_MODE_MOUSE:
-              display->mouse_mode = TRUE;
-              if (window->type != META_WINDOW_DOCK &&
-                  window->type != META_WINDOW_DESKTOP)
-                {
-                  meta_topic (META_DEBUG_FOCUS,
-                              "Focusing %s due to enter notify with serial %lu "
-                              "at time %lu, and setting display->mouse_mode to "
-                              "TRUE.\n",
-                              window->desc,
-                              event->xany.serial,
-                              event->xcrossing.time);
-
-                  meta_window_focus (window, event->xcrossing.time);
-
-                  /* stop ignoring stuff */
-                  reset_ignores (display);
-
-                  if (meta_prefs_get_auto_raise ())
-                    {
-                      meta_display_queue_autoraise_callback (display, window);
-                    }
-                  else
-                    {
-                      meta_topic (META_DEBUG_FOCUS,
-                                  "Auto raise is disabled\n");
-                    }
-                }
-              /* In mouse focus mode, we defocus when the mouse *enters*
-               * the DESKTOP window, instead of defocusing on LeaveNotify.
-               * This is because having the mouse enter override-redirect
-               * child windows unfortunately causes LeaveNotify events that
-               * we can't distinguish from the mouse actually leaving the
-               * toplevel window as we expect.  But, since we filter out
-               * EnterNotify events on override-redirect windows, this
-               * alternative mechanism works great.
-               */
-              if (window->type == META_WINDOW_DESKTOP &&
-                  meta_prefs_get_focus_mode() == G_DESKTOP_FOCUS_MODE_MOUSE &&
-                  display->expected_focus_window != NULL)
-                {
-                  meta_topic (META_DEBUG_FOCUS,
-                              "Unsetting focus from %s due to mouse entering "
-                              "the DESKTOP window\n",
-                              display->expected_focus_window->desc);
-                  meta_display_focus_the_no_focus_window (display,
-                                                          window->screen,
-                                                          event->xcrossing.time);
-                }
-              break;
-            case G_DESKTOP_FOCUS_MODE_CLICK:
-              break;
-            default:
-              break;
-            }
-
-          if (window->type == META_WINDOW_DOCK)
-            meta_window_raise (window);
-        }
-      break;
-    case LeaveNotify:
-      if (display->grab_window == window &&
-          grab_op_is_mouse (display->grab_op))
-        meta_window_handle_mouse_grab_op_event (window, event);
-      else if (window != NULL)
-        {
-          if (window->type == META_WINDOW_DOCK &&
-              event->xcrossing.mode != NotifyGrab &&
-              event->xcrossing.mode != NotifyUngrab &&
-              !window->has_focus)
-            meta_window_lower (window);
-        }
-      break;
-    case FocusIn:
-    case FocusOut:
-      if (window)
-        {
-          meta_window_notify_focus (window, event);
-        }
-      else if (meta_display_xwindow_is_a_no_focus_window (display,
-                                                          event->xany.window))
-        {
-          meta_topic (META_DEBUG_FOCUS,
-                      "Focus %s event received on no_focus_window 0x%lx "
-                      "mode %s detail %s\n",
-                      event->type == FocusIn ? "in" :
-                      event->type == FocusOut ? "out" :
-                      "???",
-                      event->xany.window,
-                      meta_event_mode_to_string (event->xfocus.mode),
-                      meta_event_detail_to_string (event->xfocus.detail));
-        }
-      else
-        {
-          MetaScreen *screen =
-                meta_display_screen_for_root(display,
-                                             event->xany.window);
-          if (screen == NULL)
-            break;
-
-          meta_topic (META_DEBUG_FOCUS,
-                      "Focus %s event received on root window 0x%lx "
-                      "mode %s detail %s\n",
-                      event->type == FocusIn ? "in" :
-                      event->type == FocusOut ? "out" :
-                      "???",
-                      event->xany.window,
-                      meta_event_mode_to_string (event->xfocus.mode),
-                      meta_event_detail_to_string (event->xfocus.detail));
-
-          if (event->type == FocusIn &&
-              event->xfocus.detail == NotifyDetailNone)
-            {
-              meta_topic (META_DEBUG_FOCUS,
-                          "Focus got set to None, probably due to "
-                          "brain-damage in the X protocol (see bug "
-                          "125492).  Setting the default focus window.\n");
-              meta_workspace_focus_default_window (screen->active_workspace,
-                                                   NULL,
-                                                   meta_display_get_current_time_roundtrip (display));
-            }
-          else if (event->type == FocusIn &&
-              event->xfocus.mode == NotifyNormal &&
-              event->xfocus.detail == NotifyInferior)
-            {
-              meta_topic (META_DEBUG_FOCUS,
-                          "Focus got set to root window, probably due to "
-                          "gnome-session logout dialog usage (see bug "
-                          "153220).  Setting the default focus window.\n");
-              meta_workspace_focus_default_window (screen->active_workspace,
-                                                   NULL,
-                                                   meta_display_get_current_time_roundtrip (display));
-            }
-
-        }
-      break;
     case KeymapNotify:
       break;
     case Expose:
@@ -2964,6 +2992,41 @@ meta_spew_xi2_event (MetaDisplay *display,
         extra = xi_key_event_description (display->xdisplay, device_event);
         break;
 
+    case XI_FocusIn:
+      name = "XI_FocusIn";
+      extra = g_strdup_printf ("detail: %s mode: %s\n",
+                               meta_event_detail_to_string (enter_event->detail),
+                               meta_event_mode_to_string (enter_event->mode));
+      break;
+    case XI_FocusOut:
+      name = "XI_FocusOut";
+      extra = g_strdup_printf ("detail: %s mode: %s\n",
+                               meta_event_detail_to_string (enter_event->detail),
+                               meta_event_mode_to_string (enter_event->mode));
+      break;
+    case XI_Enter:
+      name = "XI_Enter";
+      extra = g_strdup_printf ("win: 0x%lx root: 0x%lx mode: %s detail: %s focus: %d x: %g y: %g",
+                               enter_event->event,
+                               enter_event->root,
+                               meta_event_mode_to_string (enter_event->mode),
+                               meta_event_detail_to_string (enter_event->detail),
+                               enter_event->focus,
+                               enter_event->root_x,
+                               enter_event->root_y);
+      break;
+    case XI_Leave:
+      name = "XI_Leave";
+      extra = g_strdup_printf ("win: 0x%lx root: 0x%lx mode: %s detail: %s focus: %d x: %g y: %g",
+                               enter_event->event,
+                               enter_event->root,
+                               meta_event_mode_to_string (enter_event->mode),
+                               meta_event_detail_to_string (enter_event->detail),
+                               enter_event->focus,
+                               enter_event->root_x,
+                               enter_event->root_y);
+      break;
+
     default: 
         meta_verbose ("unknown xi2 event type\n");
         break;
@@ -3488,17 +3551,23 @@ meta_display_set_grab_op_cursor (MetaDisplay *display,
 
   cursor = xcursor_for_op (display, op);
 
-#define GRAB_MASK (PointerMotionMask |                          \
-                   ButtonPressMask | ButtonReleaseMask |        \
-		   EnterWindowMask | LeaveWindowMask)
+  unsigned char mask_bits[XIMaskLen (XI_LASTEVENT)] = { 0 };
+  XIEventMask mask = { XIAllMasterDevices, sizeof (mask_bits), mask_bits };
+
+  XISetMask (mask.mask, XI_ButtonPress);
+  XISetMask (mask.mask, XI_ButtonRelease);
+  XISetMask (mask.mask, XI_Enter);
+  XISetMask (mask.mask, XI_Leave);
+  XISetMask (mask.mask, XI_Motion);
 
   if (change_pointer)
     {
       meta_error_trap_push_with_return (display);
-      XChangeActivePointerGrab (display->xdisplay,
-                                GRAB_MASK,
-                                cursor,
-                                timestamp);
+      //FIXME: sian
+      /*XChangeActivePointerGrab (display->xdisplay,*/
+                                /*GRAB_MASK,*/
+                                /*cursor,*/
+                                /*timestamp);*/
 
       meta_topic (META_DEBUG_WINDOW_OPS,
                   "Changed pointer with XChangeActivePointerGrab()\n");
@@ -3516,30 +3585,28 @@ meta_display_set_grab_op_cursor (MetaDisplay *display,
       g_assert (screen != NULL);
 
       meta_error_trap_push (display);
-      if (XGrabPointer (display->xdisplay,
+      if (XIGrabDevice (display->xdisplay,
+                        META_VIRTUAL_CORE_POINTER_ID,
                         grab_xwindow,
-                        False,
-                        GRAB_MASK,
+                        timestamp,
+                        cursor, 
                         GrabModeAsync, GrabModeAsync,
-                        screen->xroot,
-                        cursor,
-                        timestamp) == GrabSuccess)
+                        False,
+                        &mask) == Success)
         {
           display->grab_have_pointer = TRUE;
           meta_topic (META_DEBUG_WINDOW_OPS,
-                      "XGrabPointer() returned GrabSuccess time %u\n",
+                      "XIGrabDevice() returned Success time %u\n",
                       timestamp);
         }
       else
         {
           meta_topic (META_DEBUG_WINDOW_OPS,
-                      "XGrabPointer() failed time %u\n",
+                      "XIGrabDevice() failed time %u\n",
                       timestamp);
         }
       meta_error_trap_pop (display, TRUE);
     }
-
-#undef GRAB_MASK
 
   if (cursor != None)
     XFreeCursor (display->xdisplay, cursor);
@@ -3620,8 +3687,7 @@ meta_display_begin_grab_op (MetaDisplay *display,
 
   if (!display->grab_have_pointer && !grab_op_is_keyboard (op))
     {
-      meta_topic (META_DEBUG_WINDOW_OPS,
-                  "XGrabPointer() failed\n");
+      meta_topic (META_DEBUG_WINDOW_OPS, "XIGrabDevice() failed\n");
       return FALSE;
     }
 
@@ -4067,6 +4133,15 @@ meta_change_button_grab (MetaDisplay *display,
                          int          modmask)
 {
   unsigned int ignored_mask;
+  Display* xdisplay = display->xdisplay;
+  unsigned char mask_bits[XIMaskLen (XI_LASTEVENT)] = { 0 };
+  XIEventMask mask = { XIAllMasterDevices, sizeof (mask_bits), mask_bits };
+
+  XISetMask (mask.mask, XI_ButtonPress);
+  XISetMask (mask.mask, XI_ButtonRelease);
+  XISetMask (mask.mask, XI_Motion);
+  XISetMask (mask.mask, XI_Enter);
+  XISetMask (mask.mask, XI_Leave);
 
   meta_verbose ("%s 0x%lx sync = %d button = %d modmask 0x%x\n",
                 grab ? "Grabbing" : "Ungrabbing",
@@ -4078,6 +4153,8 @@ meta_change_button_grab (MetaDisplay *display,
   ignored_mask = 0;
   while (ignored_mask <= display->ignored_modifier_mask)
     {
+      XIGrabModifiers mods;
+
       if (ignored_mask & ~(display->ignored_modifier_mask))
         {
           /* Not a combination of ignored modifiers
@@ -4091,18 +4168,19 @@ meta_change_button_grab (MetaDisplay *display,
         meta_error_trap_push_with_return (display);
 
       /* GrabModeSync means freeze until XAllowEvents */
+      mods = (XIGrabModifiers) { modmask | ignored_mask, 0 };
 
       if (grab)
-        XGrabButton (display->xdisplay, button, modmask | ignored_mask,
-                     xwindow, False,
-                     ButtonPressMask | ButtonReleaseMask |
-                     PointerMotionMask | PointerMotionHintMask,
-                     sync ? GrabModeSync : GrabModeAsync,
-                     GrabModeAsync,
-                     False, None);
+        XIGrabButton (xdisplay,
+                      META_VIRTUAL_CORE_POINTER_ID,
+                      button, xwindow, None,
+                      sync ? XIGrabModeSync : XIGrabModeAsync,
+                      XIGrabModeAsync, False,
+                      &mask, 1, &mods);
       else
-        XUngrabButton (display->xdisplay, button, modmask | ignored_mask,
-                       xwindow);
+        XIUngrabButton (xdisplay,
+                        META_VIRTUAL_CORE_POINTER_ID,
+                        button, xwindow, 1, &mods);
 
       if (meta_is_debugging ())
         {

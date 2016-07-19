@@ -33,6 +33,7 @@
 #define META_WINDOW_PRIVATE_H
 
 #include <config.h>
+#include <X11/extensions/XInput2.h>
 #include "window.h"
 #include "screen-private.h"
 #include "util.h"
@@ -597,7 +598,8 @@ void meta_window_set_gravity (MetaWindow *window,
                               int         gravity);
 
 void meta_window_handle_mouse_grab_op_event (MetaWindow *window,
-                                             XEvent     *event);
+                                             XEvent     *event,
+                                             XIEvent    *input_event);
 
 GList* meta_window_get_workspaces (MetaWindow *window);
 
