@@ -31,9 +31,6 @@
 #define EVENT_MASK (SubstructureRedirectMask |                     \
                     StructureNotifyMask | SubstructureNotifyMask | \
                     ExposureMask |                                 \
-                    ButtonPressMask | ButtonReleaseMask |          \
-                    PointerMotionMask | PointerMotionHintMask |    \
-                    EnterWindowMask | LeaveWindowMask |            \
                     FocusChangeMask |                              \
                     ColormapChangeMask)
 
@@ -232,6 +229,23 @@ meta_window_ensure_frame (MetaWindow *window)
   frame->need_reapply_frame_shape = FALSE;
 
   meta_display_ungrab (window->display);
+
+  {
+      Display* xdisplay = window->display->xdisplay;
+
+      unsigned char mask_bits[XIMaskLen (XI_LASTEVENT)] = { 0 };
+      XIEventMask mask = { XIAllMasterDevices, sizeof (mask_bits), mask_bits };
+
+      XISelectEvents (xdisplay, frame->xwindow, &mask, 1);
+
+      XISetMask (mask.mask, XI_ButtonPress);
+      XISetMask (mask.mask, XI_ButtonRelease);
+      XISetMask (mask.mask, XI_Motion);
+      XISetMask (mask.mask, XI_Enter);
+      XISetMask (mask.mask, XI_Leave);
+
+      XISelectEvents (xdisplay, frame->xwindow, &mask, 1);
+  }
 
   meta_prefs_add_listener (prefs_changed_callback, frame);
 }

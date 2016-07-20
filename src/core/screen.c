@@ -525,6 +525,11 @@ meta_screen_new (MetaDisplay *display,
 
     XISetMask (mask.mask, XI_KeyPress);
     XISetMask (mask.mask, XI_KeyRelease);
+    XISetMask (mask.mask, XI_Enter);
+    XISetMask (mask.mask, XI_Leave);
+    XISetMask (mask.mask, XI_FocusIn);
+    XISetMask (mask.mask, XI_FocusOut);
+
     XISelectEvents (xdisplay, xroot, &mask, 1);
 
   }
@@ -537,9 +542,7 @@ meta_screen_new (MetaDisplay *display,
                 xroot,
                 SubstructureRedirectMask | SubstructureNotifyMask |
                 ColormapChangeMask | PropertyChangeMask |
-                LeaveWindowMask | EnterWindowMask |
-                /*KeyPressMask | KeyReleaseMask |*/
-                FocusChangeMask | StructureNotifyMask |
+                StructureNotifyMask |
 #ifdef HAVE_COMPOSITE_EXTENSIONS
                 ExposureMask |
 #endif

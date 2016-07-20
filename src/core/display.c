@@ -1762,12 +1762,10 @@ handle_input_xevent (MetaDisplay  *display, MetaWindow* window, Window modified,
                      * it has no modifiers and was on the client window
                      */
 
-                    meta_verbose ("Allowing events mode %s time %u\n",
-                            "ReplayPointer",
+                    meta_verbose ("Allowing events mode %s time %u\n", "ReplayPointer",
                             (unsigned int)dev->time);
 
-                    XAllowEvents (display->xdisplay,
-                            ReplayPointer, dev->time);
+                    XAllowEvents (display->xdisplay, ReplayPointer, dev->time);
                 }
 
                 if (begin_move && window->has_move_func)
@@ -1891,10 +1889,10 @@ handle_input_xevent (MetaDisplay  *display, MetaWindow* window, Window modified,
             break;
         case XI_Leave:
             if (display->grab_window == window &&
-                    grab_op_is_mouse (display->grab_op))
+                    grab_op_is_mouse (display->grab_op)) {
                 meta_window_handle_mouse_grab_op_event (window, xev, input_event);
-            else if (window != NULL)
-            {
+
+            } else if (window != NULL) {
                 if (window->type == META_WINDOW_DOCK &&
                         enter_ev->mode != NotifyGrab &&
                         enter_ev->mode != NotifyUngrab &&
@@ -2048,7 +2046,7 @@ event_callback (XEvent   *event,
     {
       add_ignored_serial (display, event->xany.serial);
       meta_topic (META_DEBUG_FOCUS,
-                  "Adding LeaveNotify serial %lu to ignored focus serials\n",
+                  "Adding XI_Leave serial %lu to ignored focus serials\n",
                   event->xany.serial);
     }
 
@@ -4140,8 +4138,6 @@ meta_change_button_grab (MetaDisplay *display,
   XISetMask (mask.mask, XI_ButtonPress);
   XISetMask (mask.mask, XI_ButtonRelease);
   XISetMask (mask.mask, XI_Motion);
-  XISetMask (mask.mask, XI_Enter);
-  XISetMask (mask.mask, XI_Leave);
 
   meta_verbose ("%s 0x%lx sync = %d button = %d modmask 0x%x\n",
                 grab ? "Grabbing" : "Ungrabbing",

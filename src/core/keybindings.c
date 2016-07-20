@@ -2169,7 +2169,6 @@ process_tab_grab (MetaDisplay *display,
           meta_topic (META_DEBUG_KEYBINDINGS,
                       "Ending grab early so we can focus the target window\n");
           meta_display_end_grab_op (display, event->time);
-
           return TRUE; /* we already ended the grab */
         }
 

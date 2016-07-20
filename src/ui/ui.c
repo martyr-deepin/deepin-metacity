@@ -198,7 +198,6 @@ maybe_redirect_mouse_event (XEvent *xevent)
 
   /* If we've gotten here, we've filled in the gdk_event and should send it on */
   gdk_event_set_device (gevent, gdevice);
-  gdk_event_set_source_device (gevent, gdevice);
   gtk_main_do_event (gevent);
   gdk_event_free (gevent);
 
