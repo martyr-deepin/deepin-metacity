@@ -1349,7 +1349,7 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
     while (l) {
         MetaWindow* win = (MetaWindow*)l->data;
         if (win->type == META_WINDOW_NORMAL) {
-            GtkWidget* widget = meta_deepin_cloned_widget_new(win);
+            GtkWidget* widget = meta_deepin_cloned_widget_new(win, !priv->thumb_mode);
             g_ptr_array_add(priv->clones, widget);
             meta_deepin_cloned_widget_set_enable_drag(
                     META_DEEPIN_CLONED_WIDGET(widget), priv->draggable);
@@ -1451,7 +1451,7 @@ static void on_window_change_workspace(DeepinMessageHub* hub, MetaWindow* window
         meta_verbose("%s: add window\n", __func__);
 
         //add window
-        GtkWidget* widget = meta_deepin_cloned_widget_new(window);
+        GtkWidget* widget = meta_deepin_cloned_widget_new(window, !priv->thumb_mode);
         meta_deepin_cloned_widget_set_enable_drag(
                 META_DEEPIN_CLONED_WIDGET(widget), priv->draggable);
         gtk_widget_set_sensitive(widget, TRUE);

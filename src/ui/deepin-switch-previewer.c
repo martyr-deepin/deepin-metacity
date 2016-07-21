@@ -260,7 +260,7 @@ void meta_deepin_switch_previewer_populate(MetaDeepinSwitchPreviewer* self)
                 priv->screen = meta_window_get_screen(win);
                 priv->active_workspace = priv->screen->active_workspace;
             }
-            GtkWidget* widget = meta_deepin_cloned_widget_new(win);
+            GtkWidget* widget = meta_deepin_cloned_widget_new(win, FALSE);
                     
             MetaRectangle r;
             meta_window_get_outer_rect(win, &r);

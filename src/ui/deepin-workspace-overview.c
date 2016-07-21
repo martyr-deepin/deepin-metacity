@@ -913,7 +913,7 @@ static MetaDeepinClonedWidget* _clone_window(DeepinWorkspaceOverview* self,
         MetaWindow* window)
 {
     DeepinWorkspaceOverviewPrivate* priv = self->priv;
-    GtkWidget* widget = meta_deepin_cloned_widget_new(window);
+    GtkWidget* widget = meta_deepin_cloned_widget_new(window, TRUE);
     gtk_widget_set_sensitive(widget, TRUE);
 
     ClonedPrivateInfo* info = clone_get_info(widget);

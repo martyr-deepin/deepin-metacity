@@ -44,6 +44,7 @@ typedef struct _MetaDeepinClonedWidgetPrivate
     int mouse_over: 1;
     int dragging: 1;
     int draggable: 1;
+    int show_icon: 1;
 
     gdouble dx, dy; // press hold coord
 
@@ -64,6 +65,7 @@ enum {
     PROP_ROTATE,
     PROP_TRANSLATE_X,
     PROP_TRANSLATE_Y,
+    PROP_SHOW_ICON,
     N_PROPERTIES
 };
 
@@ -108,6 +110,10 @@ static void meta_deepin_cloned_widget_set_property(GObject *object, guint proper
         case PROP_TRANSLATE_Y:
             meta_deepin_cloned_widget_translate_y(self, g_value_get_double(value)); 
             break;
+            
+        case PROP_SHOW_ICON:
+            self->priv->show_icon = g_value_get_boolean(value);
+            break;
 
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
@@ -138,6 +144,9 @@ static void meta_deepin_cloned_widget_get_property(GObject *object, guint proper
 
         case PROP_TRANSLATE_Y:
             g_value_set_double(value, priv->ty); break;
+
+        case PROP_SHOW_ICON:
+            g_value_set_boolean(value, priv->show_icon); break;
 
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
@@ -498,6 +507,11 @@ static void meta_deepin_cloned_widget_class_init (MetaDeepinClonedWidgetClass *k
             -DBL_MAX, DBL_MAX, 0.0,
             G_PARAM_READWRITE);
 
+    property_specs[PROP_SHOW_ICON] = g_param_spec_boolean(
+            "show-icon", "show icon", "show icon",
+            FALSE,
+            G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
+
     g_object_class_install_properties(gobject_class, N_PROPERTIES, property_specs);
 
 
@@ -577,11 +591,11 @@ static gboolean on_drag_failed(GtkWidget      *widget,
     return TRUE;
 }
 
-GtkWidget * meta_deepin_cloned_widget_new (MetaWindow* meta)
+GtkWidget * meta_deepin_cloned_widget_new (MetaWindow* meta, gboolean show_icon)
 {
     MetaDeepinClonedWidget* widget;
 
-    widget = (MetaDeepinClonedWidget*)g_object_new (META_TYPE_DEEPIN_CLONED_WIDGET, NULL);
+    widget = (MetaDeepinClonedWidget*)g_object_new (META_TYPE_DEEPIN_CLONED_WIDGET, "show-icon", show_icon, NULL);
     widget->priv->meta_window = meta;
     deepin_setup_style_class(GTK_WIDGET(widget), "deepin-window-clone");
 
@@ -592,9 +606,11 @@ GtkWidget * meta_deepin_cloned_widget_new (MetaWindow* meta)
             "signal::drag-failed", on_drag_failed, NULL,
             NULL);
 
-    GdkPixbuf* pixbuf = meta_window_get_application_icon(meta, ICON_SIZE);
-    widget->priv->icon = gdk_cairo_surface_create_from_pixbuf(pixbuf, 1.0, NULL);
-    g_object_unref(pixbuf);
+    if (show_icon) {
+        GdkPixbuf* pixbuf = meta_window_get_application_icon(meta, ICON_SIZE);
+        widget->priv->icon = gdk_cairo_surface_create_from_pixbuf(pixbuf, 1.0, NULL);
+        g_object_unref(pixbuf);
+    }
 
     return (GtkWidget*)widget;
 }
