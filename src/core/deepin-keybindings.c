@@ -28,7 +28,6 @@
 #include "deepin-window-surface-manager.h"
 #include "deepin-wm-background.h"
 #include "deepin-message-hub.h"
-#include "deepin-workspace-indicator.h"
 
 static unsigned int get_primary_modifier (MetaDisplay *display,
         unsigned int entire_binding_mask)
@@ -496,12 +495,6 @@ static void handle_workspace_switch(MetaDisplay *display, MetaScreen *screen,
 
         if (next != screen->active_workspace) {
             meta_workspace_activate(next, event->time);
-
-            gtk_widget_show_all(screen->ws_popup);
-
-            GtkWidget* w = gtk_bin_get_child(GTK_BIN(screen->ws_popup));
-            DeepinWorkspaceIndicator* indi = DEEPIN_WORKSPACE_INDICATOR(w);
-            deepin_workspace_indicator_request_workspace_change(indi, next);
         }
     }
 }
@@ -534,14 +527,7 @@ static void handle_move_to_workspace  (MetaDisplay    *display,
         /* Activate second, so the window is never unmapped */
         meta_window_change_workspace (window, workspace);
         workspace->screen->display->mouse_mode = FALSE;
-        meta_workspace_activate_with_focus (workspace,
-                window, event->time);
-        meta_screen_ensure_workspace_popup(workspace->screen);
-        gtk_widget_show_all(screen->ws_popup);
-
-        GtkWidget* w = gtk_bin_get_child(GTK_BIN(screen->ws_popup));
-        DeepinWorkspaceIndicator* indi = DEEPIN_WORKSPACE_INDICATOR(w);
-        deepin_workspace_indicator_request_workspace_change(indi, workspace);
+        meta_workspace_activate_with_focus (workspace, window, event->time);
     }
 }
 

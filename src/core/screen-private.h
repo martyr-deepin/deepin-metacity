@@ -79,7 +79,6 @@ struct _MetaScreen
   MetaRectangle rect;  /* Size of screen; rect.x & rect.y are always 0 */
   MetaUI *ui;
   DeepinTabPopup *tab_popup;
-  GtkWidget *ws_popup;
   DeepinWMBackground* ws_previewer;
   GtkWidget* exposing_windows_popup;
 
@@ -179,7 +178,6 @@ void          meta_screen_update_cursor       (MetaScreen                 *scree
 void          meta_screen_ensure_tab_popup    (MetaScreen                 *screen,
                                                MetaTabList                 list_type,
                                                MetaTabShowType             show_type);
-void          meta_screen_ensure_workspace_popup (MetaScreen *screen);
 
 void          meta_screen_ensure_previewing_workspace (MetaScreen* screen);
 

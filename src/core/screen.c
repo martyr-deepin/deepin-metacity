@@ -40,7 +40,6 @@
 #include "deepin-desktop-background.h"
 #include "deepin-wm-background.h"
 #include "deepin-message-hub.h"
-#include "deepin-workspace-indicator.h"
 
 #ifdef HAVE_SOLARIS_XINERAMA
 #include <X11/extensions/xinerama.h>
@@ -690,7 +689,6 @@ meta_screen_new (MetaDisplay *display,
                             screen->xscreen);
 
   screen->tab_popup = NULL;
-  screen->ws_popup = NULL;
   screen->ws_previewer = NULL;
   screen->exposing_windows_popup = NULL;
   screen->tile_preview = NULL;
@@ -1506,33 +1504,6 @@ void meta_screen_ensure_exposing_windows (MetaScreen* screen)
   gtk_widget_set_app_paintable(GTK_WIDGET(screen->exposing_windows_popup), TRUE);
   gtk_window_set_default_size(GTK_WINDOW(screen->exposing_windows_popup), 
           screen->rect.width, screen->rect.height);
-}
-
-void
-meta_screen_ensure_workspace_popup (MetaScreen *screen)
-{
-    if (screen->ws_popup) 
-        return;
-
-    screen->ws_popup = gtk_window_new(GTK_WINDOW_POPUP);
-
-    GdkScreen* gscreen = gdk_display_get_screen(
-            gdk_display_get_default(), screen->number);
-    GdkVisual* visual = gdk_screen_get_rgba_visual (gscreen);
-    if (visual)
-        gtk_widget_set_visual(screen->ws_popup, visual);
-
-    gtk_window_set_screen(GTK_WINDOW(screen->ws_popup), gscreen);
-    gtk_widget_set_app_paintable(screen->ws_popup, TRUE);
-    gtk_window_set_position(GTK_WINDOW(screen->ws_popup),
-            GTK_WIN_POS_CENTER_ALWAYS);
-    gtk_window_set_resizable(GTK_WINDOW(screen->ws_popup), TRUE);
-
-    gtk_window_set_keep_above(GTK_WIDGET(screen->ws_popup), TRUE);
-    gtk_window_stick(GTK_WINDOW(screen->ws_popup));
-
-    DeepinWorkspaceIndicator* indi = deepin_workspace_indicator_new();
-    gtk_container_add(GTK_CONTAINER(screen->ws_popup), indi);
 }
 
 static gboolean

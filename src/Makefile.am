@@ -159,10 +159,6 @@ libdeepin_metacity_private_la_SOURCES=			\
 	include/deepin-window-surface-manager.h	\
 	ui/deepin-workspace-adder.c 		\
 	include/deepin-workspace-adder.h 	\
-	ui/deepin-name-entry.c      \
-	include/deepin-name-entry.h \
-	ui/deepin-workspace-indicator.c			\
-	include/deepin-workspace-indicator.h	\
 	ui/select-workspace.c		\
 	ui/select-workspace.h		\
 	ui/tile-preview.c			\

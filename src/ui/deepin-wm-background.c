@@ -121,17 +121,6 @@ static void _delete_workspace(DeepinWMBackground*, DeepinShadowWorkspace*);
 static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event,
         gpointer user_data);
 
-static void redeclare_workspace_name(DeepinShadowWorkspace* ws, DeepinWMBackground* self)
-{
-    deepin_shadow_workspace_declare_name(ws);
-}
-    
-static void redeclare_workspace_names(DeepinWMBackground* self)
-{
-    DeepinWMBackgroundPrivate* priv = self->priv;
-    g_list_foreach(priv->worskpace_thumbs, (GFunc)redeclare_workspace_name, self);
-}
-    
 static void relayout(DeepinWMBackground* self)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
@@ -151,8 +140,6 @@ static void relayout(DeepinWMBackground* self)
 
         adder_renewed = TRUE;
     }
-
-    redeclare_workspace_names(self);
 
     GList *l = priv->screen->workspaces;
     gint current = g_list_index(priv->worskpaces, priv->active_workspace);
@@ -747,7 +734,6 @@ static void _delete_workspace(DeepinWMBackground* self,
     gtk_container_remove(GTK_CONTAINER(priv->fixed), (GtkWidget*)ws_thumb);
     gtk_container_remove(GTK_CONTAINER(priv->fixed), (GtkWidget*)ws);
 
-    meta_prefs_change_workspace_name(meta_prefs_get_num_workspaces() - 1, "");
     meta_screen_remove_workspace(priv->screen, workspace);
 
     if (need_switch_active) {
@@ -943,34 +929,15 @@ void deepin_wm_background_handle_event(DeepinWMBackground* self, XIDeviceEvent* 
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
 
-    /* HACK: this is really dirty, better come up with a better 
-     * solution 
-     */
-    GtkWidget* w = gtk_grab_get_current();
-    gboolean intercept = (w && GTK_IS_ENTRY(w));
-    meta_verbose("%s: intercept %d\n", __func__, intercept);
-
-    if (!intercept) {
-        for (int i = 0, len = G_N_ELEMENTS(dispatcher); i < len; i++) {
-            if (dispatcher[i].trigger == keysym) {
-                dispatcher[i].handler(self, event, keysym, action);
-                return;
-            }
+    for (int i = 0, len = G_N_ELEMENTS(dispatcher); i < len; i++) {
+        if (dispatcher[i].trigger == keysym) {
+            dispatcher[i].handler(self, event, keysym, action);
+            return;
         }
-
-    } 
-
-    if (keysym == XK_F2) {
-        // send this to active thumb for editting name
-        DeepinShadowWorkspace* thumb = _find_workspace(priv->worskpace_thumbs,
-                deepin_shadow_workspace_get_workspace(priv->active_workspace));
-        g_assert(thumb != NULL);
-        deepin_shadow_workspace_handle_event(thumb, event, keysym, action);
-
-    } else {
-        /* pass through to active workspace */
-        deepin_shadow_workspace_handle_event(priv->active_workspace,
-                event, keysym, action);
     }
+
+    /* pass through to active workspace */
+    deepin_shadow_workspace_handle_event(priv->active_workspace,
+            event, keysym, action);
 }
 

@@ -40,7 +40,6 @@
 #include "deepin-keybindings.h"
 #include "deepin-wm-background.h"
 #include "deepin-workspace-overview.h"
-#include "deepin-workspace-indicator.h"
 
 #include <X11/keysym.h>
 #include <string.h>
@@ -2711,9 +2710,6 @@ process_workspace_switch_grab (MetaDisplay *display,
   if (screen != display->grab_screen)
     return FALSE;
 
-  g_return_val_if_fail (screen->ws_popup != NULL, FALSE);
-
-
   if (event->evtype == XI_KeyRelease &&
       end_keyboard_grab (display, event->detail))
     {
@@ -2762,10 +2758,6 @@ process_workspace_switch_grab (MetaDisplay *display,
   if (target_workspace && target_workspace != screen->active_workspace)
   {
       meta_verbose("%s: request switch", __func__);
-      GtkWidget* w = gtk_bin_get_child(GTK_BIN(screen->ws_popup));
-      DeepinWorkspaceIndicator* indi = DEEPIN_WORKSPACE_INDICATOR(w);
-      deepin_workspace_indicator_request_workspace_change(indi, target_workspace);
-
       meta_workspace_activate(target_workspace, event->time);
   }
 
@@ -3481,14 +3473,6 @@ handle_workspace_switch  (MetaDisplay    *display,
         }
 
       meta_workspace_activate (next, event->time);
-
-      if (grabbed_before_release)
-        {
-          meta_ui_tab_popup_select (screen->ws_popup, (MetaTabEntryKey) next);
-
-          /* only after selecting proper space */
-          meta_ui_tab_popup_set_showing (screen->ws_popup, TRUE);
-        }
     }
 }
 
