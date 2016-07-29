@@ -48,32 +48,19 @@ static const int ANIMATION_DURATION = 250;
 /**
  * The percent value between workspace clones' horizontal offset and monitor's height.
  */
-static const float HORIZONTAL_OFFSET_PERCENT = 0.03f;
+static const float HORIZONTAL_OFFSET_PERCENT = 0.044f;
 
 /**
  * The percent value between flow workspace's top offset and monitor's height.
  */
-static const float FLOW_CLONE_TOP_OFFSET_PERCENT = 0.24f;
+static const float FLOW_CLONE_TOP_OFFSET_PERCENT = 0.211f;
 
 /**
  * The percent value between distance of flow workspaces and its width.
  */
-static const float FLOW_CLONE_DISTANCE_PERCENT = 0.10f;
-
-
-/* WorkspaceThumbClone */
-static const int WORKSPACE_NAME_WIDTH = 70;
-static const int WORKSPACE_NAME_HEIGHT = 8;  // will pluse NAME_SHAPE_PADDING * 2 when using
-static const int WORKSPACE_NAME_MAX_LENGTH = 32;
-
-// distance between thumbnail workspace clone and workspace name field
-static const int WORKSPACE_NAME_DISTANCE = 26;
-
-// layout spacing for workspace name field
-static const int WORKSPACE_NAME_SPACING = 5;
+static const float FLOW_CLONE_DISTANCE_PERCENT = 0.078f;
 
 static const int THUMB_SHAPE_PADDING = 2;
-static const int NAME_SHAPE_PADDING = 8;
 
 
 /* WorkspaceThumbCloneContainer */

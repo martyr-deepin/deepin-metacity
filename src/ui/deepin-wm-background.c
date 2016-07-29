@@ -147,8 +147,7 @@ static void relayout(DeepinWMBackground* self)
     meta_verbose("current: %d\n", current);
     
     GdkRectangle geom;
-    gint monitor_index = gdk_screen_get_monitor_at_window(priv->gscreen,
-            gtk_widget_get_window(GTK_WIDGET(self)));
+    gint monitor_index = gdk_screen_get_primary_monitor(priv->gscreen);
     gdk_screen_get_monitor_geometry(priv->gscreen, monitor_index, &geom);
             
 
@@ -174,11 +173,8 @@ static void relayout(DeepinWMBackground* self)
 
     while (l) {
         int x = thumb_x + i * (priv->thumb_width + thumb_spacing);
-        int real_height = 0;
-        gtk_widget_get_preferred_height((GtkWidget*)l->data, &real_height, NULL);
-
         deepin_fixed_move(DEEPIN_FIXED(priv->fixed), (GtkWidget*)l->data,
-                x + priv->thumb_width/2, thumb_y + real_height/2,
+                x + priv->thumb_width/2, thumb_y + priv->thumb_height/2,
                 FALSE);
 
         i++;
@@ -450,6 +446,20 @@ static void deepin_wm_background_finalize (GObject *object)
 
 static gboolean deepin_wm_background_real_draw(GtkWidget *widget, cairo_t* cr)
 {
+    DeepinWMBackgroundPrivate* priv = DEEPIN_WM_BACKGROUND(widget)->priv;
+
+    GtkAllocation req;
+    gtk_widget_get_allocation(widget, &req);
+    GtkStyleContext* context = gtk_widget_get_style_context(widget);
+    gtk_render_background(context, cr, 0, 0, req.width, req.height);
+
+    GdkRectangle geom;
+    gint monitor_index = gdk_screen_get_primary_monitor(priv->gscreen);
+    gdk_screen_get_monitor_geometry(priv->gscreen, monitor_index, &geom);
+
+    cairo_rectangle(cr, geom.x, geom.y, geom.width, geom.height);
+    cairo_clip(cr);
+
     return GTK_WIDGET_CLASS(deepin_wm_background_parent_class)->draw(widget, cr);
 }
 
@@ -486,8 +496,7 @@ void deepin_wm_background_switch_workspace(DeepinWMBackground* self,
     priv->active_workspace = next_ws;
 
     GdkRectangle geom;
-    gint monitor_index = gdk_screen_get_monitor_at_window(priv->gscreen,
-            gtk_widget_get_window(GTK_WIDGET(self)));
+    gint monitor_index = gdk_screen_get_primary_monitor(priv->gscreen);
     gdk_screen_get_monitor_geometry(priv->gscreen, monitor_index, &geom);
 
     gint i = 0,
@@ -632,12 +641,9 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
         gtk_widget_show((GtkWidget*)l->data);
 
         int x = thumb_x + i * (priv->thumb_width + thumb_spacing);
-        int real_height = 0;
-        gtk_widget_get_preferred_height((GtkWidget*)l->data, &real_height, NULL);
-
         deepin_fixed_put(DEEPIN_FIXED(priv->fixed), (GtkWidget*)l->data,
                 x + priv->thumb_width/2,
-                thumb_y + real_height/2);
+                thumb_y + priv->thumb_height/2);
 
         i++;
         l = l->next;
@@ -773,8 +779,7 @@ static void _create_workspace(DeepinWMBackground* self)
     priv->workspace_changing = TRUE;
 
     GdkRectangle geom;
-    gint monitor_index = gdk_screen_get_monitor_at_window(priv->gscreen,
-            gtk_widget_get_window(GTK_WIDGET(self)));
+    gint monitor_index = gdk_screen_get_primary_monitor(priv->gscreen);
     gdk_screen_get_monitor_geometry(priv->gscreen, monitor_index, &geom);
 
     MetaWorkspace* new_ws = meta_screen_new_workspace(priv->screen);
@@ -821,12 +826,9 @@ static void _create_workspace(DeepinWMBackground* self)
         int thumb_x = (geom.width - count * (priv->thumb_width + thumb_spacing))/2;
 
         int x = thumb_x + i * (priv->thumb_width + thumb_spacing);
-        int real_height = 0;
-        gtk_widget_get_preferred_height((GtkWidget*)dsw, &real_height, NULL);
-
         deepin_fixed_put(DEEPIN_FIXED(priv->fixed), (GtkWidget*)dsw,
                 x + priv->thumb_width/2, 
-                thumb_y + real_height/2);
+                thumb_y + priv->thumb_height/2);
     }
 
     priv->hover_ws = NULL;
