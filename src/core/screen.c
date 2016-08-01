@@ -3081,7 +3081,10 @@ meta_screen_remove_workspace (MetaScreen *screen,
     GList         *next = NULL;
     gboolean       active_index_changed;
     int            new_num;
+    int            remove_index;
 
+
+    remove_index = meta_workspace_index (workspace);
     l = screen->workspaces;
     while (l) {
         MetaWorkspace *w = l->data;
@@ -3133,6 +3136,7 @@ meta_screen_remove_workspace (MetaScreen *screen,
     }
 
     meta_screen_queue_workarea_recalc (screen);
+    deepin_message_hub_workspace_removed (remove_index);
 }
 
 MetaWorkspace*
@@ -3140,8 +3144,6 @@ meta_screen_new_workspace (MetaScreen   *screen)
 {
   int new_num;
   MetaWorkspace *new_ws;
-
-
 
   new_ws = meta_workspace_new (screen);
 
@@ -3151,6 +3153,8 @@ meta_screen_new_workspace (MetaScreen   *screen)
   meta_prefs_set_num_workspaces (new_num);
 
   meta_screen_queue_workarea_recalc (screen);
+
+  deepin_message_hub_workspace_added (meta_workspace_index (new_ws));
   return new_ws;
 }
 

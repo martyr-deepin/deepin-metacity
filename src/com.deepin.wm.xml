@@ -22,5 +22,11 @@
     <method name="PresentWindows">
         <arg type="au" name="xids" direction="in"/>
     </method>
+    <signal name="WorkspaceRemoved"> 
+        <arg type="i" name="index"/> 
+    </signal> 
+    <signal name="WorkspaceAdded">
+        <arg type="i" name="index"/> 
+    </signal> 
   </interface>
 </node>

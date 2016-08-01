@@ -26,6 +26,8 @@ struct _DeepinMessageHubPrivate
 
 enum
 {
+    SIGNAL_WORKSPACE_ADDED,
+    SIGNAL_WORKSPACE_REMOVED,
     SIGNAL_WINDOW_REMOVED,
     SIGNAL_WINDOW_ADDED,
     SIGNAL_WINDOW_DAMAGED,
@@ -164,6 +166,18 @@ static void deepin_message_hub_class_init (DeepinMessageHubClass *klass)
             G_SIGNAL_RUN_LAST, 0,
             NULL, NULL, NULL,
             G_TYPE_NONE, 1, G_TYPE_POINTER);
+
+    signals[SIGNAL_WORKSPACE_REMOVED] = g_signal_new ("workspace-removed",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 1, G_TYPE_INT);
+
+    signals[SIGNAL_WORKSPACE_ADDED] = g_signal_new ("workspace-added",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 1, G_TYPE_INT);
 }
 
 static void on_message_unable_to_operate(MetaWindow* window, gpointer data)
@@ -203,6 +217,22 @@ static void on_monitors_changed(GdkScreen *gdkscreen, gpointer user_data)
 static void on_screen_resized(GdkScreen *screen, gpointer user_data)
 {
     meta_verbose("%s\n", __func__);
+}
+
+void deepin_message_hub_workspace_added(int index)
+{
+    meta_verbose("%s: %d\n", __func__, index);
+    if (!meta_get_display ()->display_opening) {
+        deepin_dbus_wm_emit_workspace_added (deepin_dbus_service_get (), index);
+    }
+}
+
+void deepin_message_hub_workspace_removed(int index)
+{
+    meta_verbose("%s: %d\n", __func__, index);
+    if (!meta_get_display ()->display_opening) {
+        deepin_dbus_wm_emit_workspace_removed (deepin_dbus_service_get (), index);
+    }
 }
 
 DeepinMessageHub* deepin_message_hub_get()
