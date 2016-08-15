@@ -141,10 +141,16 @@ static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
     priv->solid_mode = TRUE;
 
     if (!scheme || g_str_equal(scheme, "file")) {
-        f = g_file_new_for_uri(uri);
-        if (!f) goto _next;
+        if (!scheme) {
+            f = g_file_new_for_path(uri);
+        } else {
+            f = g_file_new_for_uri(uri);
+        }
 
         path = g_file_get_path(f);
+        if (!path) {
+            goto _next;
+        }
         GError* error = NULL;
         pixbuf = gdk_pixbuf_new_from_file(path, &error);
 
