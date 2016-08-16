@@ -5582,53 +5582,62 @@ meta_window_client_message (MetaWindow *window,
                 (op != META_GRAB_OP_MOVING &&
                  op != META_GRAB_OP_KEYBOARD_MOVING))))
         {
-          /*
-           * the button SHOULD already be included in the message
-           */
-          if (button == 0)
+          guint button_mask = 0;
+
+          meta_topic (META_DEBUG_WINDOW_OPS,
+                      "Beginning move/resize with button = %d\n", button);
+          meta_display_begin_grab_op (window->display,
+                                      window->screen,
+                                      window,
+                                      op,
+                                      FALSE,
+                                      frame_action,
+                                      button, 0,
+                                      timestamp,
+                                      x_root,
+                                      y_root);
+
             {
-              int x, y, query_root_x, query_root_y;
-              Window root, child;
-              guint mask;
+              int dont_care;
+              Window w_dont_care;
 
               /* The race conditions in this _NET_WM_MOVERESIZE thing
                * are mind-boggling
                */
-              mask = 0;
               meta_error_trap_push (window->display);
               XQueryPointer (window->display->xdisplay,
                              window->xwindow,
-                             &root, &child,
-                             &query_root_x, &query_root_y,
-                             &x, &y,
-                             &mask);
+                             &w_dont_care, &w_dont_care,
+                             &dont_care, &dont_care,
+                             &dont_care, &dont_care,
+                             &button_mask);
               meta_error_trap_pop (window->display, TRUE);
-
-              if (mask & Button1Mask)
-                button = 1;
-              else if (mask & Button2Mask)
-                button = 2;
-              else if (mask & Button3Mask)
-                button = 3;
-              else
-                button = 0;
             }
 
-          if (button != 0)
+          if (button == 0)
             {
-              meta_topic (META_DEBUG_WINDOW_OPS,
-                          "Beginning move/resize with button = %d\n", button);
-              meta_display_begin_grab_op (window->display,
-                                          window->screen,
-                                          window,
-                                          op,
-                                          FALSE,
-                                          frame_action,
-                                          button, 0,
-                                          timestamp,
-                                          x_root,
-                                          y_root);
+              /*
+               * the button SHOULD already be included in the message
+               */
+              if ((button_mask & Button1Mask) != 0)
+                button = 1;
+              else if ((button_mask & Button2Mask) != 0)
+                button = 2;
+              else if ((button_mask & Button3Mask) != 0)
+                button = 3;
+
+              if (button != 0)
+                window->display->grab_button = button;
+              else
+                meta_display_end_grab_op (window->display, timestamp);
             }
+          else
+            {
+                meta_verbose ("button %d, button mask is %d\n", button, button_mask);
+              if ((button_mask & (1 << (button+7))) == 0)
+                meta_display_end_grab_op (window->display, timestamp);
+            }
+
         }
 
       return TRUE;
