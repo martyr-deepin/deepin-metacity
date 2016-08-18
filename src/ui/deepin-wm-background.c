@@ -333,6 +333,7 @@ static gboolean on_scroll_timeout(gpointer data)
     return G_SOURCE_REMOVE;
 }
 
+static int scroll_amount = 0;
 static gboolean on_background_scrolled(DeepinWMBackground* self,
                GdkEvent* event, gpointer user_data)
 {
@@ -346,8 +347,12 @@ static gboolean on_background_scrolled(DeepinWMBackground* self,
     meta_verbose("%s, deltas %f, %f, direction %d\n", __func__, dx, dy, scroll.direction);
     if (scroll.direction != GDK_SCROLL_SMOOTH) {
         // non smooth scrolling handling
-        if (scroll.direction == GDK_SCROLL_DOWN || scroll.direction == GDK_SCROLL_RIGHT)
+        if (scroll.direction == GDK_SCROLL_DOWN || scroll.direction == GDK_SCROLL_RIGHT) {
             direction = META_MOTION_RIGHT;
+            scroll_amount--;
+        } else {
+            scroll_amount++;
+        }
     } else {
         //this is smooth scrolling from deepin-wm
 
@@ -376,6 +381,10 @@ static gboolean on_background_scrolled(DeepinWMBackground* self,
         }
     }
 
+    if (abs(scroll_amount) < 1) {
+        return FALSE;
+    }
+    scroll_amount = 0;
     MetaWorkspace* current = deepin_shadow_workspace_get_workspace(priv->active_workspace); 
     MetaWorkspace* next = meta_workspace_get_neighbor(current, direction);
     if (next) {
