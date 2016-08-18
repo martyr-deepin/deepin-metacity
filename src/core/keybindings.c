@@ -2352,7 +2352,6 @@ process_tab_grab (MetaDisplay *display,
            action == META_KEYBINDING_ACTION_SWITCH_GROUP_BACKWARD)
     {
       key_used = TRUE;
-      backward = TRUE;
     }
 
   if (key_used)

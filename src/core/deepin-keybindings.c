@@ -231,10 +231,6 @@ static void do_choose_window (MetaDisplay    *display,
         return;
     }
 
-    /* reverse direction according to initial backward state */
-    if (event->mods.base & ShiftMask)
-        backward = !backward;
-
     initial_selection = meta_display_get_tab_next (display, type,
             screen, screen->active_workspace, NULL, backward);
     if (screen->active_workspace->showing_desktop) {
