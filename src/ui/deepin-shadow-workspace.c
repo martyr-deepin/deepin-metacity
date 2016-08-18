@@ -701,9 +701,10 @@ static void deepin_shadow_workspace_finalize (GObject *object)
     if (priv->disposed) return;
 
     priv->disposed = TRUE;
-
-    g_signal_handlers_disconnect_by_data(G_OBJECT(deepin_message_hub_get()), 
-            self);
+    g_signal_handlers_disconnect_by_data(G_OBJECT(deepin_message_hub_get()), self);
+    g_signal_handlers_disconnect_by_data(self, NULL);
+    g_idle_remove_by_data(self);
+    g_idle_remove_by_data(priv->entry);
 
     if (priv->clones) {
         g_ptr_array_free(priv->clones, FALSE);

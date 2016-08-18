@@ -704,6 +704,9 @@ static void _delete_workspace(DeepinWMBackground* self,
         DeepinShadowWorkspace* ws)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
+    if (meta_screen_get_n_workspaces(priv->screen) <= 1) {
+        return;
+    }
 
     gboolean need_switch_active = FALSE;
 
