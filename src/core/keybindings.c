@@ -536,6 +536,32 @@ add_builtin_keybinding (MetaDisplay          *display,
   return TRUE;
 }
 
+static void
+display_get_keybinding_detail (MetaDisplay   *display,
+                               const char    *name,
+                               unsigned int  *keysym,
+                               unsigned int  *keycode,
+                               unsigned long *mask)
+{
+  int i;
+
+  i = display->n_key_bindings - 1;
+  while (i >= 0)
+    {
+      if (g_strcmp0(display->key_bindings[i].name, name) == 0) 
+        {
+          if (keysym) *keysym = display->key_bindings[i].keysym;
+          if (keycode) *keycode = display->key_bindings[i].keycode;
+          if (mask) *mask = display->key_bindings[i].mask;
+          break;
+        }
+
+      --i;
+    }
+
+  return META_KEYBINDING_ACTION_NONE;
+}
+
 static MetaKeyBindingAction
 display_get_keybinding_action (MetaDisplay  *display,
                                unsigned int  keysym,
@@ -1428,8 +1454,9 @@ meta_display_process_key_event (MetaDisplay *display,
                       "Ending grab op %u on key event sym %s\n",
                       display->grab_op, keysym_to_string (keysym));
           meta_display_end_grab_op (display, device_event->time);
-          return;
         }
+        /* it is still grabbing, return */
+        return;
       }
   /* Do the normal keybindings */
   process_event (display->key_bindings,
@@ -2345,6 +2372,10 @@ process_tab_grab (MetaDisplay *display,
            action == META_KEYBINDING_ACTION_SWITCH_GROUP)
     {
       key_used = TRUE;
+      // reverse direction according to initial backward state 
+      if (event->mods.base & ShiftMask)
+        backward = !backward;
+       
     }
   else if (action == META_KEYBINDING_ACTION_SWITCH_PANELS_BACKWARD ||
            action == META_KEYBINDING_ACTION_SWITCH_WINDOWS_BACKWARD ||
@@ -2352,16 +2383,37 @@ process_tab_grab (MetaDisplay *display,
            action == META_KEYBINDING_ACTION_SWITCH_GROUP_BACKWARD)
     {
       key_used = TRUE;
+      
+      unsigned long kb_mask;
+      const char *name = NULL;
+      switch (action) {
+          case META_KEYBINDING_ACTION_SWITCH_PANELS_BACKWARD: 
+              name = "switch-panels-backward"; break;
+          case META_KEYBINDING_ACTION_SWITCH_WINDOWS_BACKWARD:
+              name = "switch-windows-backward"; break;
+          case META_KEYBINDING_ACTION_SWITCH_APPLICATIONS_BACKWARD:
+              name = "switch-applications-backward"; break;
+          case META_KEYBINDING_ACTION_SWITCH_GROUP_BACKWARD:
+              name = "switch-group-backward"; break;
+      }
+      display_get_keybinding_detail (display, name, NULL, NULL, &kb_mask);
+      if (kb_mask & ShiftMask) 
+        {
+          backward = (event->mods.base & ShiftMask) != 0;
+        }
+      else 
+        {
+          backward = TRUE;
+          // reverse direction according to initial backward state 
+          if (event->mods.base & ShiftMask)
+            backward = !backward;
+        }
     }
 
   if (key_used)
     {
       meta_topic (META_DEBUG_KEYBINDINGS,
                   "Key pressed, moving tab focus in popup\n");
-
-      /* reverse direction according to initial backward state */
-      if (event->mods.base & ShiftMask)
-          backward = !backward;
 
       if (backward)
         deepin_tab_popup_backward (screen->tab_popup);
@@ -3581,28 +3633,28 @@ init_builtin_key_bindings (MetaDisplay *display)
   add_builtin_keybinding (display,
                           "switch-applications",
                           SCHEMA_COMMON_KEYBINDINGS,
-                          META_KEY_BINDING_REVERSES,
+                          META_KEY_BINDING_NONE,
                           META_KEYBINDING_ACTION_SWITCH_APPLICATIONS,
                           (MetaKeyHandlerFunc) handle_switch, META_TAB_LIST_NORMAL);
 
   add_builtin_keybinding (display,
                           "switch-applications-backward",
                           SCHEMA_COMMON_KEYBINDINGS,
-                          REVERSES_AND_REVERSED,
+                          META_KEY_BINDING_IS_REVERSED,
                           META_KEYBINDING_ACTION_SWITCH_APPLICATIONS_BACKWARD,
                           (MetaKeyHandlerFunc) handle_switch, META_TAB_LIST_NORMAL);
 
   add_builtin_keybinding (display,
                           "switch-group",
                           SCHEMA_COMMON_KEYBINDINGS,
-                          META_KEY_BINDING_REVERSES,
+                          META_KEY_BINDING_NONE,
                           META_KEYBINDING_ACTION_SWITCH_GROUP,
                           (MetaKeyHandlerFunc) handle_switch, META_TAB_LIST_GROUP);
 
   add_builtin_keybinding (display,
                           "switch-group-backward",
                           SCHEMA_COMMON_KEYBINDINGS,
-                          REVERSES_AND_REVERSED,
+                          META_KEY_BINDING_IS_REVERSED,
                           META_KEYBINDING_ACTION_SWITCH_GROUP_BACKWARD,
                           (MetaKeyHandlerFunc) handle_switch, META_TAB_LIST_GROUP);
 
