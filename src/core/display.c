@@ -2271,8 +2271,22 @@ event_callback (XEvent   *event,
           if (window && !window->decorated) 
             {
               XWindowAttributes attrs;
+
+              /**
+               * It's possible that this may fail in a slow machine, e.g shenwei
+               */
+              meta_error_trap_push (display);
+              meta_error_trap_push_with_return (display);
               if (XGetWindowAttributes (display->xdisplay, window->xwindow, &attrs))
                 {
+                  if(meta_error_trap_pop_with_return (display, TRUE) != Success)
+                   {
+                      meta_verbose ("Failed to get attributes for window 0x%lx\n",
+                                    event->xmaprequest.window);
+                      meta_error_trap_pop (display, TRUE);
+                      break;
+                   }
+
                   meta_compositor_add_window(display->compositor,
                                              window, window->xwindow, &attrs);
                 }
