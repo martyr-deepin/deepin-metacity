@@ -1634,7 +1634,7 @@ repair_win (MetaCompWindow *cw)
 
   meta_error_trap_push (display);
 
-#if defined(__alpha__) || defined(__mips__) || defined(__arm__)
+#if defined(__alpha__) || defined(__mips__) || defined(__arm__) || defined(__sw_64__)
   parts = win_extents (cw);
   XDamageSubtract (xdisplay, cw->damage, None, None);
 #else
