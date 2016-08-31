@@ -2982,6 +2982,8 @@ meta_window_make_above (MetaWindow  *window)
   meta_window_update_layer (window);
   meta_window_raise (window);
   set_net_wm_state (window);
+
+  meta_window_frame_size_changed (window);
 }
 
 void
@@ -2991,6 +2993,8 @@ meta_window_unmake_above (MetaWindow  *window)
   meta_window_raise (window);
   meta_window_update_layer (window);
   set_net_wm_state (window);
+
+  meta_window_frame_size_changed (window);
 }
 
 void
@@ -3115,7 +3119,8 @@ meta_window_shade (MetaWindow  *window,
     {
       window->shaded = TRUE;
 
-      meta_window_queue(window, META_QUEUE_MOVE_RESIZE | META_QUEUE_CALC_SHOWING);
+      meta_window_queue (window, META_QUEUE_MOVE_RESIZE | META_QUEUE_CALC_SHOWING);
+      meta_window_frame_size_changed (window);
 
       /* After queuing the calc showing, since _focus flushes it,
        * and we need to focus the frame
@@ -3138,7 +3143,9 @@ meta_window_unshade (MetaWindow  *window,
   if (window->shaded)
     {
       window->shaded = FALSE;
-      meta_window_queue(window, META_QUEUE_MOVE_RESIZE | META_QUEUE_CALC_SHOWING);
+
+      meta_window_queue (window, META_QUEUE_MOVE_RESIZE | META_QUEUE_CALC_SHOWING);
+      meta_window_frame_size_changed (window);
 
       /* focus the window */
       meta_topic (META_DEBUG_FOCUS,
@@ -4612,6 +4619,8 @@ window_stick_impl (MetaWindow  *window)
    */
   window->on_all_workspaces = TRUE;
 
+  meta_window_frame_size_changed (window);
+
   /* We do, however, change the MRU lists of all the workspaces
    */
   tmp = window->screen->workspaces;
@@ -4641,6 +4650,8 @@ window_unstick_impl (MetaWindow  *window)
   /* Revert to window->workspaces */
 
   window->on_all_workspaces = FALSE;
+
+  meta_window_frame_size_changed (window);
 
   /* Remove window from MRU lists that it doesn't belong in */
   tmp = window->screen->workspaces;
@@ -5702,6 +5713,7 @@ static void
 meta_window_appears_focused_changed (MetaWindow *window)
 {
   set_net_wm_state (window);
+  meta_window_frame_size_changed (window);
 
   if (window->frame)
     meta_frame_queue_draw (window->frame);
@@ -6497,6 +6509,13 @@ recalc_window_type (MetaWindow *window)
     }
 }
 
+void
+meta_window_frame_size_changed (MetaWindow *window)
+{
+  if (window->frame)
+    meta_frame_clear_cached_borders (window->frame);
+}
+
 static void
 set_allowed_actions_hint (MetaWindow *window)
 {
@@ -6782,6 +6801,8 @@ recalc_window_features (MetaWindow *window)
       old_has_shade_func != window->has_shade_func       ||
       old_always_sticky != window->always_sticky)
     set_allowed_actions_hint (window);
+
+  meta_window_frame_size_changed (window);
 
   /* FIXME perhaps should ensure if we don't have a shade func,
    * we aren't shaded, etc.

@@ -4410,6 +4410,8 @@ meta_display_queue_retheme_all_windows (MetaDisplay *display)
       MetaWindow *window = tmp->data;
 
       meta_window_queue (window, META_QUEUE_MOVE_RESIZE);
+      meta_window_frame_size_changed (window);
+
       if (window->frame)
         {
           window->frame->need_reapply_frame_shape = TRUE;

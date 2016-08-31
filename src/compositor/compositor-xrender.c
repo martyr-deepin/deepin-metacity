@@ -2995,6 +2995,11 @@ process_shape (MetaCompositorXRender *compositor,
       if (!event->shaped && cw->shaped)
         cw->shaped = FALSE;
 
+      resize_win (cw, cw->attrs.x, cw->attrs.y,
+                  event->width + event->x, event->height + event->y,
+                  cw->attrs.border_width, cw->attrs.override_redirect);
+
+
       if (event->shaped && !cw->shaped)
         cw->shaped = TRUE;
 
@@ -3012,10 +3017,6 @@ process_shape (MetaCompositorXRender *compositor,
           cw->shape_bounds.width = cw->attrs.width;
           cw->shape_bounds.height = cw->attrs.height;
         }
-
-      resize_win (cw, cw->attrs.x, cw->attrs.y,
-                  event->width + event->x, event->height + event->y,
-                  cw->attrs.border_width, cw->attrs.override_redirect);
 
     }
 }
