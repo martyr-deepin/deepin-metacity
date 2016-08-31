@@ -2266,30 +2266,21 @@ event_callback (XEvent   *event,
     case MapRequest:
       if (window == NULL)
         {
-          window = meta_window_new (display, event->xmaprequest.window,
-                                    FALSE);
-          if (window && !window->decorated) 
+          Window xwindow;
+          XWindowAttributes attr;
+          int result;
+
+          xwindow = event->xmaprequest.window;
+          window = meta_window_new (display, xwindow, FALSE);
+
+          meta_error_trap_push (display);
+          result = XGetWindowAttributes (display->xdisplay, xwindow, &attr);
+          meta_error_trap_pop (display, TRUE);
+
+          if (result != 0)
             {
-              XWindowAttributes attrs;
-
-              /**
-               * It's possible that this may fail in a slow machine, e.g shenwei
-               */
-              meta_error_trap_push (display);
-              meta_error_trap_push_with_return (display);
-              if (XGetWindowAttributes (display->xdisplay, window->xwindow, &attrs))
-                {
-                  if(meta_error_trap_pop_with_return (display, TRUE) != Success)
-                   {
-                      meta_verbose ("Failed to get attributes for window 0x%lx\n",
-                                    event->xmaprequest.window);
-                      meta_error_trap_pop (display, TRUE);
-                      break;
-                   }
-
-                  meta_compositor_add_window(display->compositor,
-                                             window, window->xwindow, &attrs);
-                }
+              meta_compositor_add_window (display->compositor, window,
+                                          xwindow, &attr);
             }
         }
       /* if frame was receiver it's some malicious send event or something */
