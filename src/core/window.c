@@ -3178,11 +3178,14 @@ window_activate (MetaWindow     *window,
                  MetaClientType  source_indication,
                  MetaWorkspace  *workspace)
 {
+  gboolean allow_workspace_switch = FALSE;
   gboolean can_ignore_outdated_timestamps;
   meta_topic (META_DEBUG_FOCUS,
               "_NET_ACTIVE_WINDOW message sent for %s at time %u "
               "by client type %u.\n",
               window->desc, timestamp, source_indication);
+
+  allow_workspace_switch = (timestamp != 0);
 
   /* Older EWMH spec didn't specify a timestamp; we decide to honor these only
    * if the app specifies that it is a pager.
@@ -3237,6 +3240,7 @@ window_activate (MetaWindow     *window,
      rather than move windows or workspaces.
      See http://bugzilla.gnome.org/show_bug.cgi?id=482354 */
   if (window->xtransient_for == None &&
+      !allow_workspace_switch &&
       !meta_window_located_on_workspace (window, workspace))
     {
       meta_window_set_demands_attention (window);
@@ -3262,7 +3266,11 @@ window_activate (MetaWindow     *window,
   meta_topic (META_DEBUG_FOCUS,
               "Focusing window %s due to activation\n",
               window->desc);
-  meta_window_focus (window, timestamp);
+
+  if (meta_window_located_on_workspace (window, workspace))
+    meta_window_focus (window, timestamp);
+  else
+    meta_workspace_activate_with_focus (window->workspace, window, timestamp);
 }
 
 /* This function exists since most of the functionality in window_activate
