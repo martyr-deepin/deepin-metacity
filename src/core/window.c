@@ -7213,14 +7213,14 @@ check_moveresize_frequency (MetaWindow *window,
 	  double elapsed =
 	    time_diff (&current_time, &window->sync_request_time);
 
-	  if (elapsed < 1000.0)
+	  if (elapsed < 200.0)
 	    {
 	      /* We want to be sure that the timeout happens at
 	       * a time where elapsed will definitely be
-	       * greater than 1000, so we can disable sync
+	       * greater than 200, so we can disable sync
 	       */
 	      if (remaining)
-		*remaining = 1000.0 - elapsed + 100;
+		*remaining = 200.0 - elapsed + 100;
 
 	      return FALSE;
 	    }

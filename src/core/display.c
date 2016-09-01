@@ -1610,7 +1610,8 @@ handle_input_xevent (MetaDisplay  *display, MetaWindow* window, Window modified,
         gboolean frame_was_receiver, XEvent *xev,
         XIEvent *input_event)
 {
-    meta_verbose ("%s type %d\n", __func__, input_event->evtype);
+    meta_verbose ("%s type %d, MetaWindow %s\n", __func__, input_event->evtype, 
+            window?window->desc:NULL);
 
     XIDeviceEvent* dev = (XIDeviceEvent*) input_event;
     XIEnterEvent* enter_ev = (XIEnterEvent*) input_event;
@@ -1658,6 +1659,7 @@ handle_input_xevent (MetaDisplay  *display, MetaWindow* window, Window modified,
                  * button 1.  So for all such events we focus the window.
                  */
                 unmodified = (dev->mods.effective & grab_mask) == 0;
+                meta_verbose ("%s: unmodified %d, mods %x\n", __func__, unmodified, dev->mods.effective);
 
                 if (unmodified || dev->detail == 1)
                 {
@@ -2090,7 +2092,7 @@ event_callback (XEvent   *event,
       if (display->grab_op != META_GRAB_OP_NONE &&
           display->grab_window != NULL &&
           grab_op_is_mouse (display->grab_op))
-        meta_window_handle_mouse_grab_op_event (display->grab_window, event, input_event);
+        meta_window_handle_mouse_grab_op_event (display->grab_window, event, NULL);
     }
 
   if (META_DISPLAY_HAS_SHAPE (display) &&
