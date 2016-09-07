@@ -3312,10 +3312,11 @@ xrender_free_window (MetaCompositor *compositor,
     }
   else
     {
-      xwindow = meta_window_get_xwindow (window); 
+      /*xwindow = meta_window_get_xwindow (window); */
     }
 
-  destroy_win (xrc->display, xwindow, FALSE);
+  if (xwindow != None)
+    destroy_win (xrc->display, xwindow, FALSE);
 #endif
 }
 

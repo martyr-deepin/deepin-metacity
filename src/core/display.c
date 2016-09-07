@@ -2275,14 +2275,17 @@ event_callback (XEvent   *event,
           xwindow = event->xmaprequest.window;
           window = meta_window_new (display, xwindow, FALSE);
 
-          meta_error_trap_push (display);
-          result = XGetWindowAttributes (display->xdisplay, xwindow, &attr);
-          meta_error_trap_pop (display, TRUE);
-
-          if (result != 0)
+          if (window && !window->decorated)
             {
-              meta_compositor_add_window (display->compositor, window,
-                                          xwindow, &attr);
+              meta_error_trap_push (display);
+              result = XGetWindowAttributes (display->xdisplay, xwindow, &attr);
+              meta_error_trap_pop (display, TRUE);
+
+              if (result != 0)
+                {
+                  meta_compositor_add_window (display->compositor, window,
+                                              xwindow, &attr);
+                }
             }
         }
       /* if frame was receiver it's some malicious send event or something */
