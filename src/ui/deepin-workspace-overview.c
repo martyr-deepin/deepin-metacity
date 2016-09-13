@@ -1067,7 +1067,7 @@ static void on_deepin_workspace_overview_show(DeepinWorkspaceOverview* self, gpo
     g_idle_add((GSourceFunc)on_idle, self);
 }
 
-static gboolean on_deepin_workspace_overview_released(DeepinWorkspaceOverview* self,
+static gboolean on_deepin_workspace_overview_pressed(DeepinWorkspaceOverview* self,
                GdkEvent* event, gpointer user_data)
 {
     DeepinWorkspaceOverviewPrivate* priv = self->priv;
@@ -1116,7 +1116,7 @@ GtkWidget* deepin_workspace_overview_new(void)
     
     g_object_connect(G_OBJECT(self),
             "signal::show", on_deepin_workspace_overview_show, NULL,
-            "signal::button-release-event", on_deepin_workspace_overview_released, NULL,
+            "signal::button-press-event", on_deepin_workspace_overview_pressed, NULL,
             NULL);
 
     g_object_connect(G_OBJECT(deepin_message_hub_get()), 
