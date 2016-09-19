@@ -865,7 +865,8 @@ root_tile (MetaScreen *screen)
   Display *xdisplay = meta_display_get_xdisplay (display);
   Picture picture;
   Pixmap pixmap;
-  gboolean fill = FALSE;
+  gboolean free_pixmap;
+  gboolean fill;
   XRenderPictureAttributes pa;
   XRenderPictFormat *format;
   int p;
@@ -875,6 +876,9 @@ root_tile (MetaScreen *screen)
   Window xroot = meta_screen_get_xroot (screen);
 
   pixmap = None;
+  free_pixmap = FALSE;
+  fill = FALSE;
+
   background_atoms[0] = DISPLAY_COMPOSITOR (display)->atom_x_root_pixmap;
   background_atoms[1] = DISPLAY_COMPOSITOR (display)->atom_x_set_root;
 
@@ -898,9 +902,39 @@ root_tile (MetaScreen *screen)
             {
               memcpy (&pixmap, prop, 4);
               XFree (prop);
-              fill = FALSE;
               break;
             }
+        }
+    }
+
+  if (!pixmap)
+    {
+      int width;
+      int height;
+
+      meta_screen_get_size (screen, &width, &height);
+
+      pixmap = XCreatePixmap (xdisplay, xroot, width, height,
+                              DefaultDepth (xdisplay, screen_number));
+
+      if (pixmap)
+        {
+          XGCValues gcv;
+          GC gc;
+
+          gcv.graphics_exposures = False;
+          gcv.subwindow_mode = IncludeInferiors;
+
+          gc = XCreateGC (xdisplay, xroot,
+                          GCGraphicsExposures | GCSubwindowMode,
+                          &gcv);
+
+          XCopyArea (xdisplay, xroot, pixmap, gc, 0, 0, width, height, 0, 0);
+          XSync (xdisplay, False);
+
+          XFreeGC (xdisplay, gc);
+
+          free_pixmap = TRUE;
         }
     }
 
@@ -909,6 +943,8 @@ root_tile (MetaScreen *screen)
       pixmap = XCreatePixmap (xdisplay, xroot, 1, 1,
                               DefaultDepth (xdisplay, screen_number));
       g_return_val_if_fail (pixmap != None, None);
+
+      free_pixmap = TRUE;
       fill = TRUE;
     }
 
@@ -929,8 +965,10 @@ root_tile (MetaScreen *screen)
       c.alpha = 0xffff;
 
       XRenderFillRectangle (xdisplay, PictOpSrc, picture, &c, 0, 0, 1, 1);
-      XFreePixmap (xdisplay, pixmap);
     }
+
+  if (free_pixmap)
+    XFreePixmap (xdisplay, pixmap);
 
   return picture;
 }
@@ -2275,6 +2313,11 @@ get_window_type (MetaDisplay    *display,
 /*   meta_verbose ("Window is %d\n", cw->type); */
 }
 
+static void
+destroy_win (MetaDisplay *display,
+             Window       xwindow,
+             gboolean     gone);
+
 /* Must be called with an error trap in place */
 static void
 add_win (MetaScreen *screen,
@@ -2298,10 +2341,10 @@ add_win (MetaScreen *screen,
     {
       if (window && window->xwindow == cw->id) 
         {
-          meta_verbose ("bind MetaWindow %p with MetaCompWindow\n", window);
-          cw->window = window;
+          meta_verbose ("rebind MetaWindow %p with MetaCompWindow\n", window);
+          destroy_win (display, cw, TRUE);
+          cw = NULL;
         }
-      return;
     }
 
   cw = g_new0 (MetaCompWindow, 1);
@@ -2319,9 +2362,8 @@ add_win (MetaScreen *screen,
 
   /* If Metacity has decided not to manage this window then the input events
      won't have been set on the window */
-  event_mask = cw->attrs.your_event_mask | PropertyChangeMask;
-
-  XSelectInput (xdisplay, xwindow, event_mask);
+  /*event_mask = cw->attrs.your_event_mask | PropertyChangeMask;*/
+  /*XSelectInput (xdisplay, xwindow, event_mask);*/
 
   cw->back_pixmap = None;
   cw->mask_pixmap = None;
@@ -3117,6 +3159,8 @@ xrender_manage_screen (MetaCompositor *compositor,
   if (meta_screen_get_compositor_data (screen))
     return;
 
+  meta_screen_set_cm_selection (screen);
+
   gdk_error_trap_push ();
   XCompositeRedirectSubwindows (xdisplay, xroot, CompositeRedirectManual);
   XSync (xdisplay, FALSE);
@@ -3179,7 +3223,6 @@ xrender_manage_screen (MetaCompositor *compositor,
 
   XClearArea (xdisplay, info->output, 0, 0, 0, 0, TRUE);
 
-  meta_screen_set_cm_selection (screen);
 
   /* Now we're up and running we can show the output if needed */
   show_overlay_window (screen, info->output);
@@ -3228,10 +3271,10 @@ xrender_unmanage_screen (MetaCompositor *compositor,
         g_free (info->shadows[i]->gaussian_map);
     }
 
-  XCompositeUnredirectSubwindows (xdisplay, xroot,
-                                  CompositeRedirectManual);
   meta_screen_unset_cm_selection (screen);
 
+  XCompositeUnredirectSubwindows (xdisplay, xroot,
+                                  CompositeRedirectManual);
   XCompositeReleaseOverlayWindow (xdisplay, info->output);
 
   g_free (info);

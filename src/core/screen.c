@@ -503,6 +503,8 @@ meta_screen_new (MetaDisplay *display,
   /* Wait for old window manager to go away */
   if (current_wm_sn_owner != None)
     {
+      guint timeout = 5 * G_USEC_PER_SEC;
+      guint passed = 0;
       XEvent event;
 
       /* We sort of block infinitely here which is probably lame. */
@@ -512,8 +514,14 @@ meta_screen_new (MetaDisplay *display,
         {
           XWindowEvent (xdisplay, current_wm_sn_owner,
                         StructureNotifyMask, &event);
+          g_usleep(G_USEC_PER_SEC / 10);
+          passed += G_USEC_PER_SEC / 10;
+
+          if (passed > timeout) 
+            return NULL;
         }
       while (event.type != DestroyNotify);
+      g_usleep(G_USEC_PER_SEC);
     }
 
   /* select our root window events */
@@ -735,8 +743,6 @@ meta_screen_free (MetaScreen *screen,
 
   screen->closing += 1;
 
-  meta_display_grab (display);
-
   if (screen->display->compositor)
     {
       meta_compositor_unmanage_screen (screen->display->compositor,
@@ -811,7 +817,6 @@ meta_screen_free (MetaScreen *screen,
   g_free (screen);
 
   XFlush (display->xdisplay);
-  meta_display_ungrab (display);
 }
 
 typedef struct
@@ -2978,6 +2983,73 @@ meta_screen_set_compositor_data (MetaScreen *screen,
 }
 
 #ifdef HAVE_COMPOSITE_EXTENSIONS
+static Window
+take_manager_selection (MetaDisplay *display,
+                        Atom         manager_atom,
+                        Window       xroot,
+                        Window       new_owner,
+                        int          timestamp,
+                        gboolean     should_replace)
+{
+  Display *xdisplay = display->xdisplay;
+  Window current_owner;
+
+  current_owner = XGetSelectionOwner (xdisplay, manager_atom);
+  if (current_owner != None)
+    {
+      XSetWindowAttributes attrs;
+
+      if (should_replace)
+        {
+          /* We want to find out when the current selection owner dies */
+          meta_error_trap_push (display);
+          attrs.event_mask = StructureNotifyMask;
+          XChangeWindowAttributes (xdisplay, current_owner, CWEventMask, &attrs);
+          if (meta_error_trap_pop_with_return (display, FALSE) != Success)
+            current_owner = None; /* don't wait for it to die later on */
+        }
+    }
+
+  /* We need SelectionClear and SelectionRequest events on the new owner,
+   * but those cannot be masked, so we only need NoEventMask.
+   */
+  XSetSelectionOwner (xdisplay, manager_atom, new_owner, timestamp);
+
+  if (XGetSelectionOwner (xdisplay, manager_atom) != new_owner)
+    {
+      meta_warning ("Could not acquire selection: %s", XGetAtomName (xdisplay, manager_atom));
+      abort();
+    }
+
+  {
+    /* Send client message indicating that we are now the selection owner */
+    XClientMessageEvent ev;
+
+    ev.type = ClientMessage;
+    ev.window = xroot;
+    ev.message_type = display->atom_MANAGER;
+    ev.format = 32;
+    ev.data.l[0] = timestamp;
+    ev.data.l[1] = manager_atom;
+
+    XSendEvent (xdisplay, xroot, False, StructureNotifyMask, (XEvent *) &ev);
+  }
+
+  /* Wait for old window manager to go away */
+  if (current_owner != None)
+    {
+      XEvent event;
+
+      /* We sort of block infinitely here which is probably lame. */
+
+      meta_verbose ("Waiting for old window manager to exit\n");
+      do {
+        XWindowEvent (xdisplay, current_owner, StructureNotifyMask, &event);
+        g_usleep(G_USEC_PER_SEC / 10);
+      } while (event.type != DestroyNotify);
+    }
+}
+
 void
 meta_screen_set_cm_selection (MetaScreen *screen)
 {
@@ -2990,8 +3062,9 @@ meta_screen_set_cm_selection (MetaScreen *screen)
   g_snprintf (selection, sizeof(selection), "_NET_WM_CM_S%d", screen->number);
   meta_verbose ("Setting selection: %s\n", selection);
   a = XInternAtom (screen->display->xdisplay, selection, FALSE);
-  XSetSelectionOwner (screen->display->xdisplay, a,
-                      screen->wm_cm_selection_window, screen->wm_cm_timestamp);
+  Window xroot = meta_screen_get_xroot (screen);
+  take_manager_selection (screen->display, a, xroot, screen->wm_cm_selection_window,
+          screen->wm_cm_timestamp, TRUE);
 }
 
 void

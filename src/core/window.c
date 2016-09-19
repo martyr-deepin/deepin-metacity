@@ -348,9 +348,9 @@ meta_window_new_with_attrs (MetaDisplay       *display,
                     wm_state_to_string (existing_wm_state));
     }
 
-  meta_error_trap_push_with_return (display);
-
   XAddToSaveSet (display->xdisplay, xwindow);
+  
+  meta_error_trap_push_with_return (display);
 
   event_mask = PropertyChangeMask | ColormapChangeMask;
 
@@ -1197,6 +1197,13 @@ meta_window_free (MetaWindow  *window,
   XSelectInput (window->display->xdisplay,
                 window->xwindow,
                 NoEventMask);
+
+  {
+    unsigned char mask_bits[XIMaskLen (XI_LASTEVENT)] = { 0 };
+    XIEventMask mask = { XIAllMasterDevices, sizeof (mask_bits), mask_bits };
+
+    XISelectEvents (window->display->xdisplay, window->xwindow, &mask, 1);
+  }
 
   /* Stop getting events for the window's _NET_WM_USER_TIME_WINDOW too */
   if (window->user_time_window != None)
