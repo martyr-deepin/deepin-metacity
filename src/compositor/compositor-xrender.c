@@ -628,9 +628,6 @@ xserver_region_to_cairo_region (Display       *xdisplay,
   int i;
   cairo_region_t *region;
 
-  if (xregion == None)
-    return NULL;
-
   xrects = XFixesFetchRegion (xdisplay, xregion, &nrects);
   if (xrects == NULL)
     return NULL;
@@ -2000,8 +1997,6 @@ free_win (MetaCompWindow *cw,
   Display *xdisplay = meta_display_get_xdisplay (display);
   MetaCompScreen *info = meta_screen_get_compositor_data (cw->screen);
 
-  meta_error_trap_push (display);
-
   /* See comment in map_win */
   if (cw->back_pixmap && destroy)
     {
@@ -2057,7 +2052,7 @@ free_win (MetaCompWindow *cw,
       cw->visible_region = None;
     }
 
-  if (cw->client_region && destroy)
+  if (cw->client_region)
     {
       XFixesDestroyRegion (xdisplay, cw->client_region);
       cw->client_region = None;
@@ -2096,7 +2091,10 @@ free_win (MetaCompWindow *cw,
   if (destroy)
     {
       if (cw->damage != None) {
+        meta_error_trap_push (display);
         XDamageDestroy (xdisplay, cw->damage);
+        meta_error_trap_pop (display, FALSE);
+
         cw->damage = None;
       }
 
@@ -2107,8 +2105,6 @@ free_win (MetaCompWindow *cw,
 
       g_free (cw);
     }
-
-  meta_error_trap_pop (display, TRUE);
 }
 
 static void
@@ -2135,12 +2131,6 @@ map_win (MetaDisplay *display,
     {
       XFreePixmap (xdisplay, cw->mask_pixmap);
       cw->mask_pixmap = None;
-    }
-
-  if (cw->client_region)
-    {
-      XFixesDestroyRegion (xdisplay, cw->client_region);
-      cw->client_region = None;
     }
 
   if (cw->shaded.back_pixmap)
