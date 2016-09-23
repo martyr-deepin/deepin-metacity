@@ -66,6 +66,8 @@ struct _DeepinShadowWorkspacePrivate
 
     void (*close_fnished)(GtkWidget*);
     gpointer close_fnished_data;
+
+    guint idle_id;
 };
 
 typedef struct _ClonedPrivateInfo
@@ -643,6 +645,8 @@ static gboolean on_idle(DeepinShadowWorkspace* self)
         }
         calculate_places(self);
     }
+
+    priv->idle_id = 0;
     return G_SOURCE_REMOVE;
 }
 
@@ -662,8 +666,7 @@ static void _remove_cloned_widget(DeepinShadowWorkspace* self,
         _hide_close_button(self);
     }
 
-    if (priv->ready)
-        g_idle_add((GSourceFunc)on_idle, self);
+    if (priv->ready) on_idle(self);
 }
 
 static void on_window_removed(DeepinMessageHub* hub, MetaWindow* window, 
@@ -694,7 +697,7 @@ static void deepin_shadow_workspace_init (DeepinShadowWorkspace *self)
     gtk_widget_set_has_window(GTK_WIDGET(self), FALSE);
 }
 
-static void deepin_shadow_workspace_finalize (GObject *object)
+static void deepin_shadow_workspace_dispose (GObject *object)
 {
     DeepinShadowWorkspace* self = DEEPIN_SHADOW_WORKSPACE(object);
     DeepinShadowWorkspacePrivate* priv = self->priv;
@@ -706,12 +709,17 @@ static void deepin_shadow_workspace_finalize (GObject *object)
     g_idle_remove_by_data(self);
     g_idle_remove_by_data(priv->entry);
 
+    if (priv->idle_id) {
+        g_source_remove(priv->idle_id);
+        priv->idle_id = 0;
+    }
+
     if (priv->clones) {
         g_ptr_array_free(priv->clones, FALSE);
         priv->clones = NULL;
     }
 
-    G_OBJECT_CLASS (deepin_shadow_workspace_parent_class)->finalize (object);
+    G_OBJECT_CLASS (deepin_shadow_workspace_parent_class)->dispose (object);
 }
 
 static void _style_get_borders (GtkStyleContext *context, GtkBorder *border_out)
@@ -982,7 +990,7 @@ static void deepin_shadow_workspace_class_init (DeepinShadowWorkspaceClass *klas
     widget_class->map = deepin_shadow_workspace_map;
     widget_class->unmap = deepin_shadow_workspace_unmap;
 
-    object_class->finalize = deepin_shadow_workspace_finalize;
+    object_class->dispose = deepin_shadow_workspace_dispose;
 }
 
 static gboolean on_idle_focus_out_entry(GtkWidget* entry)
@@ -1231,7 +1239,7 @@ static gboolean on_deepin_cloned_widget_released(MetaDeepinClonedWidget* cloned,
             meta_workspace_activate(mw->workspace, gdk_event_get_time(event));
         }
         meta_window_activate(mw, gdk_event_get_time(event));
-        g_idle_add((GSourceFunc)on_idle_end_grab, GUINT_TO_POINTER(gdk_event_get_time(event)));
+         g_idle_add((GSourceFunc)on_idle_end_grab, GUINT_TO_POINTER(gdk_event_get_time(event)));
         return TRUE;
     }
 
@@ -1322,7 +1330,11 @@ static gboolean on_close_button_clicked(GtkWidget* widget,
     priv->hovered_clone = NULL;
     _hide_close_button(self);
 
-    g_idle_add((GSourceFunc)on_idle, self);
+    if (priv->idle_id) {
+        g_source_remove(priv->idle_id);
+        priv->idle_id = 0;
+    }
+    priv->idle_id = g_idle_add((GSourceFunc)on_idle, self);
     return TRUE;
 }
 
@@ -1413,7 +1425,11 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
 static void on_deepin_shadow_workspace_show(DeepinShadowWorkspace* self, gpointer data)
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
-    g_idle_add((GSourceFunc)on_idle, self);
+    if (priv->idle_id) {
+        g_source_remove(priv->idle_id);
+        priv->idle_id = 0;
+    }
+    priv->idle_id = g_idle_add((GSourceFunc)on_idle, self);
 }
 
 static gboolean on_deepin_shadow_workspace_released(DeepinShadowWorkspace* self,
@@ -1480,7 +1496,11 @@ static void on_window_change_workspace(DeepinMessageHub* hub, MetaWindow* window
                 "signal::drag-end", on_deepin_cloned_widget_drag_end, self,
                 NULL);
         gtk_widget_show(widget);
-        g_idle_add((GSourceFunc)on_idle, self);
+        if (priv->idle_id) {
+            g_source_remove(priv->idle_id);
+            priv->idle_id = 0;
+        }
+        priv->idle_id = g_idle_add((GSourceFunc)on_idle, self);
 
     } else if (window->workspace == priv->workspace) { // maybe source workspace
         on_window_removed(hub, window, user_data);

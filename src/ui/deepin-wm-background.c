@@ -30,6 +30,7 @@ struct _DeepinWMBackgroundPrivate
     GdkScreen* gscreen;
 
     gint disposed: 1;
+    gint workspace_changing: 1;
 
     GtkWidget* fixed;
 
@@ -44,6 +45,8 @@ struct _DeepinWMBackgroundPrivate
     float scale;
     gint width, height; /* for workspace */
     gint thumb_width, thumb_height; /* for top thumbs */
+
+    guint idle_id;
 
     DeepinShadowWorkspace* hover_ws;
     GtkWidget* close_button; /* for hovered workspace thumb */
@@ -409,6 +412,8 @@ static gboolean _idle_show_close_button(DeepinWMBackground* self)
         _move_close_button_for(self, priv->hover_ws);
         gtk_widget_set_opacity(priv->close_button, 1.0);
     }
+
+    priv->idle_id = 0;
     return G_SOURCE_REMOVE;
 }
 
@@ -419,7 +424,7 @@ static gboolean on_workspace_thumb_entered(DeepinShadowWorkspace* ws_thumb,
     meta_verbose("%s\n", __func__);
 
     self->priv->hover_ws = ws_thumb;
-    g_idle_add((GSourceFunc)_idle_show_close_button, self);
+    self->priv->idle_id = g_idle_add((GSourceFunc)_idle_show_close_button, self);
     return TRUE;
 }
 
@@ -440,6 +445,10 @@ static void deepin_wm_background_dispose (GObject *object)
         priv->disposed = TRUE;
         g_list_free(priv->worskpaces);
         g_list_free(priv->worskpace_thumbs);
+
+        if (priv->idle_id > 0) {
+            g_source_remove(priv->idle_id);
+        }
     }
 
     G_OBJECT_CLASS (deepin_wm_background_parent_class)->dispose (object);
@@ -717,7 +726,11 @@ static void _delete_workspace(DeepinWMBackground* self,
         return;
     }
 
+    meta_verbose("%s\n", __func__);
     gboolean need_switch_active = FALSE;
+    if (priv->workspace_changing) return;
+
+    priv->workspace_changing = TRUE;
 
     _hide_close_button(self);
 
@@ -759,6 +772,8 @@ static void _delete_workspace(DeepinWMBackground* self,
         _move_close_button_for(self, priv->hover_ws);
         gtk_widget_set_opacity(priv->close_button, 1.0);
     }
+
+    priv->workspace_changing = FALSE;
 }
 
 static void _create_workspace(DeepinWMBackground* self)
@@ -767,6 +782,9 @@ static void _create_workspace(DeepinWMBackground* self)
 
     meta_verbose("%s\n", __func__);
     if (meta_screen_get_n_workspaces(priv->screen) >= MAX_WORKSPACE_NUM) return;
+
+    if (priv->workspace_changing) return;
+    priv->workspace_changing = TRUE;
 
     GdkRectangle geom;
     gint monitor_index = gdk_screen_get_monitor_at_window(priv->gscreen,
@@ -835,6 +853,8 @@ static void _create_workspace(DeepinWMBackground* self)
 
     meta_workspace_activate(new_ws, gtk_get_current_event_time());
     deepin_wm_background_switch_workspace(self, new_ws);
+
+    priv->workspace_changing = FALSE;
 }
 
 static void _handle_workspace_creation(DeepinWMBackground* self,
@@ -847,8 +867,13 @@ static void _handle_workspace_deletion(DeepinWMBackground* self,
         XIDeviceEvent* event, KeySym keysym, MetaKeyBindingAction action)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
+    static gint64 last_time = 0;
 
     g_assert(priv->active_workspace);
+    if (!last_time && g_get_monotonic_time() - last_time < 800) {
+        return;
+    }
+    last_time = g_get_monotonic_time();
     _delete_workspace(self, priv->active_workspace);
 }
 
@@ -856,6 +881,8 @@ static void _handle_workspace_goto(DeepinWMBackground* self,
         XIDeviceEvent* event, KeySym keysym, MetaKeyBindingAction action)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
+
+    if (priv->workspace_changing) return;
 
     gint index = keysym - XK_1;
     MetaWorkspace* current = deepin_shadow_workspace_get_workspace(priv->active_workspace); 
@@ -874,6 +901,7 @@ static void _handle_workspace_switch(DeepinWMBackground* self, XIDeviceEvent* ev
         KeySym keysym, MetaKeyBindingAction action)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
+    if (priv->workspace_changing) return;
 
     MetaMotionDirection dir = keysym == XK_Left ? META_MOTION_LEFT:META_MOTION_RIGHT;
     MetaWorkspace* current = deepin_shadow_workspace_get_workspace(priv->active_workspace); 
