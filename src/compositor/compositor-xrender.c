@@ -1322,7 +1322,7 @@ paint_windows (MetaScreen   *screen,
       last = index;
 
       cw = (MetaCompWindow *) index->data;
-      if (!cw->damaged || cw->attrs.map_state != IsViewable)
+      if (!cw->damaged || cw->attrs.map_state == IsUnmapped)
         {
           /* Not damaged */
           continue;
@@ -1425,7 +1425,7 @@ paint_windows (MetaScreen   *screen,
   for (index = last; index; index = index->prev)
     {
       cw = (MetaCompWindow *) index->data;
-      if (!cw->damaged || cw->attrs.map_state != IsViewable)
+      if (!cw->damaged || cw->attrs.map_state == IsUnmapped)
         {
           /* Not damaged */
           continue;
@@ -2959,7 +2959,13 @@ xrender_free_window (MetaCompositor *compositor,
     }
   else
     {
-      /*xwindow = meta_window_get_xwindow (window); */
+      /* FIXME: When an undecorated window is hidden this is called, but the
+       * window does not get readded if it is subsequentally shown again. See:
+       * http://bugzilla.gnome.org/show_bug.cgi?id=504876
+       */
+
+       /*if (window->withdrawn)*/
+         /*xwindow = meta_window_get_xwindow (window); */
     }
 
   if (xwindow != None)
