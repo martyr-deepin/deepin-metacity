@@ -3194,8 +3194,7 @@ window_activate (MetaWindow     *window,
    * that battle later.  Just remove the "FALSE &&" in order to only
    * honor 0 timestamps for pagers.
    */
-  can_ignore_outdated_timestamps =
-    (timestamp != 0 || (FALSE && source_indication != META_CLIENT_TYPE_PAGER));
+  can_ignore_outdated_timestamps = (timestamp != 0);
   if (XSERVER_TIME_IS_BEFORE (timestamp, window->display->last_user_time) &&
       can_ignore_outdated_timestamps)
     {
@@ -5216,6 +5215,7 @@ restack_window (MetaWindow *window,
    case TopIf:
    case BottomIf:
    case Opposite:
+     meta_verbose ("unsupported restack mode\n");
      break;
    default:
     break;

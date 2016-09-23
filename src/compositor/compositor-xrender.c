@@ -30,6 +30,7 @@
 #include <string.h>
 #include <math.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include <gdk/gdk.h>
 #include <cairo/cairo-xlib.h>
@@ -1810,6 +1811,7 @@ map_win (MetaDisplay *display,
   if (cw == NULL)
     return;
 
+  meta_verbose ("%s window %p\n", __func__, id);
   /* The reason we deallocate this here and not in unmap
      is so that we will still have a valid pixmap for
      whenever the window is unmapped */
@@ -2006,8 +2008,17 @@ add_win (MetaScreen *screen,
       if (window && window->xwindow == cw->id) 
         {
           meta_verbose ("rebind MetaWindow %p with MetaCompWindow\n", window);
-          destroy_win (display, cw, TRUE);
-          cw = NULL;
+          cw->window = window;
+          if (!XGetWindowAttributes (xdisplay, xwindow, &cw->attrs))
+            {
+              cw->shape_bounds.x = cw->attrs.x;
+              cw->shape_bounds.y = cw->attrs.y;
+              cw->shape_bounds.width = cw->attrs.width;
+              cw->shape_bounds.height = cw->attrs.height;
+              if (cw->attrs.map_state == IsViewable)
+                map_win (display, screen, xwindow);
+            }
+          return;
         }
     }
 
@@ -2026,8 +2037,8 @@ add_win (MetaScreen *screen,
 
   /* If Metacity has decided not to manage this window then the input events
      won't have been set on the window */
-  /*event_mask = cw->attrs.your_event_mask | PropertyChangeMask;*/
-  /*XSelectInput (xdisplay, xwindow, event_mask);*/
+  event_mask = cw->attrs.your_event_mask | PropertyChangeMask;
+  XSelectInput (xdisplay, xwindow, event_mask);
 
   cw->back_pixmap = None;
   cw->shaded_back_pixmap = None;
@@ -2137,6 +2148,7 @@ restack_win (MetaCompWindow *cw,
   Window previous_above;
   GList *sibling, *next;
 
+  meta_verbose ("%s: cw %p, above 0x%x\n", __func__, cw->id, above);
   screen = cw->screen;
   info = meta_screen_get_compositor_data (screen);
 
@@ -2178,7 +2190,17 @@ restack_win (MetaCompWindow *cw,
         {
           info->windows = g_list_delete_link (info->windows, sibling);
           info->windows = g_list_insert_before (info->windows, index, cw);
+          MetaCompWindow *cw2 = (MetaCompWindow *) index->data;
+          meta_verbose ("stack: insert %p before %p\n", cw->id, cw2->id);
         }
+    }
+
+    for (GList *l = info->windows; l != NULL; l = l->next) {
+        MetaCompWindow *cw = (MetaCompWindow *) l->data;
+        if (cw->window)
+            meta_verbose ("stack window (%s) %s\n", cw->window->desc,
+                    cw->attrs.map_state == IsUnmapped ? "unmapped":
+                    cw->attrs.map_state == IsViewable ? "mapped":"unviewable");
     }
 }
 
@@ -2562,8 +2584,12 @@ process_unmap (MetaCompositorXRender *compositor,
 
 
   cw = find_window_in_display (compositor->display, event->window);
-  if (cw)
-    unmap_win (compositor->display, cw->screen, event->window);
+  if (cw && cw->attrs.map_state == IsViewable) {
+      if (cw->attrs.override_redirect)
+          unmap_win (compositor->display, cw->screen, event->window);
+      else 
+          destroy_win (compositor->display, event->window, FALSE);
+  }
 }
 
 static void
@@ -2964,8 +2990,8 @@ xrender_free_window (MetaCompositor *compositor,
        * http://bugzilla.gnome.org/show_bug.cgi?id=504876
        */
 
-       /*if (window->withdrawn)*/
-         /*xwindow = meta_window_get_xwindow (window); */
+       if (window->withdrawn)
+         xwindow = meta_window_get_xwindow (window); 
     }
 
   if (xwindow != None)
