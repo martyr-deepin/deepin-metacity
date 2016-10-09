@@ -912,6 +912,17 @@ meta_screen_manage_all_windows (MetaScreen *screen)
         continue;
       }
 
+      int i;
+      for (i = 0; i < screen->desktop_bg_windows->len; i++) 
+        {
+          Window xid = g_array_index(screen->desktop_bg_windows, Window, i);
+          if (info->xwindow == xid)
+            {
+              meta_verbose ("Not managing our own windows\n");
+              continue;
+            }
+        }
+
       if (screen->display->compositor)
         meta_compositor_add_window (screen->display->compositor, window,
                                     info->xwindow, &info->attrs);
@@ -950,6 +961,17 @@ meta_screen_composite_all_windows (MetaScreen *screen)
         meta_verbose ("Not managing our own windows\n");
         continue;
       }
+
+      int i;
+      for (i = 0; i < screen->desktop_bg_windows->len; i++) 
+        {
+          Window xid = g_array_index(screen->desktop_bg_windows, Window, i);
+          if (info->xwindow == xid)
+            {
+              meta_verbose ("Not managing our own windows\n");
+              continue;
+            }
+        }
 
       meta_compositor_add_window (display->compositor,
                                   meta_display_lookup_x_window (display,

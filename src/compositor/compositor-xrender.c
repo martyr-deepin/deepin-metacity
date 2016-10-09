@@ -2797,7 +2797,7 @@ xrender_manage_screen (MetaCompositor *compositor,
 
   if (gdk_error_trap_pop ())
     {
-      g_warning ("Another compositing manager is running on screen %i",
+      meta_bug ("Another compositing manager is running on screen %i",
                  screen_number);
       return;
     }
