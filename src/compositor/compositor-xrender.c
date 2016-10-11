@@ -2901,11 +2901,11 @@ xrender_unmanage_screen (MetaCompositor *compositor,
         g_free (info->shadows[i]->gaussian_map);
     }
 
-  meta_screen_unset_cm_selection (screen);
-
+  XCompositeReleaseOverlayWindow (xdisplay, info->output);
   XCompositeUnredirectSubwindows (xdisplay, xroot,
                                   CompositeRedirectManual);
-  XCompositeReleaseOverlayWindow (xdisplay, info->output);
+
+  meta_screen_unset_cm_selection (screen);
 
   g_free (info);
 
