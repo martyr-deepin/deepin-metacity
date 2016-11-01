@@ -333,6 +333,8 @@ void deepin_fixed_move (DeepinFixed  *fixed,
         gboolean   animate)
 {
     DeepinFixedChild* child = get_child(fixed, widget);
+    if (!child) return;
+
     if (child->ai) {
         deepin_fixed_end_animation(fixed, child->ai);
     } 
