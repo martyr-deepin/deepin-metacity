@@ -38,15 +38,16 @@ static void deepin_desktop_background_finalize (GObject *object)
     G_OBJECT_CLASS (deepin_desktop_background_parent_class)->finalize (object);
 }
 
-/* TODO:: change wallpaper according to workspace change */
 static gboolean deepin_desktop_background_real_draw(GtkWidget *widget, cairo_t* cr)
 {
     DeepinDesktopBackground* self = DEEPIN_DESKTOP_BACKGROUND(widget);
+    MetaScreen *screen = meta_get_display()->active_screen;
 
     if (self->priv->monitor >= gdk_screen_get_n_monitors(gdk_screen_get_default()))
         return FALSE;
 
-    cairo_surface_t* bg = deepin_background_cache_get_surface(self->priv->monitor, 1.0);
+    int index = meta_workspace_index(screen->active_workspace);
+    cairo_surface_t* bg = deepin_background_cache_get_surface(self->priv->monitor, index, 1.0);
     if (bg) {
         cairo_set_source_surface(cr, bg, 0, 0);
         cairo_paint(cr);
@@ -87,6 +88,11 @@ static void on_desktop_changed(DeepinMessageHub* hub, DeepinDesktopBackground* s
     gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
+static void on_workspace_switched(DeepinMessageHub* hub, int from, int to, DeepinDesktopBackground* self)
+{
+    gtk_widget_queue_draw(GTK_WIDGET(self));
+}
+
 DeepinDesktopBackground* deepin_desktop_background_new(MetaScreen* screen, gint monitor)
 {
     GtkWidget* widget = (GtkWidget*)g_object_new(DEEPIN_TYPE_DESKTOP_BACKGROUND,
@@ -116,6 +122,7 @@ DeepinDesktopBackground* deepin_desktop_background_new(MetaScreen* screen, gint 
     g_object_connect(G_OBJECT(deepin_message_hub_get()),
             "signal::desktop-changed", on_desktop_changed, widget,
             "signal::screen-changed", on_screen_changed, widget,
+            "signal::workspace-switched", on_workspace_switched, widget,
             NULL);
     return self;
 }

@@ -702,7 +702,6 @@ static void deepin_shadow_workspace_dispose (GObject *object)
     g_signal_handlers_disconnect_by_data(G_OBJECT(deepin_message_hub_get()), self);
     g_signal_handlers_disconnect_by_data(self, NULL);
     g_idle_remove_by_data(self);
-    g_idle_remove_by_data(priv->entry);
 
     if (priv->idle_id) {
         g_source_remove(priv->idle_id);
@@ -811,8 +810,10 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
     }
 
     int primary = gdk_screen_get_primary_monitor(gdk_screen_get_default());
+
+    int index = meta_workspace_index(priv->workspace);
     cairo_surface_t* ref = deepin_background_cache_get_surface(
-            primary, priv->scale);
+            primary, index, priv->scale);
     if (ref != NULL) {
         cairo_set_source_surface(cr, ref, 0, 0);
     }

@@ -950,6 +950,8 @@ void deepin_workspace_overview_populate(DeepinWorkspaceOverview* self,
     DeepinWorkspaceOverviewPrivate* priv = self->priv;
     priv->workspace = ws;
 
+    int workspace_index = meta_workspace_index(priv->workspace);
+
     GdkScreen* screen = gdk_screen_get_default();
     priv->primary = gdk_screen_get_primary_monitor(screen);
     gint n_monitors = gdk_screen_get_n_monitors(screen);
@@ -1048,12 +1050,12 @@ void deepin_workspace_overview_populate(DeepinWorkspaceOverview* self,
                 meta_verbose ("%s: dock offset(%d, %d)\n", __func__, r2.x, r2.y);
             }
             md->desktop_surface = deepin_window_surface_manager_get_combined3(
-                    deepin_background_cache_get_surface(md->monitor, 1.0), 
+                    deepin_background_cache_get_surface(md->monitor, workspace_index, 1.0), 
                     aux1, r1.x, r1.y,
                     aux2, r2.x, r2.y,
                     1.0);
         } else {
-            md->desktop_surface = deepin_background_cache_get_surface(md->monitor, 1.0);
+            md->desktop_surface = deepin_background_cache_get_surface(md->monitor, workspace_index, 1.0);
             cairo_surface_reference(md->desktop_surface);
         }
     }

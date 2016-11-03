@@ -467,6 +467,10 @@ meta_workspace_activate_with_focus (MetaWorkspace *workspace,
       meta_topic (META_DEBUG_FOCUS, "Focusing default window on new workspace\n");
       meta_workspace_focus_default_window (workspace, NULL, timestamp);
     }
+
+  int from = meta_workspace_index (old);
+  int to = meta_workspace_index (workspace);
+  deepin_message_hub_workspace_switched (from, to);
 }
 
 void

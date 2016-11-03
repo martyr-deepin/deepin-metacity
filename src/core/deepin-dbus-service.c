@@ -118,6 +118,20 @@ static gboolean deepin_dbus_service_handle_cancel_hide_windows( DeepinDBusWm *ob
     return TRUE;
 }
 
+static gboolean deepin_dbus_service_handle_change_current_workspace_background (
+        DeepinDBusWm *object,
+        GDBusMethodInvocation *invocation,
+        char *uri, gpointer data)
+{
+    meta_verbose("%s\n", __func__);
+
+    MetaDisplay* display = meta_get_display();
+    int index = meta_workspace_index(display->active_screen->active_workspace);
+    deepin_change_background (index, uri);
+    deepin_dbus_wm_complete_change_current_workspace_background (object, invocation);
+    return TRUE;
+}
+
 static void on_bus_acquired(GDBusConnection *connection,
         const gchar *name, gpointer user_data)
 {
@@ -138,6 +152,8 @@ DeepinDBusWm* deepin_dbus_service_get()
                 "signal::handle_present_windows", deepin_dbus_service_handle_present_windows, NULL,
                 "signal::handle_request_hide_windows", deepin_dbus_service_handle_request_hide_windows,  NULL,
                 "signal::handle_toggle_debug", deepin_dbus_service_handle_toggle_debug, NULL,
+                "signal::handle_change_current_workspace_background",
+                deepin_dbus_service_handle_change_current_workspace_background, NULL,
                 NULL);
 
         g_bus_own_name(G_BUS_TYPE_SESSION, 

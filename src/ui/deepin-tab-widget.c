@@ -19,6 +19,7 @@
 #include <libbamf/libbamf.h>
 #include "boxes.h"
 #include "../core/window-private.h"
+#include "../core/workspace.h"
 #include "deepin-tab-widget.h"
 #include "deepin-design.h"
 #include "deepin-ease.h"
@@ -178,7 +179,9 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
   sx = MIN(sx, sy) * priv->scale;
 
   if (priv->window->type == META_WINDOW_DESKTOP) {
-      cairo_surface_t* ref = deepin_background_cache_get_surface(primary, sx);
+      MetaScreen *screen = meta_get_display()->active_screen;
+      int index = meta_workspace_index(screen->active_workspace);
+      cairo_surface_t* ref = deepin_background_cache_get_surface(primary, index, sx);
       if (ref) {
           x = (w - cairo_image_surface_get_width(ref)) / 2.0,
             y = (h - cairo_image_surface_get_height(ref)) / 2.0;

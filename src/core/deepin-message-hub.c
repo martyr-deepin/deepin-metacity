@@ -28,6 +28,7 @@ enum
 {
     SIGNAL_WORKSPACE_ADDED,
     SIGNAL_WORKSPACE_REMOVED,
+    SIGNAL_WORKSPACE_SWITCHED,
     SIGNAL_WINDOW_REMOVED,
     SIGNAL_WINDOW_ADDED,
     SIGNAL_WINDOW_DAMAGED,
@@ -178,6 +179,12 @@ static void deepin_message_hub_class_init (DeepinMessageHubClass *klass)
             G_SIGNAL_RUN_LAST, 0,
             NULL, NULL, NULL,
             G_TYPE_NONE, 1, G_TYPE_INT);
+
+    signals[SIGNAL_WORKSPACE_SWITCHED] = g_signal_new ("workspace-switched",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_INT);
 }
 
 static void on_message_unable_to_operate(MetaWindow* window, gpointer data)
@@ -223,7 +230,7 @@ void deepin_message_hub_workspace_added(int index)
 {
     meta_verbose("%s: %d\n", __func__, index);
     if (!meta_get_display ()->display_opening) {
-        deepin_dbus_wm_emit_workspace_added (deepin_dbus_service_get (), index);
+        g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_WORKSPACE_ADDED], 0, index);
     }
 }
 
@@ -231,8 +238,14 @@ void deepin_message_hub_workspace_removed(int index)
 {
     meta_verbose("%s: %d\n", __func__, index);
     if (!meta_get_display ()->display_opening) {
-        deepin_dbus_wm_emit_workspace_removed (deepin_dbus_service_get (), index);
+        g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_WORKSPACE_REMOVED], 0, index);
     }
+}
+
+void deepin_message_hub_workspace_switched(int from, int to)
+{
+    meta_verbose("%s: %d -> %d\n", __func__, from, to);
+    g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_WORKSPACE_SWITCHED], 0, from, to);
 }
 
 DeepinMessageHub* deepin_message_hub_get()

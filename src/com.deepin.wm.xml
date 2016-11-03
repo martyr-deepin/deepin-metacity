@@ -22,6 +22,9 @@
     <method name="PresentWindows">
         <arg type="au" name="xids" direction="in"/>
     </method>
+    <method name="ChangeCurrentWorkspaceBackground">
+        <arg type="s" name="uri" direction="in"/>
+    </method>
     <signal name="WorkspaceRemoved"> 
         <arg type="i" name="index"/> 
     </signal> 
