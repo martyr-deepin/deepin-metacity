@@ -650,16 +650,20 @@ static void _remove_cloned_widget(DeepinShadowWorkspace* self,
 {
     DeepinShadowWorkspacePrivate* priv = self->priv;
     
-    MetaWindow* window = meta_deepin_cloned_widget_get_window(clone);
-    g_ptr_array_remove(priv->clones, clone);
-    gtk_container_remove(GTK_CONTAINER(self), (GtkWidget*)clone);
-
-    meta_verbose("%s remove clone for %s\n", __func__, window->desc);
+    if (priv->window_need_focused == clone) {
+        deepin_shadow_workspace_focus_next(self, FALSE);
+    }
 
     if (priv->hovered_clone == clone) {
         priv->hovered_clone = NULL;
         _hide_close_button(self);
     }
+
+    MetaWindow* window = meta_deepin_cloned_widget_get_window(clone);
+    meta_verbose("%s remove clone for %s\n", __func__, window->desc);
+    g_ptr_array_remove(priv->clones, clone);
+    gtk_container_remove(GTK_CONTAINER(self), (GtkWidget*)clone);
+
 
     if (priv->ready) on_idle(self);
 }
@@ -1129,6 +1133,31 @@ static void on_deepin_cloned_widget_drag_end(GtkWidget* widget,
     }
 }
 
+static void close_window(DeepinShadowWorkspace *self, MetaDeepinClonedWidget *clone)
+{
+    meta_verbose("%s\n", __func__);
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+
+    if (!priv->ready) return FALSE;
+
+    if (priv->window_need_focused == clone) {
+        deepin_shadow_workspace_focus_next(self, FALSE);
+    }
+
+    if (priv->hovered_clone == clone) {
+        priv->hovered_clone = NULL;
+        _hide_close_button(self);
+    }
+
+    MetaWindow* window = meta_deepin_cloned_widget_get_window(clone);
+    g_ptr_array_remove(priv->clones, clone);
+    gtk_container_remove(GTK_CONTAINER(self), (GtkWidget*)clone);
+
+    meta_window_delete(window, CurrentTime);
+
+    on_idle(self);
+}
+
 static gboolean on_close_button_clicked(GtkWidget* widget,
                GdkEvent* event, gpointer data)
 {
@@ -1136,23 +1165,7 @@ static gboolean on_close_button_clicked(GtkWidget* widget,
     DeepinShadowWorkspace* self = (DeepinShadowWorkspace*)data;
     DeepinShadowWorkspacePrivate* priv = self->priv;
 
-    if (!priv->ready) return FALSE;
-
-    MetaWindow* meta_window = meta_deepin_cloned_widget_get_window(priv->hovered_clone);
-    GtkWidget* clone = (GtkWidget*)priv->hovered_clone;
-    g_ptr_array_remove(priv->clones, clone);
-    gtk_container_remove(GTK_CONTAINER(self), clone);
-
-    meta_window_delete(meta_window, CurrentTime);
-
-    priv->hovered_clone = NULL;
-    _hide_close_button(self);
-
-    if (priv->idle_id) {
-        g_source_remove(priv->idle_id);
-        priv->idle_id = 0;
-    }
-    priv->idle_id = g_idle_add((GSourceFunc)on_idle, self);
+    close_window(self, priv->hovered_clone);
     return TRUE;
 }
 
@@ -1455,7 +1468,18 @@ void deepin_shadow_workspace_focus_next(DeepinShadowWorkspace* self,
     DeepinShadowWorkspacePrivate* priv = self->priv;
     GPtrArray* clones = priv->clones;
 
-    if (!priv->clones || priv->clones->len == 0) return;
+    if (!priv->clones || priv->clones->len == 0) {
+        priv->window_need_focused = NULL;
+        priv->hovered_clone = NULL;
+        return;
+    }
+
+    // no next window at all
+    if (priv->window_need_focused && priv->clones->len == 1) {
+        priv->window_need_focused = NULL;
+        priv->hovered_clone = NULL;
+        return;
+    }
 
     int i = 0;
     if (priv->window_need_focused) {
@@ -1581,6 +1605,11 @@ void deepin_shadow_workspace_handle_event(DeepinShadowWorkspace* self,
 
         g_idle_add((GSourceFunc)on_idle_end_grab, GUINT_TO_POINTER(event->time));
 
+    } else if (keysym == XK_BackSpace || keysym == XK_Delete || keysym == XK_KP_Delete) {
+        MetaDeepinClonedWidget* clone = deepin_shadow_workspace_get_focused(self);
+        if (clone) {
+            close_window(self, clone);
+        }
     }
 }
 

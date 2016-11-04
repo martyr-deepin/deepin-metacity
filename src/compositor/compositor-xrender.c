@@ -2195,6 +2195,7 @@ restack_win (MetaCompWindow *cw,
         }
     }
 
+#if 0
     for (GList *l = info->windows; l != NULL; l = l->next) {
         MetaCompWindow *cw = (MetaCompWindow *) l->data;
         if (cw->window)
@@ -2202,6 +2203,7 @@ restack_win (MetaCompWindow *cw,
                     cw->attrs.map_state == IsUnmapped ? "unmapped":
                     cw->attrs.map_state == IsViewable ? "mapped":"unviewable");
     }
+#endif
 }
 
 static void
