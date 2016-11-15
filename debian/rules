@@ -1,0 +1,9 @@
+#!/usr/bin/make -f
+%:
+	dh $@ --with autoreconf
+
+LDFLAGS += -Wl,-z,defs -Wl,-O1 -Wl,--as-needed
+
+
+override_dh_autoreconf:
+	NOCONFIGURE=yes ./autogen.sh
