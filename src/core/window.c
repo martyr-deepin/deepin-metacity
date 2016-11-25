@@ -2219,6 +2219,11 @@ meta_window_force_placement (MetaWindow *window)
   window->denied_focus_and_not_transient = FALSE;
 }
 
+static inline gboolean _is_wine_window(MetaWindow* window)
+{
+    return (window->res_class && g_ascii_strncasecmp(window->res_class, "wine", 4) == 0);
+}
+
 /* XXX META_EFFECT_*_MAP */
 void
 meta_window_show (MetaWindow *window)
@@ -2268,7 +2273,8 @@ meta_window_show (MetaWindow *window)
       ( (!place_on_top_on_map && !takes_focus_on_map) ||
       will_be_covered )
     ) {
-      if (meta_window_is_ancestor_of_transient (focus_window, window))
+      if (meta_window_is_ancestor_of_transient (focus_window, window) &&
+              !_is_wine_window(focus_window))
         {
           /* This happens for error dialogs or alerts; these need to remain on
            * top, but it would be confusing to have its ancestor remain
