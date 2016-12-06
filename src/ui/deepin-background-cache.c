@@ -341,6 +341,12 @@ void deepin_change_background (int index, const char* uri)
     change_background (self, index, uri);
 }
 
+char* deepin_get_background_uri (int index)
+{
+    DeepinBackgroundCache *self = deepin_get_background ();
+    return get_picture_filename (self, 0, index);
+}
+
 static void on_workspace_added(DeepinMessageHub* hub, gint index,
         DeepinBackgroundCache* self)
 {

@@ -25,11 +25,18 @@
     <method name="ChangeCurrentWorkspaceBackground">
         <arg type="s" name="uri" direction="in"/>
     </method>
+    <method name="GetCurrentWorkspaceBackground">
+        <arg type="s" name="result" direction="out"/>
+    </method>
     <signal name="WorkspaceRemoved"> 
         <arg type="i" name="index"/> 
     </signal> 
     <signal name="WorkspaceAdded">
         <arg type="i" name="index"/> 
+    </signal> 
+    <signal name="WorkspaceSwitched">
+        <arg type="i" name="from"/> 
+        <arg type="i" name="to"/> 
     </signal> 
   </interface>
 </node>

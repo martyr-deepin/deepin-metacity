@@ -47,6 +47,7 @@ GType deepin_background_cache_get_type (void) G_GNUC_CONST;
 DeepinBackgroundCache* deepin_get_background();
 cairo_surface_t* deepin_background_cache_get_surface(gint monitor, gint workspace, double scale);
 void deepin_change_background (int index, const char* uri);
+char* deepin_get_background_uri (int index);
 
 G_END_DECLS
 

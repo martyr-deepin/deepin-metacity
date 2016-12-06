@@ -14,6 +14,7 @@
 #include <util.h>
 #include "screen-private.h"
 #include "deepin-dbus-service.h"
+#include "deepin-message-hub.h"
 #include "deepin-dbus-wm.h"
 #include "deepin-keybindings.h"
 
@@ -132,6 +133,21 @@ static gboolean deepin_dbus_service_handle_change_current_workspace_background (
     return TRUE;
 }
 
+static gboolean deepin_dbus_service_handle_get_current_workspace_background (
+        DeepinDBusWm *object,
+        GDBusMethodInvocation *invocation,
+        gpointer data)
+{
+    meta_verbose("%s\n", __func__);
+
+    MetaDisplay* display = meta_get_display();
+    int index = meta_workspace_index(display->active_screen->active_workspace);
+    char *uri = deepin_get_background_uri (index);
+    deepin_dbus_wm_complete_get_current_workspace_background (object, invocation, uri);
+    free(uri);
+    return TRUE;
+}
+
 static void on_bus_acquired(GDBusConnection *connection,
         const gchar *name, gpointer user_data)
 {
@@ -139,6 +155,21 @@ static void on_bus_acquired(GDBusConnection *connection,
             G_DBUS_INTERFACE_SKELETON(user_data), 
             connection, "/com/deepin/wm", NULL);
     meta_verbose("%s result %s\n", __func__, ret ? "success":"failure");
+}
+
+static void on_workspace_added (DeepinMessageHub *hub, int index, DeepinDBusWm *object)
+{
+    deepin_dbus_wm_emit_workspace_added (object, index);
+}
+
+static void on_workspace_removed (DeepinMessageHub *hub, int index, DeepinDBusWm *object)
+{
+    deepin_dbus_wm_emit_workspace_removed (object, index);
+}
+
+static void on_workspace_switched (DeepinMessageHub *hub, int from, int to, DeepinDBusWm *object)
+{
+    deepin_dbus_wm_emit_workspace_switched (object, from ,to);
 }
 
 DeepinDBusWm* deepin_dbus_service_get()
@@ -154,6 +185,14 @@ DeepinDBusWm* deepin_dbus_service_get()
                 "signal::handle_toggle_debug", deepin_dbus_service_handle_toggle_debug, NULL,
                 "signal::handle_change_current_workspace_background",
                 deepin_dbus_service_handle_change_current_workspace_background, NULL,
+                "signal::handle_get_current_workspace_background",
+                deepin_dbus_service_handle_get_current_workspace_background, NULL,
+                NULL);
+
+        g_object_connect (G_OBJECT(deepin_message_hub_get ()),
+                "signal::workspace-added", on_workspace_added, _the_service,
+                "signal::workspace-removed", on_workspace_removed, _the_service,
+                "signal::workspace-switched", on_workspace_switched, _the_service,
                 NULL);
 
         g_bus_own_name(G_BUS_TYPE_SESSION, 
