@@ -58,6 +58,7 @@ void deepin_shadow_workspace_set_thumb_mode(DeepinShadowWorkspace*, gboolean);
  * NOTE: this must be set before populate 
  */
 void deepin_shadow_workspace_set_enable_drag(DeepinShadowWorkspace*, gboolean);
+gboolean deepin_shadow_workspace_is_dragging(DeepinShadowWorkspace*);
 
 gboolean deepin_shadow_workspace_get_is_thumb_mode(DeepinShadowWorkspace*);
 gboolean deepin_shadow_workspace_get_is_current(DeepinShadowWorkspace*);

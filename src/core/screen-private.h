@@ -169,7 +169,10 @@ MetaWorkspace* meta_screen_get_workspace_by_index (MetaScreen    *screen,
                                                    int            index);
 
 MetaWorkspace* meta_screen_new_workspace      (MetaScreen                 *screen);
-void           meta_screen_remove_workspace   (MetaScreen                 *screen,
+void          meta_screen_reorder_workspace   (MetaScreen                 *screen,
+                                               MetaWorkspace              *workspace,
+                                               int                         new_index);
+void          meta_screen_remove_workspace    (MetaScreen                 *screen,
                                                MetaWorkspace              *workspace);
 void          meta_screen_set_cursor          (MetaScreen                 *screen,
                                                MetaCursor                  cursor);

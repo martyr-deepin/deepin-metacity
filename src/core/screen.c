@@ -3072,6 +3072,54 @@ meta_screen_unset_cm_selection (MetaScreen *screen)
                       None, screen->wm_cm_timestamp);
 }
 
+void
+meta_screen_reorder_workspace (MetaScreen    *screen,
+        MetaWorkspace *workspace,
+        int            new_index)
+{
+  GList     *l;
+  int       index;
+  int       from, to;
+  int       active_index;
+
+  active_index = meta_workspace_index(screen->active_workspace);
+  l = g_list_find (screen->workspaces, workspace);
+  if (!l)
+    return;
+
+  index = meta_workspace_index (workspace);
+  if (new_index == index) 
+    return;
+
+  if (new_index < index) {
+      from = new_index;
+      to = index;
+  } else {
+      from = index;
+      to = new_index;
+  }
+
+  screen->workspaces = g_list_remove_link (screen->workspaces, l);
+  screen->workspaces = g_list_insert (screen->workspaces, l->data, new_index);
+
+  if (active_index != meta_workspace_index(screen->active_workspace))
+    {
+      guint32 timestamp =
+          meta_display_get_current_time_roundtrip (screen->display);
+      meta_workspace_activate (screen->active_workspace, timestamp);
+    }
+
+  for (; from <= to; from++) 
+    {
+      MetaWorkspace *w = g_list_nth_data(screen->workspaces, from);
+      meta_workspace_update_window_hints (w);
+    }
+
+  meta_screen_queue_workarea_recalc (screen);
+
+  deepin_message_hub_workspace_reordered (index, new_index);
+}
+
 void 
 meta_screen_remove_workspace (MetaScreen *screen,
         MetaWorkspace *workspace)

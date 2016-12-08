@@ -41,6 +41,10 @@ struct _DeepinShadowWorkspacePrivate
     gint ready: 1; /* if dynamic, this is set after presentation finished, 
                       else, set when window placements are done */
     gint draggable: 1;
+    gint dragging: 1;
+    gint in_drag: 1; /* determine if mouse drag starts */
+
+    gint drag_start_x, drag_start_y;
 
     gint primary; /* primary monitor # */
     GdkRectangle mon_geom; /* primary monitor size */
@@ -912,6 +916,7 @@ static void deepin_shadow_workspace_realize (GtkWidget *widget)
     attributes.event_mask = gtk_widget_get_events (widget);
     attributes.event_mask |= (GDK_BUTTON_PRESS_MASK |
             GDK_BUTTON_RELEASE_MASK |
+            GDK_POINTER_MOTION_MASK |
             GDK_ENTER_NOTIFY_MASK |
             GDK_EXPOSURE_MASK |
             GDK_LEAVE_NOTIFY_MASK);
@@ -993,6 +998,7 @@ static gboolean on_deepin_cloned_widget_leaved(MetaDeepinClonedWidget* cloned,
 
     meta_verbose ("%s\n", __func__);
     if (self->priv->thumb_mode) {
+        self->priv->hovered_clone = NULL;
         return FALSE;
     }
 
@@ -1026,8 +1032,9 @@ static gboolean on_deepin_cloned_widget_entered(MetaDeepinClonedWidget* cloned,
     if (!priv->ready) return FALSE;
     meta_verbose ("%s\n", __func__);
 
+    priv->hovered_clone = cloned;
+
     if (!priv->thumb_mode) {
-        priv->hovered_clone = cloned;
         if (priv->ready) {
             _move_close_button_for(self, cloned);
             gtk_widget_set_opacity(priv->close_button, 1.0);
@@ -1088,7 +1095,7 @@ static gboolean on_deepin_cloned_widget_released(MetaDeepinClonedWidget* cloned,
     }
 
     switch (event->button.button) {
-        case 1: {
+        case GDK_BUTTON_PRIMARY: {
             MetaWindow* mw = meta_deepin_cloned_widget_get_window(cloned);
             if (mw->workspace && mw->workspace != mw->screen->active_workspace) {
                 meta_workspace_activate(mw->workspace, gdk_event_get_time(event));
@@ -1117,11 +1124,9 @@ static gboolean on_deepin_cloned_widget_motion(MetaDeepinClonedWidget* cloned,
         priv->hovered_clone = cloned;
         _move_close_button_for(self, priv->hovered_clone);
         gtk_widget_set_opacity(priv->close_button, 1.0);
-        return TRUE;
     }
 
-    /* pass to parent workspace */
-    return FALSE;
+    return TRUE;
 }
 
 static void on_deepin_cloned_widget_drag_begin(GtkWidget* widget,
@@ -1270,6 +1275,43 @@ static void on_deepin_shadow_workspace_show(DeepinShadowWorkspace* self, gpointe
     priv->idle_id = g_idle_add((GSourceFunc)on_idle, self);
 }
 
+static gboolean on_deepin_shadow_workspace_pressed(DeepinShadowWorkspace* self,
+               GdkEvent* event, gpointer user_data)
+{
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+    meta_verbose("%s: ws%d(%s)\n", __func__, meta_workspace_index(priv->workspace),
+            priv->thumb_mode ? "thumb":"normal");
+
+    if (!priv->ready) {
+        return TRUE;
+    }
+
+    if (priv->thumb_mode) {
+        /**
+         * NOTE: when a dragging about to start on the cloned,
+         * button pressed event sends to parent shadow ws (WTF?),
+         * so I need to do this hack 
+         */
+        if (priv->hovered_clone) {
+            return FALSE;
+        }
+
+        if (event->button.button == GDK_BUTTON_PRIMARY) {
+            priv->in_drag = TRUE;
+            priv->drag_start_x = event->button.x;
+            priv->drag_start_y = event->button.y;
+        } else {
+            priv->in_drag = FALSE;
+        }
+    }
+
+    if (priv->hovered_clone) {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
 static gboolean on_deepin_shadow_workspace_released(DeepinShadowWorkspace* self,
                GdkEvent* event, gpointer user_data)
 {
@@ -1277,18 +1319,67 @@ static gboolean on_deepin_shadow_workspace_released(DeepinShadowWorkspace* self,
     meta_verbose("%s: ws%d(%s)\n", __func__, meta_workspace_index(priv->workspace),
             priv->thumb_mode ? "thumb":"normal");
 
+    if (priv->thumb_mode && event->button.button == GDK_BUTTON_PRIMARY) {
+        priv->in_drag = FALSE;
+        priv->dragging = FALSE;
+        return FALSE;
+    }
+
     if (!priv->selected) return FALSE;
 
     if (!priv->ready || priv->hovered_clone) return TRUE;
 
-    if (!priv->thumb_mode) {
+    if (!priv->thumb_mode && !priv->dragging) {
         g_idle_add((GSourceFunc)on_idle_end_grab, gdk_event_get_time(event));
         return TRUE;
     }
     
+
     //TODO: do workspace change if the pressed is not current
     //bubble up to parent to determine what to do
     return FALSE;
+}
+
+static gboolean on_deepin_shadow_workspace_motion(DeepinShadowWorkspace *self,
+               GdkEvent* event, gpointer data)
+{
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+    if (!priv->ready) return FALSE;
+
+    if (priv->thumb_mode) {
+        if (priv->hovered_clone) {
+            return FALSE;
+        }
+
+        if (priv->in_drag) {
+            if (meta_screen_get_n_workspaces(priv->workspace->screen) <= 1) {
+                return FALSE;
+            }
+
+            if (gtk_drag_check_threshold(self,
+                        priv->drag_start_x, priv->drag_start_y,
+                        event->button.x, event->button.y)) {
+                meta_verbose("%s initial dragging\n", __func__);
+
+                GtkTargetEntry targets[] = {
+                    {(char*)"workspace", GTK_TARGET_OTHER_WIDGET, DRAG_TARGET_WORKSPACE},
+                };
+
+                GtkTargetList *target_list = gtk_target_list_new(targets, G_N_ELEMENTS(targets));
+                GdkDragContext * ctx = gtk_drag_begin_with_coordinates (GTK_WIDGET(self),
+                        target_list,
+                        GDK_ACTION_COPY,
+                        1,
+                        event,
+                        priv->drag_start_x,
+                        priv->drag_start_y);
+                gtk_target_list_unref (target_list);
+                priv->in_drag = 0;
+            }
+        }
+    }
+
+    return TRUE;
 }
 
 static void on_window_change_workspace(DeepinMessageHub* hub, MetaWindow* window,
@@ -1345,7 +1436,7 @@ static void on_window_change_workspace(DeepinMessageHub* hub, MetaWindow* window
     }
 }
     
-static void on_drag_data_received(GtkWidget* widget, GdkDragContext* context,
+static void on_deepin_shadow_workspace_drag_data_received(GtkWidget* widget, GdkDragContext* context,
         gint x, gint y, GtkSelectionData *data, guint info,
         guint time, gpointer user_data)
 {
@@ -1383,11 +1474,75 @@ static void on_drag_data_received(GtkWidget* widget, GdkDragContext* context,
         gtk_drag_finish(context, FALSE, FALSE, time);
 }
 
-static gboolean on_drag_drop(GtkWidget* widget, GdkDragContext* context,
+static gboolean on_deepin_shadow_workspace_drag_drop(GtkWidget* widget, GdkDragContext* context,
                gint x, gint y, guint time, gpointer user_data)
 {
     meta_verbose("%s\n", __func__);
     return FALSE;
+}
+
+
+static void on_deepin_shadow_workspace_drag_data_get(GtkWidget* widget, GdkDragContext* context,
+        GtkSelectionData* data, guint info, guint time, gpointer user_data)
+{
+    static GdkAtom atom_ws = GDK_NONE;
+    
+    if (atom_ws == GDK_NONE) 
+        atom_ws = gdk_atom_intern("deepin-workspace", FALSE);
+    g_assert(atom_ws != GDK_NONE);
+
+    gchar* raw_data = g_strdup_printf("%ld", widget);
+
+    meta_verbose("%s: set data %x\n", __func__, widget);
+    gtk_selection_data_set(data, atom_ws, 8, raw_data, strlen(raw_data));
+    g_free(raw_data);
+}
+
+static void on_deepin_shadow_workspace_drag_begin(GtkWidget* widget, GdkDragContext *context,
+               gpointer user_data)
+{
+    meta_verbose("%s\n", __func__);
+    DeepinShadowWorkspacePrivate* priv = DEEPIN_SHADOW_WORKSPACE(widget)->priv;
+
+    cairo_surface_t* dest = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
+            priv->fixed_width, priv->fixed_height);
+
+    cairo_t* cr = cairo_create(dest);
+    cairo_push_group(cr);
+    gtk_widget_draw(widget, cr);
+    cairo_pop_group_to_source(cr);
+    cairo_paint_with_alpha(cr, 0.7);
+    cairo_destroy(cr);
+
+    cairo_surface_set_device_offset(dest, -priv->fixed_width/2 , -priv->fixed_height/2);
+    gtk_drag_set_icon_surface(context, dest);
+
+    gtk_widget_set_opacity(widget, 0.1);
+    cairo_surface_destroy(dest);
+
+    priv->dragging = TRUE;
+}
+
+static void on_deepin_shadow_workspace_drag_end(GtkWidget* widget, GdkDragContext *context,
+               gpointer user_data)
+{
+    meta_verbose("%s\n", __func__);
+    DeepinShadowWorkspace* self = DEEPIN_SHADOW_WORKSPACE(widget);
+    gtk_widget_set_opacity(widget, 1.0);
+
+    self->priv->dragging = FALSE;
+
+    //HACK: drag broken the grab, need to restore here
+    deepin_message_hub_drag_end();
+}
+    
+static gboolean on_deepin_shadow_workspace_drag_failed(GtkWidget      *widget,
+               GdkDragContext *context, GtkDragResult   result,
+               gpointer        user_data)
+{
+    /* cut off default processing (fail animation), which may 
+     * case a confliction when we regrab pointer later */
+    return TRUE;
 }
 
 GtkWidget* deepin_shadow_workspace_new(void)
@@ -1413,8 +1568,12 @@ GtkWidget* deepin_shadow_workspace_new(void)
     g_object_connect(G_OBJECT(self),
             "signal::show", on_deepin_shadow_workspace_show, NULL,
             "signal::button-release-event", on_deepin_shadow_workspace_released, NULL,
-            "signal::drag-data-received", on_drag_data_received, NULL, 
-            "signal::drag-drop", on_drag_drop, NULL, 
+            "signal::button-press-event", on_deepin_shadow_workspace_pressed, NULL,
+            "signal::motion-notify-event", on_deepin_shadow_workspace_motion, NULL,
+
+            // for as drop site
+            "signal::drag-data-received", on_deepin_shadow_workspace_drag_data_received, NULL, 
+            "signal::drag-drop", on_deepin_shadow_workspace_drag_drop, NULL, 
             NULL);
 
     g_object_connect(G_OBJECT(deepin_message_hub_get()), 
@@ -1466,10 +1625,25 @@ void deepin_shadow_workspace_set_thumb_mode(DeepinShadowWorkspace* self,
         gtk_style_context_remove_class(context, "deepin-workspace-clone"); 
         deepin_setup_style_class(GTK_WIDGET(self), "deepin-workspace-thumb-clone");
 
+        g_object_connect(G_OBJECT(self),
+                // for as dragging target
+                "signal::drag-data-get", on_deepin_shadow_workspace_drag_data_get, NULL,
+                "signal::drag-begin", on_deepin_shadow_workspace_drag_begin, NULL,
+                "signal::drag-end", on_deepin_shadow_workspace_drag_end, NULL,
+                "signal::drag-failed", on_deepin_shadow_workspace_drag_failed, NULL,
+                NULL);
+
     } else {
         GtkStyleContext* context = gtk_widget_get_style_context(GTK_WIDGET(self));
         gtk_style_context_remove_class(context, "deepin-workspace-thumb-clone");
         deepin_setup_style_class(GTK_WIDGET(self), "deepin-workspace-clone"); 
+
+        g_object_disconnect(G_OBJECT(self),
+                "signal::drag-data-get", on_deepin_shadow_workspace_drag_data_get, NULL,
+                "signal::drag-begin", on_deepin_shadow_workspace_drag_begin, NULL,
+                "signal::drag-end", on_deepin_shadow_workspace_drag_end, NULL,
+                "signal::drag-failed", on_deepin_shadow_workspace_drag_failed, NULL,
+                NULL);
     }
 }
 
@@ -1649,20 +1823,26 @@ void deepin_shadow_workspace_set_enable_drag(DeepinShadowWorkspace* self, gboole
     DeepinShadowWorkspacePrivate* priv = self->priv;
     if (priv->draggable != val) {
         priv->draggable = val;
-        
+        /*
+         * the first target is for dragging clonedwidget
+         * the second is for dragging ws thumb to be deleted
+         */
         static GtkTargetEntry targets[] = {
             {(char*)"window", GTK_TARGET_OTHER_WIDGET, DRAG_TARGET_WINDOW},
         };
 
         if (val) {
+            // as drop target
             gtk_drag_dest_set(GTK_WIDGET(self),
                     GTK_DEST_DEFAULT_MOTION | GTK_DEST_DEFAULT_DROP,
-                    targets, G_N_ELEMENTS(targets), GDK_ACTION_COPY);
-        } else {
-            gtk_drag_dest_set(NULL,
-                    GTK_DEST_DEFAULT_MOTION | GTK_DEST_DEFAULT_DROP,
-                    targets, G_N_ELEMENTS(targets), GDK_ACTION_COPY);
+                    targets, 1, GDK_ACTION_COPY);
+
         }
     }
+}
+
+gboolean deepin_shadow_workspace_is_dragging(DeepinShadowWorkspace* self)
+{
+    return self->priv->dragging;
 }
 

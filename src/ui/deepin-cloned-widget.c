@@ -523,7 +523,7 @@ static void meta_deepin_cloned_widget_class_init (MetaDeepinClonedWidgetClass *k
             G_TYPE_NONE, 0, NULL);
 }
 
-static void on_drag_data_get(GtkWidget* widget, GdkDragContext* context,
+static void on_deepin_cloned_widget_drag_data_get(GtkWidget* widget, GdkDragContext* context,
         GtkSelectionData* data, guint info, guint time, gpointer user_data)
 {
     static GdkAtom atom_window = GDK_NONE;
@@ -534,15 +534,15 @@ static void on_drag_data_get(GtkWidget* widget, GdkDragContext* context,
 
     gchar* raw_data = g_strdup_printf("%ld", widget);
 
-    meta_verbose("%s: set data %x", __func__, widget);
+    meta_verbose("%s: set data %x\n", __func__, widget);
     gtk_selection_data_set(data, atom_window, 8, raw_data, strlen(raw_data));
     g_free(raw_data);
 }
 
-static void on_drag_begin(GtkWidget* widget, GdkDragContext *context,
+static void on_deepin_cloned_widget_drag_begin(GtkWidget* widget, GdkDragContext *context,
                gpointer user_data)
 {
-    meta_verbose("%s", __func__);
+    meta_verbose("%s\n", __func__);
     MetaDeepinClonedWidgetPrivate* priv = META_DEEPIN_CLONED_WIDGET(widget)->priv;
 
     gint w = cairo_image_surface_get_width(priv->snapshot); 
@@ -568,7 +568,7 @@ static void on_drag_begin(GtkWidget* widget, GdkDragContext *context,
     priv->dragging = TRUE;
 }
 
-static void on_drag_end(GtkWidget* widget, GdkDragContext *context,
+static void on_deepin_cloned_widget_drag_end(GtkWidget* widget, GdkDragContext *context,
                gpointer user_data)
 {
     meta_verbose("%s", __func__);
@@ -581,7 +581,7 @@ static void on_drag_end(GtkWidget* widget, GdkDragContext *context,
     deepin_message_hub_drag_end();
 }
     
-static gboolean on_drag_failed(GtkWidget      *widget,
+static gboolean on_deepin_cloned_widget_drag_failed(GtkWidget      *widget,
                GdkDragContext *context, GtkDragResult   result,
                gpointer        user_data)
 {
@@ -600,10 +600,10 @@ GtkWidget * meta_deepin_cloned_widget_new (MetaWindow* meta, gboolean show_icon)
     deepin_setup_style_class(GTK_WIDGET(widget), "deepin-window-clone");
 
     g_object_connect(G_OBJECT(widget), 
-            "signal::drag-data-get", on_drag_data_get, NULL,
-            "signal::drag-begin", on_drag_begin, NULL,
-            "signal::drag-end", on_drag_end, NULL,
-            "signal::drag-failed", on_drag_failed, NULL,
+            "signal::drag-data-get", on_deepin_cloned_widget_drag_data_get, NULL,
+            "signal::drag-begin", on_deepin_cloned_widget_drag_begin, NULL,
+            "signal::drag-end", on_deepin_cloned_widget_drag_end, NULL,
+            "signal::drag-failed", on_deepin_cloned_widget_drag_failed, NULL,
             NULL);
 
     if (show_icon) {

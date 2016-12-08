@@ -38,10 +38,6 @@ struct _MetaDeepinClonedWidgetClass
   GtkWidgetClass parent_class;
 };
 
-enum {
-    DRAG_TARGET_WINDOW,
-};
-
 GType meta_deepin_cloned_widget_get_type(void) G_GNUC_CONST;
 GtkWidget *meta_deepin_cloned_widget_new(MetaWindow*, gboolean);
 void meta_deepin_cloned_widget_select(MetaDeepinClonedWidget *);

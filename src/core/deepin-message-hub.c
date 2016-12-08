@@ -29,6 +29,7 @@ enum
     SIGNAL_WORKSPACE_ADDED,
     SIGNAL_WORKSPACE_REMOVED,
     SIGNAL_WORKSPACE_SWITCHED,
+    SIGNAL_WORKSPACE_REORDERED,
     SIGNAL_WINDOW_REMOVED,
     SIGNAL_WINDOW_ADDED,
     SIGNAL_WINDOW_DAMAGED,
@@ -185,6 +186,12 @@ static void deepin_message_hub_class_init (DeepinMessageHubClass *klass)
             G_SIGNAL_RUN_LAST, 0,
             NULL, NULL, NULL,
             G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_INT);
+
+    signals[SIGNAL_WORKSPACE_REORDERED] = g_signal_new ("workspace-reordered",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_INT);
 }
 
 static void on_message_unable_to_operate(MetaWindow* window, gpointer data)
@@ -246,6 +253,12 @@ void deepin_message_hub_workspace_switched(int from, int to)
 {
     meta_verbose("%s: %d -> %d\n", __func__, from, to);
     g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_WORKSPACE_SWITCHED], 0, from, to);
+}
+
+void deepin_message_hub_workspace_reordered(int index, int new_index)
+{
+    meta_verbose("%s: %d -> %d\n", __func__, index, new_index);
+    g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_WORKSPACE_REORDERED], 0, index, new_index);
 }
 
 DeepinMessageHub* deepin_message_hub_get()

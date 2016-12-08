@@ -529,6 +529,143 @@ static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer use
     return TRUE;
 }
 
+static void reorder_workspace(DeepinWMBackground *self, MetaWorkspace *ws, int new_index)
+{
+    DeepinWMBackgroundPrivate* priv = self->priv;
+    fprintf(stderr, "%s: from #%d -> #%d\n", __func__, meta_workspace_index(ws), new_index);
+
+    int old_index = meta_workspace_index(ws);
+    DeepinShadowWorkspace *dsw_dragging = g_list_nth_data(priv->worskpaces, old_index);
+    priv->worskpaces = g_list_remove(priv->worskpaces, dsw_dragging);
+    priv->worskpaces = g_list_insert(priv->worskpaces, dsw_dragging, new_index);
+
+    meta_screen_reorder_workspace (ws->screen, ws, new_index);
+
+    relayout(self);
+}
+
+static void on_deepin_wm_background_drag_data_received(GtkWidget* widget, GdkDragContext* context,
+        gint x, gint y, GtkSelectionData *data, guint info,
+        guint time, gpointer user_data)
+{
+    DeepinWMBackground* self = DEEPIN_WM_BACKGROUND(widget);
+    DeepinWMBackgroundPrivate* priv = self->priv;
+
+    meta_verbose("%s: x %d, y %d\n", __func__, x, y);
+    fprintf(stderr, "%s: x %d, y %d\n", __func__, x, y);
+
+    const guchar* raw_data = gtk_selection_data_get_data(data);
+    if (raw_data) {
+        gpointer p = (gpointer)atol(raw_data);
+        DeepinShadowWorkspace* dsw_dragging = DEEPIN_SHADOW_WORKSPACE(p);
+        int new_index = g_list_index(priv->worskpace_thumbs, dsw_dragging);
+
+        reorder_workspace(self, deepin_shadow_workspace_get_workspace(dsw_dragging), new_index);
+
+        gtk_drag_finish(context, TRUE, FALSE, time);
+
+    } else 
+        gtk_drag_finish(context, FALSE, FALSE, time);
+}
+        
+static void place_workspace_thumb(DeepinWMBackground *self, DeepinShadowWorkspace *dsw_thumb, int new_index)
+{
+    DeepinWMBackgroundPrivate* priv = self->priv;
+
+    GdkRectangle geom;
+    gint monitor_index = gdk_screen_get_primary_monitor(priv->gscreen);
+    gdk_screen_get_monitor_geometry(priv->gscreen, monitor_index, &geom);
+
+    int thumb_spacing = geom.width * SPACING_PERCENT;
+
+    gint count = g_list_length(priv->worskpace_thumbs) + _show_adder(priv->screen);
+    int thumb_y = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);
+    int thumb_x = (geom.width - count * (priv->thumb_width + thumb_spacing))/2;
+
+    int x = thumb_x + new_index * (priv->thumb_width + thumb_spacing);
+    deepin_fixed_move(DEEPIN_FIXED(priv->fixed), GTK_WIDGET(dsw_thumb),
+            x + priv->thumb_width/2, thumb_y + priv->thumb_height/2,
+            FALSE);
+
+}
+
+static void start_reorder_workspace_thumbs(DeepinWMBackground *self, DeepinShadowWorkspace *dsw_dragging,
+        DeepinShadowWorkspace *dsw_switching)
+{
+    DeepinWMBackgroundPrivate* priv = self->priv;
+    int i = g_list_index(priv->worskpace_thumbs, dsw_dragging),
+        j = g_list_index(priv->worskpace_thumbs, dsw_switching);
+    fprintf(stderr, "switch %d => %d\n", i, j);
+
+    priv->worskpace_thumbs = g_list_remove(priv->worskpace_thumbs, dsw_dragging);
+    priv->worskpace_thumbs = g_list_insert(priv->worskpace_thumbs, dsw_dragging, j);
+    place_workspace_thumb (self, dsw_dragging, j);
+
+    int d = i < j ? 1 : -1;
+    for (int k = i; d > 0 ? k < j : k > j; k += d) {
+        place_workspace_thumb(self, g_list_nth_data(priv->worskpace_thumbs, k), k);
+    }
+}
+
+static gboolean on_deepin_wm_background_drag_motion(GtkWidget* widget, GdkDragContext* context,
+               gint x, gint y, guint time, gpointer user_data)
+{
+    DeepinWMBackground* self = DEEPIN_WM_BACKGROUND(widget);
+    DeepinWMBackgroundPrivate* priv = self->priv;
+    gint ox, oy;
+
+    gdk_window_get_origin(gtk_widget_get_window(widget), &ox, &oy);
+    x -= ox;
+    y -= oy;
+
+    /*fprintf(stderr, "%s: (%d, %d)\n", __func__, x, y);*/
+    DeepinShadowWorkspace *dsw_switching = NULL;
+    DeepinShadowWorkspace *dsw_dragging = NULL;
+    GList *l = priv->worskpace_thumbs;
+    while (l) {
+        DeepinShadowWorkspace *dsw = DEEPIN_SHADOW_WORKSPACE(l->data);
+
+        if (dsw_switching == NULL) {
+            GtkAllocation alloc;
+            gtk_widget_get_allocation(GTK_WIDGET(dsw), &alloc);
+
+            /*fprintf(stderr, "%s: compare with (%d, %d)\n", __func__, alloc.x, alloc.y);*/
+            if (alloc.x > x && y < alloc.y + alloc.height + 40) {
+                dsw_switching = dsw;
+            }
+        }
+
+        if (dsw_dragging == NULL) {
+            /*fprintf(stderr, "%s, captured dragging dsw\n", __func__);*/
+            if (deepin_shadow_workspace_is_dragging(dsw)) 
+                dsw_dragging = dsw;
+        }
+        l = l->next;
+    }
+
+    if (dsw_switching == dsw_dragging) 
+        dsw_switching = NULL;
+
+    if (dsw_switching && dsw_dragging) {
+        fprintf(stderr, "%s switching #%d with #%d\n", __func__,
+                g_list_index(priv->worskpace_thumbs, dsw_dragging),
+                g_list_index(priv->worskpace_thumbs, dsw_switching));
+        start_reorder_workspace_thumbs(self, dsw_dragging, dsw_switching);
+    }
+
+    return TRUE;
+}
+    
+static gboolean on_deepin_wm_background_drag_drop(GtkWidget* widget, GdkDragContext* context,
+               gint x, gint y, guint time, gpointer user_data)
+{
+    DeepinWMBackground* self = DEEPIN_WM_BACKGROUND(widget);
+    DeepinWMBackgroundPrivate* priv = self->priv;
+
+    meta_verbose("%s\n", __func__);
+    return FALSE;
+}
+
 void deepin_wm_background_setup(DeepinWMBackground* self)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
@@ -657,6 +794,20 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
     }
 
     _create_close_button(self);
+
+    static GtkTargetEntry targets[] = {
+        {(char*)"workspace", GTK_TARGET_OTHER_WIDGET, DRAG_TARGET_WORKSPACE},
+    };
+
+    gtk_drag_dest_set(GTK_WIDGET(self),
+            GTK_DEST_DEFAULT_MOTION | GTK_DEST_DEFAULT_DROP,
+            targets, 1, GDK_ACTION_COPY);
+
+    g_object_connect(G_OBJECT(self),
+            "signal::drag-data-received", on_deepin_wm_background_drag_data_received, NULL, 
+            "signal::drag-drop", on_deepin_wm_background_drag_drop, NULL, 
+            "signal::drag-motion", on_deepin_wm_background_drag_motion, NULL, 
+            NULL);
 
     gtk_window_move(GTK_WINDOW(self), geom.x, geom.y);
 }
