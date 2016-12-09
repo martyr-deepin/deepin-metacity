@@ -532,7 +532,7 @@ static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer use
 static void reorder_workspace(DeepinWMBackground *self, MetaWorkspace *ws, int new_index)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
-    fprintf(stderr, "%s: from #%d -> #%d\n", __func__, meta_workspace_index(ws), new_index);
+    meta_verbose("%s: from #%d -> #%d\n", __func__, meta_workspace_index(ws), new_index);
 
     int old_index = meta_workspace_index(ws);
     DeepinShadowWorkspace *dsw_dragging = g_list_nth_data(priv->worskpaces, old_index);
@@ -552,7 +552,6 @@ static void on_deepin_wm_background_drag_data_received(GtkWidget* widget, GdkDra
     DeepinWMBackgroundPrivate* priv = self->priv;
 
     meta_verbose("%s: x %d, y %d\n", __func__, x, y);
-    fprintf(stderr, "%s: x %d, y %d\n", __func__, x, y);
 
     const guchar* raw_data = gtk_selection_data_get_data(data);
     if (raw_data) {
@@ -595,7 +594,7 @@ static void start_reorder_workspace_thumbs(DeepinWMBackground *self, DeepinShado
     DeepinWMBackgroundPrivate* priv = self->priv;
     int i = g_list_index(priv->worskpace_thumbs, dsw_dragging),
         j = g_list_index(priv->worskpace_thumbs, dsw_switching);
-    fprintf(stderr, "switch %d => %d\n", i, j);
+    /*fprintf(stderr, "switch %d => %d\n", i, j);*/
 
     priv->worskpace_thumbs = g_list_remove(priv->worskpace_thumbs, dsw_dragging);
     priv->worskpace_thumbs = g_list_insert(priv->worskpace_thumbs, dsw_dragging, j);
@@ -647,7 +646,7 @@ static gboolean on_deepin_wm_background_drag_motion(GtkWidget* widget, GdkDragCo
         dsw_switching = NULL;
 
     if (dsw_switching && dsw_dragging) {
-        fprintf(stderr, "%s switching #%d with #%d\n", __func__,
+        meta_verbose("%s: switching #%d with #%d\n", __func__,
                 g_list_index(priv->worskpace_thumbs, dsw_dragging),
                 g_list_index(priv->worskpace_thumbs, dsw_switching));
         start_reorder_workspace_thumbs(self, dsw_dragging, dsw_switching);

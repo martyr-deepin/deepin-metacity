@@ -401,6 +401,52 @@ cleanup:
     g_strfreev(extra_uris);
 }
 
+static void reorder_workspace_background(DeepinBackgroundCache *self, int from, int to)
+{
+    DeepinBackgroundCachePrivate *priv = self->priv;
+    MetaScreen *screen = meta_get_display()->active_screen;
+
+    meta_verbose("%s: %d <-> %d\n", __func__, from, to);
+    int nr_ws = meta_screen_get_n_workspaces (screen);
+
+    char* default_uri = g_settings_get_string(priv->bg_settings, GSETTINGS_BG_KEY);
+    char** extra_uris = g_settings_get_strv(priv->extra_settings, GSETTINGS_EXTRA_URIS);
+    int nr_uris = g_strv_length (extra_uris);
+
+    // keep sync with workspace length
+    g_return_if_fail (nr_uris == nr_ws);
+
+    char **new_extra_uris = (char**)g_malloc(sizeof(char*) * (nr_ws+1));
+    for (int i = 0; i < nr_ws; i++) {
+        new_extra_uris[i] = g_strdup(extra_uris[i]);
+    }
+
+    char *tmp = new_extra_uris[from];
+    int d = from < to ? 1 : -1;
+    for (int k = from+d; d > 0 ? k <= to : k >= to; k += d) {
+        new_extra_uris[k-d] = new_extra_uris[k];
+    }
+    new_extra_uris[to] = tmp;
+    new_extra_uris[nr_ws] = 0;
+
+    g_settings_set_strv (priv->extra_settings, "background-uris", new_extra_uris);
+
+    g_strfreev(new_extra_uris);
+    g_free(default_uri);
+    g_strfreev(extra_uris);
+
+    for (int k = from; d > 0 ? k <= to : k >= to; k += d) {
+        deepin_background_cache_invalidate(self, k);
+        deepin_background_cache_load_background_for_workspace(self, k);
+    }
+    deepin_message_hub_desktop_changed();
+}
+
+static void on_workspace_reordered(DeepinMessageHub* hub, gint index, 
+        int new_index, DeepinBackgroundCache* self)
+{
+    reorder_workspace_background(self, index, new_index);
+}
 
 static void deepin_background_cache_init (DeepinBackgroundCache *self)
 {
@@ -419,6 +465,7 @@ static void deepin_background_cache_init (DeepinBackgroundCache *self)
             "signal::screen-changed", (GCallback)on_screen_changed, self,
             "signal::workspace-added", (GCallback)on_workspace_added, self,
             "signal::workspace-removed", (GCallback)on_workspace_removed, self,
+            "signal::workspace-reordered", (GCallback)on_workspace_reordered, self,
             NULL);
 }
 

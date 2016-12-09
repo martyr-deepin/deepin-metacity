@@ -56,6 +56,8 @@ struct _DeepinShadowWorkspacePrivate
     MetaDeepinClonedWidget* hovered_clone;
     MetaWorkspace* workspace;
 
+    cairo_surface_t *background;
+
     int placement_count;
 
     GdkWindow* event_window;
@@ -688,6 +690,24 @@ static void on_window_removed(DeepinMessageHub* hub, MetaWindow* window,
     }
 }
 
+static void on_desktop_changed(DeepinMessageHub* hub, gpointer data)
+{
+    DeepinShadowWorkspace* self = DEEPIN_SHADOW_WORKSPACE(data);
+    DeepinShadowWorkspacePrivate* priv = self->priv;
+
+    if (priv->background) {
+        g_clear_pointer(&priv->background, cairo_surface_destroy);
+    }
+
+    int index = meta_workspace_index(priv->workspace);
+    priv->background = deepin_background_cache_get_surface(
+            priv->primary, index, priv->scale);
+    cairo_surface_reference(priv->background);
+    
+    if (gtk_widget_is_visible(self)) {
+        gtk_widget_queue_draw(self);
+    }
+}
 
 static void deepin_shadow_workspace_init (DeepinShadowWorkspace *self)
 {
@@ -817,13 +837,8 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
         gtk_render_background(context, cr, 0, 0, req.width, req.height);
     }
 
-    int primary = gdk_screen_get_primary_monitor(gdk_screen_get_default());
-
-    int index = meta_workspace_index(priv->workspace);
-    cairo_surface_t* ref = deepin_background_cache_get_surface(
-            primary, index, priv->scale);
-    if (ref != NULL) {
-        cairo_set_source_surface(cr, ref, 0, 0);
+    if (priv->background != NULL) {
+        cairo_set_source_surface(cr, priv->background, 0, 0);
     }
 
     cairo_paint(cr);
@@ -1262,6 +1277,11 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
                 NULL);
     }
 
+    int index = meta_workspace_index(priv->workspace);
+    priv->background = deepin_background_cache_get_surface(
+            priv->primary, index, priv->scale);
+    cairo_surface_reference(priv->background);
+
     gtk_widget_queue_resize(GTK_WIDGET(self));
 }
 
@@ -1578,6 +1598,7 @@ GtkWidget* deepin_shadow_workspace_new(void)
 
     g_object_connect(G_OBJECT(deepin_message_hub_get()), 
             "signal::window-removed", on_window_removed, self,
+            "signal::desktop-changed", on_desktop_changed, self,
             "signal::about-to-change-workspace", on_window_change_workspace, self,
             NULL);
 
