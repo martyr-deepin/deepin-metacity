@@ -18,6 +18,7 @@
 struct _DeepinWorkspaceAdderPrivate
 {
     guint disposed: 1;
+    guint hover: 1;
 };
 
 
@@ -67,7 +68,7 @@ static void _draw_round_box(cairo_t* cr, gint width, gint height, double radius)
     cairo_close_path(cr);
 }
 
-static const double PLUS_SIZE = 32.0;
+static const double PLUS_SIZE = 45.0;
 static const double PLUS_LINE_WIDTH = 2.0;
 
 static gboolean deepin_workspace_adder_draw(GtkWidget *widget,
@@ -86,6 +87,19 @@ static gboolean deepin_workspace_adder_draw(GtkWidget *widget,
     /*_draw_round_box(cr, req.width, req.height, 4.0);*/
     /*cairo_clip(cr);*/
 
+    if (DEEPIN_WORKSPACE_ADDER(widget)->priv->hover) {
+        cairo_surface_t *bg = deepin_background_cache_get_default(1.0);
+        if (bg) {
+            double scale = req.width / (double)cairo_image_surface_get_width(bg);
+            cairo_save(cr);
+            cairo_scale(cr, scale, scale);
+            fprintf(stderr, "%s scale %g\n", __func__, scale);
+            cairo_set_source_surface(cr, bg, 0, 0);
+            cairo_paint_with_alpha(cr, 0.2);
+            cairo_restore(cr);
+        }
+    }
+
     // draw tha plus button
     cairo_move_to(cr, req.width / 2 - PLUS_SIZE / 2, req.height / 2);
     cairo_line_to(cr, req.width / 2 + PLUS_SIZE / 2, req.height / 2);
@@ -94,9 +108,25 @@ static gboolean deepin_workspace_adder_draw(GtkWidget *widget,
     cairo_line_to(cr, req.width / 2, req.height / 2 + PLUS_SIZE / 2);
 
     cairo_set_line_width(cr, PLUS_LINE_WIDTH);
-    cairo_set_source_rgba(cr, 0.5, 0.5, 0.5, 1.0);
+    cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 0.5);
     cairo_stroke(cr);
     return FALSE;
+}
+
+static gboolean deepin_workspace_adder_enter(GtkWidget *widget, GdkEventCrossing *event)
+{
+    DEEPIN_WORKSPACE_ADDER(widget)->priv->hover = TRUE;
+    gtk_widget_queue_draw(widget);
+    if (GTK_WIDGET_CLASS (deepin_workspace_adder_parent_class)->enter_notify_event)
+        return GTK_WIDGET_CLASS (deepin_workspace_adder_parent_class)->enter_notify_event (widget, event);
+}
+
+static gboolean deepin_workspace_adder_leave(GtkWidget *widget, GdkEventCrossing *event)
+{
+    DEEPIN_WORKSPACE_ADDER(widget)->priv->hover = FALSE;
+    gtk_widget_queue_draw(widget);
+    if (GTK_WIDGET_CLASS (deepin_workspace_adder_parent_class)->leave_notify_event)
+        return GTK_WIDGET_CLASS (deepin_workspace_adder_parent_class)->leave_notify_event (widget, event);
 }
 
 static void deepin_workspace_adder_class_init (DeepinWorkspaceAdderClass *klass)
@@ -109,6 +139,8 @@ static void deepin_workspace_adder_class_init (DeepinWorkspaceAdderClass *klass)
 	object_class->finalize = deepin_workspace_adder_finalize;
 
     widget_class->draw = deepin_workspace_adder_draw;
+    widget_class->enter_notify_event = deepin_workspace_adder_enter;
+    widget_class->leave_notify_event = deepin_workspace_adder_leave;
 }
 
 GtkWidget* deepin_workspace_adder_new()

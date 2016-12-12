@@ -38,6 +38,8 @@ struct _DeepinBackgroundCachePrivate
 {
     GList* caches;
 
+    GList* defaults; // caches for default, monitor&workspace is useless
+
     GSettings *bg_settings;
     GSettings *extra_settings;
 };
@@ -47,19 +49,28 @@ static DeepinBackgroundCache* _the_cache = NULL;
 
 G_DEFINE_TYPE (DeepinBackgroundCache, deepin_background_cache, G_TYPE_OBJECT);
 
+static void _clear_cache_list(GList **caches) 
+{
+    GList* l = *caches;
+    while (l) {
+        ScaledCacheInfo* sci = (ScaledCacheInfo*)l->data;
+        cairo_surface_destroy(sci->surface);
+        g_slice_free(ScaledCacheInfo, sci);
+        l = l->next;
+    }
+    g_list_free(*caches);
+    *caches = NULL;
+}
+
 static void deepin_background_cache_flush(DeepinBackgroundCache* self)
 {
     DeepinBackgroundCachePrivate* priv = self->priv;
     if (priv->caches) {
-        GList* l = priv->caches;
-        while (l) {
-            ScaledCacheInfo* sci = (ScaledCacheInfo*)l->data;
-            cairo_surface_destroy(sci->surface);
-            g_slice_free(ScaledCacheInfo, sci);
-            l = l->next;
-        }
-        g_list_free(priv->caches);
-        priv->caches = NULL;
+        _clear_cache_list(&priv->caches);
+    }
+
+    if (priv->defaults) {
+        _clear_cache_list(&priv->defaults);
     }
 }
 
@@ -188,6 +199,40 @@ static void on_file_changed(GFileMonitor *monitor,
     _do_reload_background(DEEPIN_BACKGROUND_CACHE(user_data));
 }
 
+static void deepin_background_cache_load_default_background(DeepinBackgroundCache* self)
+{ 
+    DeepinBackgroundCachePrivate *priv = self->priv;
+
+    GdkPixbuf *pixbuf = NULL;
+    GError* error = NULL;
+
+    MetaScreen *screen = meta_get_display()->active_screen;
+    int nr_ws = meta_screen_get_n_workspaces (screen);
+    gchar* path = get_picture_filename (self, 0, nr_ws);
+
+    pixbuf = gdk_pixbuf_new_from_file(path, &error);
+    if (!pixbuf) {
+        meta_verbose("%s\n", error->message);
+        g_free(path);
+        g_error_free(error);
+        return;
+    }
+
+    cairo_surface_t* background = gdk_cairo_surface_create_from_pixbuf(pixbuf, 1.0, NULL);
+    if (!background || cairo_surface_status(background) != CAIRO_STATUS_SUCCESS) {
+        meta_verbose("%s create surface failed", __func__);
+        if (background) g_clear_pointer(&background, cairo_surface_destroy);
+    }
+
+    ScaledCacheInfo* sci = g_slice_new(ScaledCacheInfo);
+    sci->scale = 1.0;
+    sci->surface = background;
+    priv->defaults = g_list_append(priv->defaults, sci);
+
+    g_free(path);
+    g_object_unref(pixbuf);
+}
+
 static void deepin_background_cache_load_background_for_workspace(DeepinBackgroundCache* self,
         int workspace_index)
 { 
@@ -270,6 +315,7 @@ static void _do_reload_background(DeepinBackgroundCache* self)
 
     deepin_background_cache_flush(self);
     deepin_background_cache_load_background(self);
+    deepin_background_cache_load_default_background(self);
     deepin_message_hub_desktop_changed();
 }
 
@@ -500,6 +546,7 @@ DeepinBackgroundCache* deepin_get_background()
     if (!_the_cache) {
         _the_cache = (DeepinBackgroundCache*)g_object_new(DEEPIN_TYPE_BACKGROUND_CACHE, NULL);
         deepin_background_cache_load_background(_the_cache);
+        deepin_background_cache_load_default_background(_the_cache);
     }
     return _the_cache;
 }
@@ -543,5 +590,18 @@ cairo_surface_t* deepin_background_cache_get_surface(gint monitor, gint workspac
     meta_verbose("%s: create scaled(%f) for monitor #%d, workspace #%d\n", __func__, 
             scale, monitor, workspace);
     return sci->surface;
+}
+
+// right now, now need to cache scales at all
+cairo_surface_t* deepin_background_cache_get_default(double scale)
+{
+    DeepinBackgroundCachePrivate* priv = deepin_get_background()->priv;
+
+    GList* l = priv->defaults;
+    if (l) {
+        ScaledCacheInfo* sci = (ScaledCacheInfo*)l->data;
+        return sci->surface;
+    }
+    return NULL;
 }
 
