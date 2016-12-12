@@ -35,8 +35,8 @@ struct _DeepinWMBackgroundPrivate
     GtkWidget* fixed;
 
     DeepinShadowWorkspace* active_workspace;
-    GList* worskpaces;
-    GList* worskpace_thumbs;
+    GList* workspaces;
+    GList* workspace_thumbs;
     DeepinWorkspaceAdder* adder;
 
     /* calculation cache */
@@ -142,7 +142,7 @@ static void relayout(DeepinWMBackground* self)
     }
 
     GList *l = priv->screen->workspaces;
-    gint current = g_list_index(priv->worskpaces, priv->active_workspace);
+    gint current = g_list_index(priv->workspaces, priv->active_workspace);
     if (current < 0) current = 0;
     meta_verbose("current: %d\n", current);
     
@@ -152,7 +152,7 @@ static void relayout(DeepinWMBackground* self)
             
 
     gint i = 0, pad = FLOW_CLONE_DISTANCE_PERCENT * geom.width;
-    l = priv->worskpaces;
+    l = priv->workspaces;
     while (l) {
         gint x = (geom.width - priv->width) / 2 +  (i - current) * (priv->width + pad);
         deepin_fixed_move(DEEPIN_FIXED(priv->fixed), (GtkWidget*)l->data,
@@ -164,10 +164,10 @@ static void relayout(DeepinWMBackground* self)
     }
 
     i = 0;
-    l = priv->worskpace_thumbs;
+    l = priv->workspace_thumbs;
     int thumb_spacing = geom.width * SPACING_PERCENT;
     
-    gint count = g_list_length(priv->worskpace_thumbs) + _show_adder(priv->screen);
+    gint count = g_list_length(priv->workspace_thumbs) + _show_adder(priv->screen);
     int thumb_y = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);
     int thumb_x = (geom.width - count * (priv->thumb_width + thumb_spacing))/2;
 
@@ -202,8 +202,8 @@ static gboolean on_close_button_clicked(GtkWidget* widget,
     DeepinWMBackground* self = (DeepinWMBackground*)data;
     DeepinWMBackgroundPrivate* priv = self->priv;
 
-    gint index = g_list_index(priv->worskpace_thumbs, priv->hover_ws);
-    DeepinShadowWorkspace* ws = g_list_nth(priv->worskpaces, index)->data;
+    gint index = g_list_index(priv->workspace_thumbs, priv->hover_ws);
+    DeepinShadowWorkspace* ws = g_list_nth(priv->workspaces, index)->data;
     _delete_workspace(self, ws);
 
     return TRUE;
@@ -416,7 +416,7 @@ static void deepin_wm_background_init (DeepinWMBackground *self)
     self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, DEEPIN_TYPE_WM_BACKGROUND, DeepinWMBackgroundPrivate);
 
     DeepinWMBackgroundPrivate* priv = self->priv;
-    priv->worskpaces = NULL;
+    priv->workspaces = NULL;
 }
 
 static void deepin_wm_background_dispose (GObject *object)
@@ -426,8 +426,8 @@ static void deepin_wm_background_dispose (GObject *object)
 
     if (!priv->disposed) {
         priv->disposed = TRUE;
-        g_list_free(priv->worskpaces);
-        g_list_free(priv->worskpace_thumbs);
+        g_list_free(priv->workspaces);
+        g_list_free(priv->workspace_thumbs);
 
         if (priv->idle_id > 0) {
             g_source_remove(priv->idle_id);
@@ -479,11 +479,11 @@ void deepin_wm_background_switch_workspace(DeepinWMBackground* self,
         MetaWorkspace* next)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
-    DeepinShadowWorkspace* next_ws = _find_workspace(priv->worskpaces, next);
-    DeepinShadowWorkspace* next_thumb = _find_workspace(priv->worskpace_thumbs, next);
+    DeepinShadowWorkspace* next_ws = _find_workspace(priv->workspaces, next);
+    DeepinShadowWorkspace* next_thumb = _find_workspace(priv->workspace_thumbs, next);
     if (priv->active_workspace == next_ws) return;
 
-    DeepinShadowWorkspace* current_thumb = _find_workspace(priv->worskpace_thumbs,
+    DeepinShadowWorkspace* current_thumb = _find_workspace(priv->workspace_thumbs,
                 deepin_shadow_workspace_get_workspace(priv->active_workspace));
     DeepinShadowWorkspace* current = priv->active_workspace;
 
@@ -500,10 +500,10 @@ void deepin_wm_background_switch_workspace(DeepinWMBackground* self,
     gdk_screen_get_monitor_geometry(priv->gscreen, monitor_index, &geom);
 
     gint i = 0,
-         current_pos = g_list_index(priv->worskpaces, next_ws),
+         current_pos = g_list_index(priv->workspaces, next_ws),
          pad = FLOW_CLONE_DISTANCE_PERCENT * geom.width;
 
-    GList* l = priv->worskpaces;
+    GList* l = priv->workspaces;
     while (l) {
         gint x = (geom.width - priv->width) / 2 +  (i - current_pos) * (priv->width + pad);
 
@@ -535,9 +535,9 @@ static void reorder_workspace(DeepinWMBackground *self, MetaWorkspace *ws, int n
     meta_verbose("%s: from #%d -> #%d\n", __func__, meta_workspace_index(ws), new_index);
 
     int old_index = meta_workspace_index(ws);
-    DeepinShadowWorkspace *dsw_dragging = g_list_nth_data(priv->worskpaces, old_index);
-    priv->worskpaces = g_list_remove(priv->worskpaces, dsw_dragging);
-    priv->worskpaces = g_list_insert(priv->worskpaces, dsw_dragging, new_index);
+    DeepinShadowWorkspace *dsw_dragging = g_list_nth_data(priv->workspaces, old_index);
+    priv->workspaces = g_list_remove(priv->workspaces, dsw_dragging);
+    priv->workspaces = g_list_insert(priv->workspaces, dsw_dragging, new_index);
 
     meta_screen_reorder_workspace (ws->screen, ws, new_index);
 
@@ -557,7 +557,7 @@ static void on_deepin_wm_background_drag_data_received(GtkWidget* widget, GdkDra
     if (raw_data) {
         gpointer p = (gpointer)atol(raw_data);
         DeepinShadowWorkspace* dsw_dragging = DEEPIN_SHADOW_WORKSPACE(p);
-        int new_index = g_list_index(priv->worskpace_thumbs, dsw_dragging);
+        int new_index = g_list_index(priv->workspace_thumbs, dsw_dragging);
 
         reorder_workspace(self, deepin_shadow_workspace_get_workspace(dsw_dragging), new_index);
 
@@ -577,7 +577,7 @@ static void place_workspace_thumb(DeepinWMBackground *self, DeepinShadowWorkspac
 
     int thumb_spacing = geom.width * SPACING_PERCENT;
 
-    gint count = g_list_length(priv->worskpace_thumbs) + _show_adder(priv->screen);
+    gint count = g_list_length(priv->workspace_thumbs) + _show_adder(priv->screen);
     int thumb_y = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);
     int thumb_x = (geom.width - count * (priv->thumb_width + thumb_spacing))/2;
 
@@ -592,17 +592,17 @@ static void start_reorder_workspace_thumbs(DeepinWMBackground *self, DeepinShado
         DeepinShadowWorkspace *dsw_switching)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
-    int i = g_list_index(priv->worskpace_thumbs, dsw_dragging),
-        j = g_list_index(priv->worskpace_thumbs, dsw_switching);
+    int i = g_list_index(priv->workspace_thumbs, dsw_dragging),
+        j = g_list_index(priv->workspace_thumbs, dsw_switching);
     /*fprintf(stderr, "switch %d => %d\n", i, j);*/
 
-    priv->worskpace_thumbs = g_list_remove(priv->worskpace_thumbs, dsw_dragging);
-    priv->worskpace_thumbs = g_list_insert(priv->worskpace_thumbs, dsw_dragging, j);
+    priv->workspace_thumbs = g_list_remove(priv->workspace_thumbs, dsw_dragging);
+    priv->workspace_thumbs = g_list_insert(priv->workspace_thumbs, dsw_dragging, j);
     place_workspace_thumb (self, dsw_dragging, j);
 
     int d = i < j ? 1 : -1;
     for (int k = i; d > 0 ? k < j : k > j; k += d) {
-        place_workspace_thumb(self, g_list_nth_data(priv->worskpace_thumbs, k), k);
+        place_workspace_thumb(self, g_list_nth_data(priv->workspace_thumbs, k), k);
     }
 }
 
@@ -620,7 +620,7 @@ static gboolean on_deepin_wm_background_drag_motion(GtkWidget* widget, GdkDragCo
     /*fprintf(stderr, "%s: (%d, %d)\n", __func__, x, y);*/
     DeepinShadowWorkspace *dsw_switching = NULL;
     DeepinShadowWorkspace *dsw_dragging = NULL;
-    GList *l = priv->worskpace_thumbs;
+    GList *l = priv->workspace_thumbs;
     while (l) {
         DeepinShadowWorkspace *dsw = DEEPIN_SHADOW_WORKSPACE(l->data);
 
@@ -647,8 +647,8 @@ static gboolean on_deepin_wm_background_drag_motion(GtkWidget* widget, GdkDragCo
 
     if (dsw_switching && dsw_dragging) {
         meta_verbose("%s: switching #%d with #%d\n", __func__,
-                g_list_index(priv->worskpace_thumbs, dsw_dragging),
-                g_list_index(priv->worskpace_thumbs, dsw_switching));
+                g_list_index(priv->workspace_thumbs, dsw_dragging),
+                g_list_index(priv->workspace_thumbs, dsw_switching));
         start_reorder_workspace_thumbs(self, dsw_dragging, dsw_switching);
     }
 
@@ -716,7 +716,7 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
                     "signal::button-release-event", on_workspace_released, self,
                     NULL);
 
-            priv->worskpaces = g_list_append(priv->worskpaces, dsw);
+            priv->workspaces = g_list_append(priv->workspaces, dsw);
         }
 
         /* for top workspace thumbnail */
@@ -738,7 +738,7 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
                     "signal::button-release-event", on_workspace_thumb_released, self,
                     NULL);
 
-            priv->worskpace_thumbs = g_list_append(priv->worskpace_thumbs, dsw);
+            priv->workspace_thumbs = g_list_append(priv->workspace_thumbs, dsw);
         }
 
         l = l->next;
@@ -755,7 +755,7 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
     }
 
     gint i = 0, pad = FLOW_CLONE_DISTANCE_PERCENT * geom.width;
-    l = priv->worskpaces;
+    l = priv->workspaces;
     while (l) {
         gint x = (geom.width - priv->width) / 2 +  (i - current) * (priv->width + pad);
         deepin_fixed_put(DEEPIN_FIXED(priv->fixed), (GtkWidget*)l->data,
@@ -766,10 +766,10 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
     }
 
     i = 0;
-    l = priv->worskpace_thumbs;
+    l = priv->workspace_thumbs;
     int thumb_spacing = geom.width * SPACING_PERCENT;
     
-    gint count = g_list_length(priv->worskpace_thumbs) + _show_adder(priv->screen);
+    gint count = g_list_length(priv->workspace_thumbs) + _show_adder(priv->screen);
     int thumb_y = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);
     int thumb_x = (geom.width - count * (priv->thumb_width + thumb_spacing))/2;
 
@@ -878,14 +878,14 @@ static void _delete_workspace(DeepinWMBackground* self,
     _hide_close_button(self);
 
     MetaWorkspace* workspace = deepin_shadow_workspace_get_workspace(ws);
-    DeepinShadowWorkspace* ws_thumb = _find_workspace(priv->worskpace_thumbs, workspace);
+    DeepinShadowWorkspace* ws_thumb = _find_workspace(priv->workspace_thumbs, workspace);
     g_assert(ws_thumb != NULL);
     if (priv->hover_ws) priv->hover_ws = NULL;
 
     need_switch_active = (ws == priv->active_workspace);
 
-    priv->worskpaces = g_list_remove(priv->worskpaces, ws);
-    priv->worskpace_thumbs = g_list_remove(priv->worskpace_thumbs, ws_thumb);
+    priv->workspaces = g_list_remove(priv->workspaces, ws);
+    priv->workspace_thumbs = g_list_remove(priv->workspace_thumbs, ws_thumb);
 
     gtk_container_remove(GTK_CONTAINER(priv->fixed), (GtkWidget*)ws_thumb);
     gtk_container_remove(GTK_CONTAINER(priv->fixed), (GtkWidget*)ws);
@@ -894,9 +894,9 @@ static void _delete_workspace(DeepinWMBackground* self,
 
     if (need_switch_active) {
         MetaWorkspace* next_ws = priv->screen->active_workspace;
-        priv->active_workspace = _find_workspace(priv->worskpaces, next_ws);
+        priv->active_workspace = _find_workspace(priv->workspaces, next_ws);
         DeepinShadowWorkspace* current_thumb = _find_workspace(
-                priv->worskpace_thumbs,
+                priv->workspace_thumbs,
                 deepin_shadow_workspace_get_workspace(priv->active_workspace));
 
         deepin_shadow_workspace_set_current(priv->active_workspace, TRUE);
@@ -933,8 +933,8 @@ static void _create_workspace(DeepinWMBackground* self)
     gdk_screen_get_monitor_geometry(priv->gscreen, monitor_index, &geom);
 
     MetaWorkspace* new_ws = meta_screen_new_workspace(priv->screen);
-    gint i = g_list_length(priv->worskpaces)-1,
-         current = g_list_index(priv->worskpaces, priv->active_workspace),
+    gint i = g_list_length(priv->workspaces)-1,
+         current = g_list_index(priv->workspaces, priv->active_workspace),
          pad = FLOW_CLONE_DISTANCE_PERCENT * geom.width;
 
     {
@@ -945,7 +945,7 @@ static void _create_workspace(DeepinWMBackground* self)
         deepin_shadow_workspace_populate(dsw, new_ws);
         gtk_widget_show(GTK_WIDGET(dsw));
 
-        priv->worskpaces = g_list_append(priv->worskpaces, dsw);
+        priv->workspaces = g_list_append(priv->workspaces, dsw);
 
         gint x = (geom.width - priv->width) / 2 +  (i - current) * (priv->width + pad);
         deepin_fixed_put(DEEPIN_FIXED(priv->fixed), (GtkWidget*)dsw,
@@ -968,10 +968,10 @@ static void _create_workspace(DeepinWMBackground* self)
                 NULL);
 
         gtk_widget_show(GTK_WIDGET(dsw));
-        priv->worskpace_thumbs = g_list_append(priv->worskpace_thumbs, dsw);
+        priv->workspace_thumbs = g_list_append(priv->workspace_thumbs, dsw);
 
         int thumb_spacing = geom.width * SPACING_PERCENT;
-        gint count = g_list_length(priv->worskpace_thumbs) + 1;
+        gint count = g_list_length(priv->workspace_thumbs) + 1;
         int thumb_y = (int)(geom.height * HORIZONTAL_OFFSET_PERCENT);
         int thumb_x = (geom.width - count * (priv->thumb_width + thumb_spacing))/2;
 
