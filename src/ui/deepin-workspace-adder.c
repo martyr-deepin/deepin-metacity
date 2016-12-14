@@ -80,20 +80,14 @@ static gboolean deepin_workspace_adder_draw(GtkWidget *widget,
     GtkStyleContext* context = gtk_widget_get_style_context(widget);
 
     gtk_render_background(context, cr, 0, 0, req.width, req.height);
-    /*int b = 2;*/
-    /*gtk_render_background(context, cr, -b, -b, req.width+2*b, */
-            /*req.height+2*b);*/
-
-    /*_draw_round_box(cr, req.width, req.height, 4.0);*/
-    /*cairo_clip(cr);*/
 
     if (DEEPIN_WORKSPACE_ADDER(widget)->priv->hover) {
         cairo_surface_t *bg = deepin_background_cache_get_default(1.0);
         if (bg) {
-            double scale = req.width / (double)cairo_image_surface_get_width(bg);
+            double sx = req.width / (double)cairo_image_surface_get_width(bg);
+            double sy = req.height / (double)cairo_image_surface_get_height(bg);
             cairo_save(cr);
-            cairo_scale(cr, scale, scale);
-            fprintf(stderr, "%s scale %g\n", __func__, scale);
+            cairo_scale(cr, sx, sy);
             cairo_set_source_surface(cr, bg, 0, 0);
             cairo_paint_with_alpha(cr, 0.2);
             cairo_restore(cr);
