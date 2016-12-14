@@ -1660,10 +1660,10 @@ void deepin_shadow_workspace_set_thumb_mode(DeepinShadowWorkspace* self,
         deepin_setup_style_class(GTK_WIDGET(self), "deepin-workspace-clone"); 
 
         g_object_disconnect(G_OBJECT(self),
-                "signal::drag-data-get", on_deepin_shadow_workspace_drag_data_get, NULL,
-                "signal::drag-begin", on_deepin_shadow_workspace_drag_begin, NULL,
-                "signal::drag-end", on_deepin_shadow_workspace_drag_end, NULL,
-                "signal::drag-failed", on_deepin_shadow_workspace_drag_failed, NULL,
+                "any_signal::drag-data-get", on_deepin_shadow_workspace_drag_data_get, NULL,
+                "any_signal::drag-begin", on_deepin_shadow_workspace_drag_begin, NULL,
+                "any_signal::drag-end", on_deepin_shadow_workspace_drag_end, NULL,
+                "any_signal::drag-failed", on_deepin_shadow_workspace_drag_failed, NULL,
                 NULL);
     }
 }

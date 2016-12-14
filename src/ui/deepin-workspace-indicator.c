@@ -130,6 +130,12 @@ static void relayout(DeepinWorkspaceIndicator *self)
 {
     DeepinWorkspaceIndicatorPrivate *priv = self->priv;
 
+    int n = meta_screen_get_n_workspaces (priv->screen);
+    int width = (priv->child_width + priv->child_spacing) * n + DWI_MARGIN_HORIZONTAL * 2 - priv->child_spacing;
+    int height = priv->child_height + 2 * DWI_MARGIN_VERTICAL; 
+    gtk_widget_set_size_request(priv->fixed, width, height);
+    gtk_window_resize(GTK_WINDOW(self), width, height);
+
     int index = 0;
     GList *l = priv->workspaces;
     while (l) {
@@ -138,6 +144,8 @@ static void relayout(DeepinWorkspaceIndicator *self)
         l = l->next;
         index++;
     }
+
+    gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
 static void on_workspace_added(DeepinMessageHub* hub, gint index,
@@ -151,17 +159,11 @@ static void on_workspace_added(DeepinMessageHub* hub, gint index,
     if (ws == priv->screen->active_workspace) {
         if (priv->active_entry) {
             deepin_workspace_preview_entry_set_select(priv->active_entry, FALSE);
+            priv->active_entry = NULL;
         }
-        priv->active_entry = dwpe;
-        deepin_workspace_preview_entry_set_select(dwpe, TRUE);
     }
     gtk_fixed_put(GTK_FIXED(priv->fixed), GTK_WIDGET(dwpe),
             (priv->child_width + priv->child_spacing) * index + DWI_MARGIN_HORIZONTAL, DWI_MARGIN_VERTICAL);
-
-    int n = meta_screen_get_n_workspaces (priv->screen);
-    int width = (priv->child_width + priv->child_spacing) * n + DWI_MARGIN_HORIZONTAL * 2 - priv->child_spacing;
-    int height = priv->child_height + 2 * DWI_MARGIN_VERTICAL; 
-    gtk_widget_set_size_request(priv->fixed, width, height);
 
     priv->workspaces = g_list_append(priv->workspaces, dwpe);
     relayout(self);
@@ -183,10 +185,6 @@ static void on_workspace_removed(DeepinMessageHub* hub, gint index,
         priv->active_entry = dwpe;
     }
 
-    int n = meta_screen_get_n_workspaces (priv->screen);
-    int width = (priv->child_width + priv->child_spacing) * n + DWI_MARGIN_HORIZONTAL * 2 - priv->child_spacing;
-    int height = priv->child_height + 2 * DWI_MARGIN_VERTICAL; 
-    gtk_widget_set_size_request(priv->fixed, width, height);
 
     relayout(self);
 }
@@ -311,9 +309,7 @@ void deepin_workspace_indicator_request_workspace_change(
 
     reset_timer(self);
 
-    if (!gtk_widget_is_visible(GTK_WIDGET(self))) {
-        gtk_widget_show_all(GTK_WIDGET(self));
-    }
+    gtk_widget_show_all(GTK_WIDGET(self));
 
     if (priv->active_entry != NULL) {
         deepin_workspace_preview_entry_set_select(priv->active_entry, FALSE);

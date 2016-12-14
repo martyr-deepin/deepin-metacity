@@ -75,21 +75,6 @@ static void deepin_workspace_preview_entry_init (DeepinWorkspacePreviewEntry *se
     self->priv->fixed_height  = monitor_geom.height * DWI_WORKSPACE_SCALE;
 }
 
-static void on_desktop_changed(DeepinMessageHub* hub, gpointer data)
-{
-    DeepinWorkspacePreviewEntryPrivate* priv = DEEPIN_WORKSPACE_PREVIEW_ENTRY(data)->priv;
-
-    if (priv->background) {
-        g_clear_pointer(&priv->background, cairo_surface_destroy);
-    }
-
-    priv->background = deepin_background_cache_get_surface(
-            0, meta_workspace_index(priv->workspace), DWI_WORKSPACE_SCALE * 0.96);
-    cairo_surface_reference(priv->background);
-    
-    gtk_widget_queue_draw(GTK_WIDGET(data));
-}
-
 static void deepin_workspace_preview_entry_dispose (GObject *object)
 {
     DeepinWorkspacePreviewEntry* self = DEEPIN_WORKSPACE_PREVIEW_ENTRY(object);
@@ -98,30 +83,14 @@ static void deepin_workspace_preview_entry_dispose (GObject *object)
     if (priv->disposed) return;
     priv->disposed = TRUE;
 
-    g_object_disconnect(G_OBJECT(deepin_message_hub_get()), 
-            "signal::desktop-changed", on_desktop_changed, self,
-            NULL);
+    g_signal_handlers_disconnect_by_data(G_OBJECT(deepin_message_hub_get()), 
+            self);
 
     if (priv->background) {
         g_clear_pointer(&priv->background, cairo_surface_destroy);
     }
 
     G_OBJECT_CLASS (deepin_workspace_preview_entry_parent_class)->dispose (object);
-}
-
-static void _style_get_borders (GtkStyleContext *context, GtkBorder *border_out)
-{
-    GtkBorder padding, border;
-    GtkStateFlags state;
-
-    state = gtk_style_context_get_state (context);
-    gtk_style_context_get_padding (context, state, &padding);
-    gtk_style_context_get_border (context, state, &border);
-
-    border_out->top = padding.top + border.top;
-    border_out->bottom = padding.bottom + border.bottom;
-    border_out->left = padding.left + border.left;
-    border_out->right = padding.right + border.right;
 }
 
 static gboolean deepin_workspace_preview_entry_draw (GtkWidget *widget,
@@ -131,24 +100,19 @@ static gboolean deepin_workspace_preview_entry_draw (GtkWidget *widget,
     DeepinWorkspacePreviewEntryPrivate *priv = self->priv;
 
     GtkRequisition req;
-    GtkBorder borders;
     GtkStyleContext* context = gtk_widget_get_style_context (widget);
 
     gtk_widget_get_preferred_size(widget, &req, NULL);
     gdouble x = 0, y = 0, w = req.width, h = req.height;
 
-    _style_get_borders(context, &borders);
     gdouble w2 = w * 0.5, h2 = h * 0.5;
     cairo_translate(cr, w2, h2);
 
-    x = w/2, y = h/2;
-    gtk_render_background(context, cr, -x, -y, w, h);
-
-    x += borders.left;
-    y += borders.top;
-    gdouble fw = w + borders.left + borders.right;
-    gdouble fh = h + borders.top + borders.bottom;
-    gtk_render_frame(context, cr, -x, -y, fw, fh);
+    if (priv->selected) {
+        x = w/2, y = h/2;
+        fprintf(stderr, "%s:#%d: %g, %g, %g, %g\n", __func__, meta_workspace_index(priv->workspace), x, y, w, h);
+        gtk_render_background(context, cr, -x, -y, w, h);
+    }
 
     if (priv->background != NULL) {
         x = cairo_image_surface_get_width(priv->background) / 2.0,
@@ -172,11 +136,27 @@ static void deepin_workspace_preview_entry_class_init (DeepinWorkspacePreviewEnt
     object_class->dispose = deepin_workspace_preview_entry_dispose;
 }
 
+static void on_desktop_changed(DeepinMessageHub* hub, gpointer data)
+{
+    DeepinWorkspacePreviewEntryPrivate* priv = DEEPIN_WORKSPACE_PREVIEW_ENTRY(data)->priv;
+
+    if (priv->background) {
+        g_clear_pointer(&priv->background, cairo_surface_destroy);
+    }
+
+    priv->background = deepin_background_cache_get_surface(
+            0, meta_workspace_index(priv->workspace), DWI_WORKSPACE_SCALE * 0.96);
+    cairo_surface_reference(priv->background);
+    
+    gtk_widget_queue_draw(GTK_WIDGET(data));
+}
+
 GtkWidget* deepin_workspace_preview_entry_new(MetaWorkspace *ws)
 {
     GtkWidget *widget = (GtkWidget*)g_object_new(DEEPIN_TYPE_WORKSPACE_PREVIEW_ENTRY, NULL);
     DeepinWorkspacePreviewEntry *self = DEEPIN_WORKSPACE_PREVIEW_ENTRY (widget);
     self->priv->workspace = ws;
+    self->priv->selected = FALSE;
 
     SET_STATE (self, GTK_STATE_FLAG_NORMAL);
 
