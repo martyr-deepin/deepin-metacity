@@ -401,6 +401,11 @@ static void on_workspace_added(DeepinMessageHub* hub, gint index,
     g_free(default_uri);
 }
 
+static gboolean on_idle_emit_change(gpointer data)
+{
+    deepin_message_hub_desktop_changed();
+    return G_SOURCE_REMOVE;
+}
 
 static void on_workspace_removed(DeepinMessageHub* hub, gint index,
         DeepinBackgroundCache* self)
@@ -440,7 +445,8 @@ static void on_workspace_removed(DeepinMessageHub* hub, gint index,
         deepin_background_cache_invalidate(self, i);
         deepin_background_cache_load_background_for_workspace(self, i);
     }
-    deepin_message_hub_desktop_changed();
+
+    g_idle_add(on_idle_emit_change, NULL);
 
 cleanup:
     g_free(default_uri);

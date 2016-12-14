@@ -75,6 +75,21 @@ static void deepin_workspace_preview_entry_init (DeepinWorkspacePreviewEntry *se
     self->priv->fixed_height  = monitor_geom.height * DWI_WORKSPACE_SCALE;
 }
 
+static void on_desktop_changed(DeepinMessageHub* hub, gpointer data)
+{
+    DeepinWorkspacePreviewEntryPrivate* priv = DEEPIN_WORKSPACE_PREVIEW_ENTRY(data)->priv;
+
+    if (priv->background) {
+        g_clear_pointer(&priv->background, cairo_surface_destroy);
+    }
+
+    priv->background = deepin_background_cache_get_surface(
+            0, meta_workspace_index(priv->workspace), DWI_WORKSPACE_SCALE * 0.96);
+    cairo_surface_reference(priv->background);
+    
+    gtk_widget_queue_draw(GTK_WIDGET(data));
+}
+
 static void deepin_workspace_preview_entry_dispose (GObject *object)
 {
     DeepinWorkspacePreviewEntry* self = DEEPIN_WORKSPACE_PREVIEW_ENTRY(object);
@@ -82,6 +97,10 @@ static void deepin_workspace_preview_entry_dispose (GObject *object)
 
     if (priv->disposed) return;
     priv->disposed = TRUE;
+
+    g_object_disconnect(G_OBJECT(deepin_message_hub_get()), 
+            "signal::desktop-changed", on_desktop_changed, self,
+            NULL);
 
     if (priv->background) {
         g_clear_pointer(&priv->background, cairo_surface_destroy);
@@ -139,21 +158,6 @@ static gboolean deepin_workspace_preview_entry_draw (GtkWidget *widget,
     }
 
     return TRUE;
-}
-
-static void on_desktop_changed(DeepinMessageHub* hub, gpointer data)
-{
-    DeepinWorkspacePreviewEntryPrivate* priv = DEEPIN_WORKSPACE_PREVIEW_ENTRY(data)->priv;
-
-    if (priv->background) {
-        g_clear_pointer(&priv->background, cairo_surface_destroy);
-    }
-
-    priv->background = deepin_background_cache_get_surface(
-            0, meta_workspace_index(priv->workspace), DWI_WORKSPACE_SCALE * 0.96);
-    cairo_surface_reference(priv->background);
-    
-    gtk_widget_queue_draw(GTK_WIDGET(data));
 }
 
 static void deepin_workspace_preview_entry_class_init (DeepinWorkspacePreviewEntryClass *klass)

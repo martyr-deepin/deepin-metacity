@@ -20,6 +20,7 @@
 #include "../core/display-private.h"
 #include "../core/workspace.h"
 #include "deepin-design.h"
+#include "deepin-message-hub.h"
 #include "deepin-workspace-indicator.h"
 #include "deepin-workspace-preview-entry.h"
 #include "deepin-fixed.h"
@@ -35,6 +36,10 @@ struct _DeepinWorkspaceIndicatorPrivate
     MetaScreen *screen;
 
     GtkWidget *fixed;
+
+    int child_spacing;
+    int child_width;
+    int child_height;
 
     DeepinWorkspacePreviewEntry *active_entry;
     GList *workspaces;
@@ -121,6 +126,84 @@ static void on_size_changed(GtkWidget *top, GdkRectangle *alloc,
             mon_geom.y + (mon_geom.height - alloc->height)/2);
 }
 
+static void relayout(DeepinWorkspaceIndicator *self)
+{
+    DeepinWorkspaceIndicatorPrivate *priv = self->priv;
+
+    int index = 0;
+    GList *l = priv->workspaces;
+    while (l) {
+        gtk_fixed_move(GTK_FIXED(priv->fixed), (GtkWidget*)l->data, 
+                (priv->child_width + priv->child_spacing) * index + DWI_MARGIN_HORIZONTAL, DWI_MARGIN_VERTICAL);
+        l = l->next;
+        index++;
+    }
+}
+
+static void on_workspace_added(DeepinMessageHub* hub, gint index,
+        DeepinWorkspaceIndicator* self)
+{
+    DeepinWorkspaceIndicatorPrivate *priv = self->priv;
+
+    MetaWorkspace *ws = g_list_nth_data(priv->screen->workspaces, index);
+    DeepinWorkspacePreviewEntry *dwpe = deepin_workspace_preview_entry_new(ws);
+
+    if (ws == priv->screen->active_workspace) {
+        if (priv->active_entry) {
+            deepin_workspace_preview_entry_set_select(priv->active_entry, FALSE);
+        }
+        priv->active_entry = dwpe;
+        deepin_workspace_preview_entry_set_select(dwpe, TRUE);
+    }
+    gtk_fixed_put(GTK_FIXED(priv->fixed), GTK_WIDGET(dwpe),
+            (priv->child_width + priv->child_spacing) * index + DWI_MARGIN_HORIZONTAL, DWI_MARGIN_VERTICAL);
+
+    int n = meta_screen_get_n_workspaces (priv->screen);
+    int width = (priv->child_width + priv->child_spacing) * n + DWI_MARGIN_HORIZONTAL * 2 - priv->child_spacing;
+    int height = priv->child_height + 2 * DWI_MARGIN_VERTICAL; 
+    gtk_widget_set_size_request(priv->fixed, width, height);
+
+    priv->workspaces = g_list_append(priv->workspaces, dwpe);
+    relayout(self);
+}
+
+static void on_workspace_removed(DeepinMessageHub* hub, gint index,
+        DeepinWorkspaceIndicator* self)
+{
+    DeepinWorkspaceIndicatorPrivate *priv = self->priv;
+    GList *l = g_list_nth(priv->workspaces, index);
+    priv->workspaces = g_list_remove_link(priv->workspaces, l);
+
+    DeepinWorkspacePreviewEntry *dwpe = DEEPIN_WORKSPACE_PREVIEW_ENTRY(l->data);
+    if (priv->active_entry == dwpe) priv->active_entry = NULL;
+    gtk_container_remove(GTK_CONTAINER(priv->fixed), GTK_WIDGET(dwpe));
+    g_list_free(l);
+
+    if (priv->active_entry == dwpe) {
+        priv->active_entry = dwpe;
+    }
+
+    int n = meta_screen_get_n_workspaces (priv->screen);
+    int width = (priv->child_width + priv->child_spacing) * n + DWI_MARGIN_HORIZONTAL * 2 - priv->child_spacing;
+    int height = priv->child_height + 2 * DWI_MARGIN_VERTICAL; 
+    gtk_widget_set_size_request(priv->fixed, width, height);
+
+    relayout(self);
+}
+
+static void on_workspace_reordered(DeepinMessageHub* hub, gint index, 
+        int new_index, DeepinWorkspaceIndicator* self)
+{
+    DeepinWorkspaceIndicatorPrivate *priv = self->priv;
+
+    DeepinWorkspacePreviewEntry *dwpe_from = g_list_nth_data(priv->workspaces, index);
+
+    priv->workspaces = g_list_remove(priv->workspaces, dwpe_from);
+    priv->workspaces = g_list_insert(priv->workspaces, dwpe_from, new_index);
+
+    relayout(self);
+}
+
 GtkWidget* deepin_workspace_indicator_new(MetaScreen* screen)
 {
     GtkWidget* dwi = (GtkWidget*)g_object_new(DEEPIN_TYPE_WORKSPACE_INDICATOR,
@@ -138,9 +221,9 @@ GtkWidget* deepin_workspace_indicator_new(MetaScreen* screen)
     gint primary = gdk_screen_get_primary_monitor(gdkscreen);
     gdk_screen_get_monitor_geometry(gdkscreen, primary, &monitor_geom);
 
-    int child_spacing = monitor_geom.width * DWI_SPACING_PERCENT;
-    int child_width = monitor_geom.width * DWI_WORKSPACE_SCALE;
-    int child_height  = monitor_geom.height * DWI_WORKSPACE_SCALE;
+    priv->child_spacing = monitor_geom.width * DWI_SPACING_PERCENT;
+    priv->child_width = monitor_geom.width * DWI_WORKSPACE_SCALE;
+    priv->child_height  = monitor_geom.height * DWI_WORKSPACE_SCALE;
 
     GdkVisual* visual = gdk_screen_get_rgba_visual (gdkscreen);
     if (visual)
@@ -149,8 +232,8 @@ GtkWidget* deepin_workspace_indicator_new(MetaScreen* screen)
     MetaDisplay* display = meta_get_display();
     priv->screen = display->active_screen;
     int n = meta_screen_get_n_workspaces (priv->screen);
-    int width = (child_width + child_spacing) * n + DWI_MARGIN_HORIZONTAL * 2 - child_spacing;
-    int height = child_height + 2 * DWI_MARGIN_VERTICAL; 
+    int width = (priv->child_width + priv->child_spacing) * n + DWI_MARGIN_HORIZONTAL * 2 - priv->child_spacing;
+    int height = priv->child_height + 2 * DWI_MARGIN_VERTICAL; 
 
 
     priv->fixed = gtk_fixed_new();
@@ -179,7 +262,7 @@ GtkWidget* deepin_workspace_indicator_new(MetaScreen* screen)
     l = priv->workspaces;
     while (l) {
         gtk_fixed_put(GTK_FIXED(priv->fixed), (GtkWidget*)l->data, 
-                (child_width + child_spacing) * index + DWI_MARGIN_HORIZONTAL, DWI_MARGIN_VERTICAL);
+                (priv->child_width + priv->child_spacing) * index + DWI_MARGIN_HORIZONTAL, DWI_MARGIN_VERTICAL);
         l = l->next;
         index++;
     }
@@ -191,6 +274,12 @@ GtkWidget* deepin_workspace_indicator_new(MetaScreen* screen)
             monitor_geom.x + (monitor_geom.width - width) / 2,
             monitor_geom.y + (monitor_geom.height - height) / 2);
     g_signal_connect(dwi, "size-allocate", (GCallback)on_size_changed, NULL);
+
+    g_object_connect(G_OBJECT(deepin_message_hub_get()),
+            "signal::workspace-added", (GCallback)on_workspace_added, self,
+            "signal::workspace-removed", (GCallback)on_workspace_removed, self,
+            "signal::workspace-reordered", (GCallback)on_workspace_reordered, self,
+            NULL);
 
     return dwi;
 }
