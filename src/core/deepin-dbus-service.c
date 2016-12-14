@@ -178,10 +178,10 @@ DeepinDBusWm* deepin_dbus_service_get()
         _the_service = deepin_dbus_wm_skeleton_new (); 
 
         g_object_connect (G_OBJECT(_the_service),
-                "signal::handle_cancel_hide_windows", deepin_dbus_wm_call_cancel_hide_windows, NULL,
                 "signal::handle_perform_action", deepin_dbus_service_handle_perform_action, NULL,
                 "signal::handle_present_windows", deepin_dbus_service_handle_present_windows, NULL,
                 "signal::handle_request_hide_windows", deepin_dbus_service_handle_request_hide_windows,  NULL,
+                "signal::handle_cancel_hide_windows", deepin_dbus_service_handle_cancel_hide_windows, NULL,
                 "signal::handle_toggle_debug", deepin_dbus_service_handle_toggle_debug, NULL,
                 "signal::handle_change_current_workspace_background",
                 deepin_dbus_service_handle_change_current_workspace_background, NULL,
