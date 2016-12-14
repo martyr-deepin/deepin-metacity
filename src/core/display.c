@@ -3895,6 +3895,7 @@ meta_display_begin_grab_op (MetaDisplay *display,
                                     META_TAB_SHOW_INSTANTLY);
 
     case META_GRAB_OP_KEYBOARD_WORKSPACE_SWITCHING:
+      meta_screen_ensure_workspace_indicator (screen);
       break;
 
     case META_GRAB_OP_KEYBOARD_PREVIEWING_WORKSPACE:
@@ -3986,6 +3987,10 @@ meta_display_end_grab_op (MetaDisplay *display,
   if (GRAB_OP_IS_WINDOW_SWITCH (display->grab_op) ||
       display->grab_op == META_GRAB_OP_KEYBOARD_WORKSPACE_SWITCHING)
     {
+      if (display->grab_screen->workspace_indicator) {
+          gtk_widget_hide(display->grab_screen->workspace_indicator);
+      }
+
       if (display->grab_screen->tab_popup) {
         deepin_tab_popup_free (display->grab_screen->tab_popup);
         display->grab_screen->tab_popup = NULL;

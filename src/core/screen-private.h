@@ -81,6 +81,7 @@ struct _MetaScreen
   DeepinTabPopup *tab_popup;
   DeepinWMBackground* ws_previewer;
   GtkWidget* exposing_windows_popup;
+  GtkWidget* workspace_indicator;
 
   MetaTilePreview *tile_preview;
 
@@ -182,9 +183,9 @@ void          meta_screen_ensure_tab_popup    (MetaScreen                 *scree
                                                MetaTabList                 list_type,
                                                MetaTabShowType             show_type);
 
-void          meta_screen_ensure_previewing_workspace (MetaScreen* screen);
-
-void          meta_screen_ensure_exposing_windows (MetaScreen* screen);
+void          meta_screen_ensure_workspace_indicator  (MetaScreen *screen);
+void          meta_screen_ensure_previewing_workspace (MetaScreen *screen);
+void          meta_screen_ensure_exposing_windows     (MetaScreen *screen);
 
 void          meta_screen_tile_preview_update          (MetaScreen    *screen,
                                                         gboolean       delay);

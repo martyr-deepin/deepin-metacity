@@ -78,6 +78,19 @@ static const int CLOSE_BUTTON_SIZE = 31;
 
 static const int MAX_WORKSPACE_NUM = 7; 
 
+/**
+ * for workspace indicator
+ */
+static const float DWI_WORKSPACE_SCALE = 0.10f;
+
+/**
+ * The distance measure in percentage of the monitor width between workspaces preview
+ */
+static const float DWI_SPACING_PERCENT = 0.0156f;
+
+static const int DWI_MARGIN_HORIZONTAL = 22;
+static const int DWI_MARGIN_VERTICAL   = 21;
+
 // drag targets for cloned widget or workspace
 enum {
     DRAG_TARGET_WINDOW = 1,

@@ -40,6 +40,7 @@
 #include "deepin-keybindings.h"
 #include "deepin-wm-background.h"
 #include "deepin-workspace-overview.h"
+#include "deepin-workspace-indicator.h"
 
 #include <X11/keysym.h>
 #include <string.h>
@@ -2758,6 +2759,11 @@ process_workspace_switch_grab (MetaDisplay *display,
   if (target_workspace && target_workspace != screen->active_workspace)
   {
       meta_verbose("%s: request switch", __func__);
+
+      meta_screen_ensure_workspace_indicator(screen);
+      DeepinWorkspaceIndicator *dwi = DEEPIN_WORKSPACE_INDICATOR(screen->workspace_indicator);
+      deepin_workspace_indicator_request_workspace_change(dwi, target_workspace);
+
       meta_workspace_activate(target_workspace, event->time);
   }
 

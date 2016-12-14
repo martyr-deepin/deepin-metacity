@@ -25,6 +25,7 @@
 #include "keybindings.h"
 #include "window-private.h"
 #include "deepin-workspace-overview.h"
+#include "deepin-workspace-indicator.h"
 #include "deepin-window-surface-manager.h"
 #include "deepin-wm-background.h"
 #include "deepin-message-hub.h"
@@ -495,6 +496,10 @@ static void handle_workspace_switch(MetaDisplay *display, MetaScreen *screen,
 
         if (next != screen->active_workspace) {
             meta_workspace_activate(next, event->time);
+
+            meta_screen_ensure_workspace_indicator (screen);
+            DeepinWorkspaceIndicator *dwi = DEEPIN_WORKSPACE_INDICATOR(screen->workspace_indicator);
+            deepin_workspace_indicator_request_workspace_change(dwi, next);
         }
     }
 }
@@ -527,6 +532,11 @@ static void handle_move_to_workspace  (MetaDisplay    *display,
         /* Activate second, so the window is never unmapped */
         meta_window_change_workspace (window, workspace);
         workspace->screen->display->mouse_mode = FALSE;
+
+        meta_screen_ensure_workspace_indicator(workspace->screen);
+        DeepinWorkspaceIndicator *dwi = DEEPIN_WORKSPACE_INDICATOR(screen->workspace_indicator);
+        deepin_workspace_indicator_request_workspace_change(dwi, workspace);
+
         meta_workspace_activate_with_focus (workspace, window, event->time);
     }
 }

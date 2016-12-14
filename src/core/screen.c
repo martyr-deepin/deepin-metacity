@@ -39,6 +39,7 @@
 #include "compositor.h"
 #include "deepin-desktop-background.h"
 #include "deepin-wm-background.h"
+#include "deepin-workspace-indicator.h"
 #include "deepin-message-hub.h"
 
 #ifdef HAVE_SOLARIS_XINERAMA
@@ -692,6 +693,7 @@ meta_screen_new (MetaDisplay *display,
   screen->ws_previewer = NULL;
   screen->exposing_windows_popup = NULL;
   screen->tile_preview = NULL;
+  screen->workspace_indicator = NULL;
 
   screen->tile_preview_timeout_id = 0;
 
@@ -1487,12 +1489,21 @@ meta_screen_ensure_tab_popup (MetaScreen      *screen,
 }
 
 void 
+meta_screen_ensure_workspace_indicator (MetaScreen* screen)
+{
+  if (screen->workspace_indicator) 
+    return;
+
+  screen->workspace_indicator = deepin_workspace_indicator_new (screen);
+}
+
+void 
 meta_screen_ensure_previewing_workspace (MetaScreen* screen)
 {
   if (screen->ws_previewer) 
     return;
 
-  screen->ws_previewer = deepin_wm_background_new(screen);
+  screen->ws_previewer = deepin_wm_background_new (screen);
 }
 
 void meta_screen_ensure_exposing_windows (MetaScreen* screen)
