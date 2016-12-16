@@ -111,7 +111,7 @@ static gboolean deepin_workspace_adder_enter(GtkWidget *widget, GdkEventCrossing
     DEEPIN_WORKSPACE_ADDER(widget)->priv->hover = TRUE;
     gtk_widget_queue_draw(widget);
     if (GTK_WIDGET_CLASS (deepin_workspace_adder_parent_class)->enter_notify_event)
-        return GTK_WIDGET_CLASS (deepin_workspace_adder_parent_class)->enter_notify_event (widget, event);
+        return GTK_WIDGET_CLASS(deepin_workspace_adder_parent_class)->enter_notify_event (widget, event);
 }
 
 static gboolean deepin_workspace_adder_leave(GtkWidget *widget, GdkEventCrossing *event)
@@ -119,7 +119,27 @@ static gboolean deepin_workspace_adder_leave(GtkWidget *widget, GdkEventCrossing
     DEEPIN_WORKSPACE_ADDER(widget)->priv->hover = FALSE;
     gtk_widget_queue_draw(widget);
     if (GTK_WIDGET_CLASS (deepin_workspace_adder_parent_class)->leave_notify_event)
-        return GTK_WIDGET_CLASS (deepin_workspace_adder_parent_class)->leave_notify_event (widget, event);
+        return GTK_WIDGET_CLASS(deepin_workspace_adder_parent_class)->leave_notify_event (widget, event);
+}
+
+static gboolean deepin_workspace_adder_drag_motion(GtkWidget* widget, GdkDragContext* context,
+               gint x, gint y, guint time)
+{
+    if (DEEPIN_WORKSPACE_ADDER(widget)->priv->hover == FALSE) {
+        DEEPIN_WORKSPACE_ADDER(widget)->priv->hover = TRUE;
+        gtk_widget_queue_draw(widget);
+    }
+    if (GTK_WIDGET_CLASS (deepin_workspace_adder_parent_class)->drag_motion)
+        return GTK_WIDGET_CLASS(deepin_workspace_adder_parent_class)->drag_motion (widget, context,
+                x, y, time);
+}
+
+static void deepin_workspace_adder_drag_leave(GtkWidget* widget, GdkDragContext* context, guint time)
+{
+    DEEPIN_WORKSPACE_ADDER(widget)->priv->hover = FALSE;
+    gtk_widget_queue_draw(widget);
+    if (GTK_WIDGET_CLASS (deepin_workspace_adder_parent_class)->drag_leave)
+        GTK_WIDGET_CLASS(deepin_workspace_adder_parent_class)->drag_leave (widget, context, time);
 }
 
 static void deepin_workspace_adder_class_init (DeepinWorkspaceAdderClass *klass)
@@ -134,6 +154,8 @@ static void deepin_workspace_adder_class_init (DeepinWorkspaceAdderClass *klass)
     widget_class->draw = deepin_workspace_adder_draw;
     widget_class->enter_notify_event = deepin_workspace_adder_enter;
     widget_class->leave_notify_event = deepin_workspace_adder_leave;
+    widget_class->drag_motion = deepin_workspace_adder_drag_motion;
+    widget_class->drag_leave = deepin_workspace_adder_drag_leave;
 }
 
 GtkWidget* deepin_workspace_adder_new()
