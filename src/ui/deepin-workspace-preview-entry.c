@@ -110,7 +110,6 @@ static gboolean deepin_workspace_preview_entry_draw (GtkWidget *widget,
 
     if (priv->selected) {
         x = w/2, y = h/2;
-        fprintf(stderr, "%s:#%d: %g, %g, %g, %g\n", __func__, meta_workspace_index(priv->workspace), x, y, w, h);
         gtk_render_background(context, cr, -x, -y, w, h);
     }
 

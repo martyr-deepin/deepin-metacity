@@ -114,27 +114,22 @@ static void deepin_workspace_indicator_setup_style(DeepinWorkspaceIndicator *dwi
     }
 }
 
-static void on_size_changed(GtkWidget *top, GdkRectangle *alloc,
-               gpointer data)
-{
-    GdkRectangle mon_geom;
-    gint primary = gdk_screen_get_primary_monitor(gdk_screen_get_default());
-    gdk_screen_get_monitor_geometry(gdk_screen_get_default(), primary, &mon_geom);
-
-    gtk_window_move (GTK_WINDOW (top), 
-            mon_geom.x + (mon_geom.width - alloc->width)/2,
-            mon_geom.y + (mon_geom.height - alloc->height)/2);
-}
-
 static void relayout(DeepinWorkspaceIndicator *self)
 {
     DeepinWorkspaceIndicatorPrivate *priv = self->priv;
+
+    GdkRectangle mon_geom;
+    gint primary = gdk_screen_get_primary_monitor(gdk_screen_get_default());
+    gdk_screen_get_monitor_geometry(gdk_screen_get_default(), primary, &mon_geom);
 
     int n = meta_screen_get_n_workspaces (priv->screen);
     int width = (priv->child_width + priv->child_spacing) * n + DWI_MARGIN_HORIZONTAL * 2 - priv->child_spacing;
     int height = priv->child_height + 2 * DWI_MARGIN_VERTICAL; 
     gtk_widget_set_size_request(priv->fixed, width, height);
     gtk_window_resize(GTK_WINDOW(self), width, height);
+    gtk_window_move(GTK_WINDOW(self), 
+            mon_geom.x + (mon_geom.width - width)/2,
+            mon_geom.y + (mon_geom.height - height)/2);
 
     int index = 0;
     GList *l = priv->workspaces;
@@ -155,6 +150,7 @@ static void on_workspace_added(DeepinMessageHub* hub, gint index,
 
     MetaWorkspace *ws = g_list_nth_data(priv->screen->workspaces, index);
     DeepinWorkspacePreviewEntry *dwpe = deepin_workspace_preview_entry_new(ws);
+    deepin_setup_style_class(GTK_WIDGET(dwpe), "deepin-workspace-thumb-clone");
 
     if (ws == priv->screen->active_workspace) {
         if (priv->active_entry) {
@@ -271,7 +267,6 @@ GtkWidget* deepin_workspace_indicator_new(MetaScreen* screen)
     gtk_window_move (GTK_WINDOW (dwi), 
             monitor_geom.x + (monitor_geom.width - width) / 2,
             monitor_geom.y + (monitor_geom.height - height) / 2);
-    g_signal_connect(dwi, "size-allocate", (GCallback)on_size_changed, NULL);
 
     g_object_connect(G_OBJECT(deepin_message_hub_get()),
             "signal::workspace-added", (GCallback)on_workspace_added, self,
