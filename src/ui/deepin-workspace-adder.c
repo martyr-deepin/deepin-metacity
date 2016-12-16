@@ -11,6 +11,7 @@
 
 #include <config.h>
 #include <math.h>
+#include <gtk/gtk.h>
 
 #include "deepin-workspace-adder.h"
 #include "deepin-design.h"
@@ -20,8 +21,6 @@ struct _DeepinWorkspaceAdderPrivate
     guint disposed: 1;
     guint hover: 1;
 };
-
-
 
 
 G_DEFINE_TYPE (DeepinWorkspaceAdder, deepin_workspace_adder, GTK_TYPE_EVENT_BOX);
@@ -142,6 +141,7 @@ GtkWidget* deepin_workspace_adder_new()
     GtkWidget* w = (GtkWidget*)g_object_new(DEEPIN_TYPE_WORKSPACE_ADDER, NULL);
     
     deepin_setup_style_class(w, "deepin-workspace-add-button"); 
+
     return w;
 }
 

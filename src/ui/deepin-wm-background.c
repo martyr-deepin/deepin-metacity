@@ -13,6 +13,7 @@
 #include <util.h>
 #include <stdlib.h>
 #include <math.h>
+#include <gtk/gtk.h>
 #include <gdk/gdkx.h>
 #include <prefs.h>
 #include "deepin-wm-background.h"
@@ -118,8 +119,75 @@ static void _create_workspace(DeepinWMBackground*);
 
 static void _delete_workspace(DeepinWMBackground*, DeepinShadowWorkspace*);
 
-static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event,
-        gpointer user_data);
+static gboolean on_deepin_workspace_adder_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer user_data)
+{
+    DeepinWMBackground* self = DEEPIN_WM_BACKGROUND(user_data);
+    _create_workspace(self);
+    return TRUE;
+}
+
+struct IdleData {
+    MetaWindow *target_window;
+    MetaWorkspace *target_workspace;
+};
+
+static gboolean on_idle_move_window(struct IdleData *data)
+{
+    meta_window_change_workspace(data->target_window, data->target_workspace);
+    g_free(data);
+    return G_SOURCE_REMOVE;
+}
+
+static void on_deepin_workspace_adder_drag_data_received(GtkWidget* widget, GdkDragContext* context,
+        gint x, gint y, GtkSelectionData *data, guint info,
+        guint time, gpointer user_data)
+{
+    DeepinWMBackground *self = DEEPIN_WM_BACKGROUND(user_data);
+    DeepinWMBackgroundPrivate *priv = self->priv;
+    meta_verbose("%s: x %d, y %d\n", __func__, x, y);
+
+    const guchar* raw_data = gtk_selection_data_get_data(data);
+    if (raw_data) {
+        gpointer p = (gpointer)atol(raw_data);
+        MetaDeepinClonedWidget* target_clone = META_DEEPIN_CLONED_WIDGET(p);
+        MetaWindow* meta_win = meta_deepin_cloned_widget_get_window(target_clone);
+        meta_verbose("%s: get %p\n", __func__, target_clone);
+        if (meta_win->on_all_workspaces) {
+            gtk_drag_finish(context, FALSE, FALSE, time);
+            return;
+        }
+
+        gtk_drag_finish(context, TRUE, FALSE, time);
+        _create_workspace(self);
+        struct IdleData *data = g_new0(struct IdleData, 1);
+        data->target_window = meta_win;
+        data->target_workspace = priv->screen->active_workspace;
+        g_idle_add((GSourceFunc)on_idle_move_window, data);
+
+    } else 
+        gtk_drag_finish(context, FALSE, FALSE, time);
+}
+
+static void _create_adder(DeepinWMBackground* self)
+{
+    DeepinWMBackgroundPrivate* priv = self->priv;
+    priv->adder = (DeepinWorkspaceAdder*)deepin_workspace_adder_new();
+    gtk_widget_set_size_request(GTK_WIDGET(priv->adder), 
+            priv->thumb_width, priv->thumb_height);
+
+    static GtkTargetEntry targets[] = {
+        {(char*)"window", GTK_TARGET_OTHER_WIDGET, DRAG_TARGET_WINDOW},
+    };
+    // as drop target to create new workspace
+    gtk_drag_dest_set(GTK_WIDGET(priv->adder),
+            GTK_DEST_DEFAULT_MOTION | GTK_DEST_DEFAULT_DROP,
+            targets, 1, GDK_ACTION_COPY);
+
+    g_object_connect(G_OBJECT(priv->adder),
+            "signal::drag-data-received", on_deepin_workspace_adder_drag_data_received, self, 
+            "signal::button-release-event", on_deepin_workspace_adder_adder_pressed, self,
+            NULL);
+}
 
 static void relayout(DeepinWMBackground* self)
 {
@@ -131,11 +199,7 @@ static void relayout(DeepinWMBackground* self)
         priv->adder = NULL;
 
     } else if (_show_adder(priv->screen) && !priv->adder) {
-        priv->adder = (DeepinWorkspaceAdder*)deepin_workspace_adder_new();
-        gtk_widget_set_size_request(GTK_WIDGET(priv->adder), 
-                priv->thumb_width, priv->thumb_height);
-        g_signal_connect(GTK_WIDGET(priv->adder), 
-                "button-release-event", (GCallback)on_adder_pressed, self);
+        _create_adder(self);
         gtk_widget_show(GTK_WIDGET(priv->adder));
 
         adder_renewed = TRUE;
@@ -522,13 +586,6 @@ void deepin_wm_background_switch_workspace(DeepinWMBackground* self,
             gtk_get_current_event_time());
 }
 
-static gboolean on_adder_pressed(GtkWidget* adder, GdkEvent* event, gpointer user_data)
-{
-    DeepinWMBackground* self = DEEPIN_WM_BACKGROUND(user_data);
-    _create_workspace(self);
-    return TRUE;
-}
-
 static void reorder_workspace(DeepinWMBackground *self, MetaWorkspace *ws, int new_index)
 {
     DeepinWMBackgroundPrivate* priv = self->priv;
@@ -747,11 +804,7 @@ void deepin_wm_background_setup(DeepinWMBackground* self)
     g_object_connect(G_OBJECT(self), "signal::scroll-event", on_background_scrolled, NULL, NULL);
 
     if (_show_adder(priv->screen) && !priv->adder) {
-        priv->adder = (DeepinWorkspaceAdder*)deepin_workspace_adder_new();
-        gtk_widget_set_size_request(GTK_WIDGET(priv->adder), 
-                priv->thumb_width, priv->thumb_height);
-        g_signal_connect(GTK_WIDGET(priv->adder), 
-                "button-release-event", (GCallback)on_adder_pressed, self);
+        _create_adder(self);
     }
 
     gint i = 0, pad = FLOW_CLONE_DISTANCE_PERCENT * geom.width;

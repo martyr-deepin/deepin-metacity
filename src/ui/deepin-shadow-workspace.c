@@ -1414,7 +1414,7 @@ static void on_window_change_workspace(DeepinMessageHub* hub, MetaWindow* window
     
     if (priv->workspace == new_workspace) { // dest workspace
         if (window->type != META_WINDOW_NORMAL) return;
-        meta_verbose("%s: add window\n", __func__);
+        meta_verbose("%s: #%d add window\n", __func__, meta_workspace_index(priv->workspace));
 
         //add window
         GtkWidget* widget = meta_deepin_cloned_widget_new(window, !priv->thumb_mode);
