@@ -2929,9 +2929,12 @@ handle_activate_window_menu (MetaDisplay    *display,
     {
       struct _IdleData* p = (struct _IdleData*)malloc(sizeof *p);
 
-      meta_window_get_position (display->focus_window,
-                                &p->x, &p->y);
+      MetaRectangle rect;
+      meta_window_get_outer_rect (display->focus_window,
+              &rect);
 
+      p->x = rect.x;
+      p->y = rect.y;
       if (meta_ui_get_direction() == META_UI_DIRECTION_RTL)
         p->x += display->focus_window->rect.width;
 
