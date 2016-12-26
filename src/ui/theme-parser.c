@@ -1047,8 +1047,9 @@ parse_toplevel_element (GMarkupParseContext  *context,
       if (has_title) /* only if explicit, otherwise inherit */
         info->layout->has_title = has_title_val;
 
-      if (META_THEME_ALLOWS (info->theme, META_THEME_HIDDEN_BUTTONS) && hide_buttons_val)
+      if (META_THEME_ALLOWS (info->theme, META_THEME_HIDDEN_BUTTONS)) {
           info->layout->hide_buttons = hide_buttons_val;
+      }
 
       if (title_scale)
 	info->layout->title_scale = title_scale_val;
