@@ -245,7 +245,7 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libmetacity-private.pc
 
 stylesdir = $(pkgdatadir)
-styles_DATA = deepin-wm.css texture.png close.png
+styles_DATA = deepin-wm.css texture.png close.png path.svg
 
 EXTRA_DIST=$(desktopfiles_files)	 	\
 	$(wmproperties_files)			\
@@ -259,6 +259,7 @@ EXTRA_DIST=$(desktopfiles_files)	 	\
 	deepin-wm.css \
 	close.png \
 	texture.png \
+	path.svg \
 	com.deepin.wm.xml
 
 BUILT_SOURCES =					\

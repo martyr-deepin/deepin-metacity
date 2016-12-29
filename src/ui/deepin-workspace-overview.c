@@ -1045,8 +1045,10 @@ void deepin_workspace_overview_populate(DeepinWorkspaceOverview* self,
                     1.0);
         } else {
             md->desktop_surface = deepin_background_cache_get_surface(md->monitor, workspace_index, 1.0);
-            cairo_surface_reference(md->desktop_surface);
         }
+
+        if (md->desktop_surface)
+            cairo_surface_reference(md->desktop_surface);
     }
 
     gtk_widget_queue_resize(GTK_WIDGET(self));

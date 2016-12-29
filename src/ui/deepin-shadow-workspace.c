@@ -26,12 +26,20 @@
 #include "deepin-ease.h"
 #include "deepin-shadow-workspace.h"
 #include "deepin-background-cache.h"
+#include "deepin-wm-background.h"
 #include "deepin-message-hub.h"
 
 #define SET_STATE(w, state)  \
     gtk_style_context_set_state(gtk_widget_get_style_context(GTK_WIDGET(w)), (state))
 
 /* TODO: handle live window add/remove events */
+
+// for remove_workspace tip
+static const float TIP_POSITION_PERCENT = 0.449f;
+static const float TIP_MESSAGE_PERCENT = 0.572f;
+static const float TIP_LINE_START = 0.060f;
+static const double TIP_LINE_WIDTH = 0.5;
+
 
 struct _DeepinShadowWorkspacePrivate
 {
@@ -43,6 +51,8 @@ struct _DeepinShadowWorkspacePrivate
     gint draggable: 1;
     gint dragging: 1;
     gint in_drag: 1; /* determine if mouse drag starts */
+
+    gint show_remove_tip: 1;
 
     gint drag_start_x, drag_start_y;
 
@@ -57,6 +67,7 @@ struct _DeepinShadowWorkspacePrivate
     MetaWorkspace* workspace;
 
     cairo_surface_t *background;
+    cairo_surface_t *remove_icon;
 
     int placement_count;
 
@@ -821,14 +832,17 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
     cairo_save(cr);
 
     if (priv->thumb_mode) {
-
-        /* FIXME: why can not get borders */
-        /*GtkBorder borders;*/
-        /*_style_get_borders(context, &borders);*/
-
+        if (priv->dragging) {
+            cairo_push_group(cr);
+        }
         int b = 2;
         gtk_render_background(context, cr, -b, -b, req.width+2*b, 
                 priv->fixed_height+2*b);
+
+        if (priv->dragging) {
+            cairo_pop_group_to_source(cr);
+            cairo_paint_with_alpha(cr, 0.1);
+        }
 
         _draw_round_box(cr, req.width, priv->fixed_height, 4.0);
         cairo_clip(cr);
@@ -839,12 +853,38 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
 
     if (priv->background != NULL) {
         cairo_set_source_surface(cr, priv->background, 0, 0);
+        cairo_paint_with_alpha(cr, priv->dragging ? 0.1: 1.0);
     }
-
-    cairo_paint(cr);
 
     GTK_WIDGET_CLASS(deepin_shadow_workspace_parent_class)->draw(widget, cr);
     cairo_restore(cr);
+
+    if (priv->thumb_mode && priv->dragging && priv->show_remove_tip) {
+        // draw dash line
+        cairo_move_to(cr, req.width * TIP_LINE_START, req.height * TIP_POSITION_PERCENT);
+        cairo_line_to(cr, req.width * (1.0f - 2.0f * TIP_LINE_START), req.height * TIP_POSITION_PERCENT);
+        cairo_set_source_rgba(cr, 255, 255, 255, 0.6);
+        cairo_set_line_width(cr, TIP_LINE_WIDTH);
+        double dashes[] = {5.0, 3.0};
+        cairo_set_dash(cr, dashes, 2, 1);
+        cairo_stroke(cr);
+
+        const char* msg = _("Drag upwards to remove");
+        cairo_text_extents_t te;
+        cairo_text_extents(cr, msg, &te);
+
+        int total = te.width + cairo_image_surface_get_width(priv->remove_icon) + 9; 
+        int icon_x = (req.width - total)/2;
+        int msg_x = icon_x + cairo_image_surface_get_width(priv->remove_icon) + 9;
+
+        gtk_render_icon_surface(context, cr, priv->remove_icon, icon_x, req.height * TIP_MESSAGE_PERCENT);
+
+        cairo_set_source_rgba(cr, 255, 255, 255, 0.6);
+        cairo_move_to(cr, msg_x, req.height * TIP_MESSAGE_PERCENT - te.y_bearing); 
+        cairo_set_font_size(cr, 12.0);
+        cairo_show_text(cr, msg);
+    }
+
     
     return TRUE;
 }
@@ -1382,7 +1422,7 @@ static gboolean on_deepin_shadow_workspace_motion(DeepinShadowWorkspace *self,
                 meta_verbose("%s initial dragging\n", __func__);
 
                 GtkTargetEntry targets[] = {
-                    {(char*)"workspace", GTK_TARGET_OTHER_WIDGET, DRAG_TARGET_WORKSPACE},
+                    {(char*)"workspace", GTK_TARGET_SAME_APP, DRAG_TARGET_WORKSPACE},
                 };
 
                 GtkTargetList *target_list = gtk_target_list_new(targets, G_N_ELEMENTS(targets));
@@ -1467,6 +1507,22 @@ static void on_deepin_shadow_workspace_drag_data_received(GtkWidget* widget, Gdk
     const guchar* raw_data = gtk_selection_data_get_data(data);
     if (raw_data) {
         gpointer p = (gpointer)atol(raw_data);
+        // it could be a ws thumb, which can not be dropped here
+        if (DEEPIN_IS_SHADOW_WORKSPACE(p)) {
+            DeepinShadowWorkspace *dsw_dragging = DEEPIN_SHADOW_WORKSPACE(p);
+
+            //HACK: 
+            GtkWidget *owner = gtk_widget_get_parent(dsw_dragging);
+            while (owner && !DEEPIN_IS_WM_BACKGROUND(owner)) {
+                owner = gtk_widget_get_parent(owner);
+            }
+
+            deepin_wm_background_request_workspace_drop_operation(owner, dsw_dragging);
+
+            gtk_drag_finish(context, TRUE, FALSE, time);
+            return;
+        }
+
         MetaDeepinClonedWidget* target_clone = META_DEEPIN_CLONED_WIDGET(p);
         MetaWindow* meta_win = meta_deepin_cloned_widget_get_window(target_clone);
         meta_verbose("%s: get %x\n", __func__, target_clone);
@@ -1497,7 +1553,7 @@ static void on_deepin_shadow_workspace_drag_data_received(GtkWidget* widget, Gdk
 static gboolean on_deepin_shadow_workspace_drag_drop(GtkWidget* widget, GdkDragContext* context,
                gint x, gint y, guint time, gpointer user_data)
 {
-    meta_verbose("%s\n", __func__);
+    // the dropped could be ws thumb or cloned widget
     return FALSE;
 }
 
@@ -1537,10 +1593,10 @@ static void on_deepin_shadow_workspace_drag_begin(GtkWidget* widget, GdkDragCont
     cairo_surface_set_device_offset(dest, -priv->fixed_width/2 , -priv->fixed_height/2);
     gtk_drag_set_icon_surface(context, dest);
 
-    gtk_widget_set_opacity(widget, 0.1);
     cairo_surface_destroy(dest);
 
     priv->dragging = TRUE;
+    priv->show_remove_tip = TRUE;
 }
 
 static void on_deepin_shadow_workspace_drag_end(GtkWidget* widget, GdkDragContext *context,
@@ -1548,9 +1604,11 @@ static void on_deepin_shadow_workspace_drag_end(GtkWidget* widget, GdkDragContex
 {
     meta_verbose("%s\n", __func__);
     DeepinShadowWorkspace* self = DEEPIN_SHADOW_WORKSPACE(widget);
-    gtk_widget_set_opacity(widget, 1.0);
 
     self->priv->dragging = FALSE;
+    self->priv->show_remove_tip = FALSE;
+
+    gtk_widget_queue_draw(widget);
 
     //HACK: drag broken the grab, need to restore here
     deepin_message_hub_drag_end();
@@ -1601,6 +1659,15 @@ GtkWidget* deepin_shadow_workspace_new(void)
             "signal::desktop-changed", on_desktop_changed, self,
             "signal::about-to-change-workspace", on_window_change_workspace, self,
             NULL);
+
+    GError *error = NULL;
+    GdkPixbuf *pbuf = gdk_pixbuf_new_from_file(METACITY_PKGDATADIR "/path.svg", &error);
+    if (!pbuf && error) {
+        g_warning("load path.svg failed: %s", error->message);
+    } else {
+        self->priv->remove_icon = gdk_cairo_surface_create_from_pixbuf(pbuf, 1.0, NULL);
+        g_object_unref(pbuf);
+    }
 
     return (GtkWidget*)self;
 }
@@ -1850,20 +1917,37 @@ void deepin_shadow_workspace_set_enable_drag(DeepinShadowWorkspace* self, gboole
          */
         static GtkTargetEntry targets[] = {
             {(char*)"window", GTK_TARGET_OTHER_WIDGET, DRAG_TARGET_WINDOW},
+            // this target is only used for receiving drag-motion events
+            {(char*)"workspace", GTK_TARGET_SAME_APP, DRAG_TARGET_WORKSPACE},
         };
 
         if (val) {
             // as drop target
             gtk_drag_dest_set(GTK_WIDGET(self),
                     GTK_DEST_DEFAULT_MOTION | GTK_DEST_DEFAULT_DROP,
-                    targets, 1, GDK_ACTION_COPY);
+                    targets, 2, GDK_ACTION_COPY);
 
         }
+    }
+}
+
+void deepin_shadow_workspace_show_remove_tip(DeepinShadowWorkspace* self, gboolean val)
+{
+    if (!self->priv->thumb_mode) return;
+
+    if (self->priv->show_remove_tip != val) {
+        self->priv->show_remove_tip = val;
+        gtk_widget_queue_draw(GTK_WIDGET(self));
     }
 }
 
 gboolean deepin_shadow_workspace_is_dragging(DeepinShadowWorkspace* self)
 {
     return self->priv->dragging;
+}
+
+gboolean deepin_shadow_workspace_get_is_show_remove_tip(DeepinShadowWorkspace* self)
+{
+    return self->priv->show_remove_tip;
 }
 

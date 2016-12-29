@@ -32,6 +32,7 @@ typedef struct _DeepinWMBackgroundClass DeepinWMBackgroundClass;
 typedef struct _DeepinWMBackground DeepinWMBackground;
 typedef struct _DeepinWMBackgroundPrivate DeepinWMBackgroundPrivate;
 
+typedef struct _DeepinShadowWorkspace DeepinShadowWorkspace;
 
 struct _DeepinWMBackgroundClass
 {
@@ -52,6 +53,7 @@ void deepin_wm_background_handle_event(DeepinWMBackground* self, XIDeviceEvent* 
 void deepin_wm_background_switch_workspace(DeepinWMBackground* self, 
         MetaWorkspace* next);
 void deepin_wm_background_setup(DeepinWMBackground* self);
+void deepin_wm_background_request_workspace_drop_operation(DeepinWMBackground* , DeepinShadowWorkspace *);
 
 G_END_DECLS
 
