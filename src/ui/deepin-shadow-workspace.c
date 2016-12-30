@@ -877,7 +877,7 @@ static gboolean deepin_shadow_workspace_draw (GtkWidget *widget,
         int icon_x = (req.width - total)/2;
         int msg_x = icon_x + cairo_image_surface_get_width(priv->remove_icon) + 9;
 
-        gtk_render_icon_surface(context, cr, priv->remove_icon, icon_x, req.height * TIP_MESSAGE_PERCENT);
+        gtk_render_icon_surface(context, cr, priv->remove_icon, icon_x, req.height * TIP_MESSAGE_PERCENT + te.y_bearing/2);
 
         cairo_set_source_rgba(cr, 255, 255, 255, 0.6);
         cairo_move_to(cr, msg_x, req.height * TIP_MESSAGE_PERCENT - te.y_bearing); 
