@@ -159,10 +159,12 @@ libdeepin_metacity_private_la_SOURCES=			\
 	include/deepin-window-surface-manager.h	\
 	ui/deepin-workspace-adder.c 		\
 	include/deepin-workspace-adder.h 	\
-	ui/deepin-name-entry.c      \
-	include/deepin-name-entry.h \
-	ui/deepin-workspace-indicator.c			\
-	include/deepin-workspace-indicator.h	\
+	ui/deepin-stated-image.c 		\
+	include/deepin-stated-image.h 	\
+	ui/deepin-workspace-indicator.c 		\
+	include/deepin-workspace-indicator.h 	\
+	ui/deepin-workspace-preview-entry.c 	\
+	include/deepin-workspace-preview-entry.h\
 	ui/select-workspace.c		\
 	ui/select-workspace.h		\
 	ui/tile-preview.c			\
@@ -245,7 +247,16 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libmetacity-private.pc
 
 stylesdir = $(pkgdatadir)
-styles_DATA = deepin-wm.css texture.png close.png
+styles_DATA = deepin-wm.css texture.png close.png path.svg \
+	close_hover.png \
+	close_normal.png \
+	close_press.png \
+	sticked_hover.png \
+	sticked_normal.png \
+	sticked_press.png \
+	unsticked_hover.png \
+	unsticked_normal.png \
+	unsticked_press.png 
 
 EXTRA_DIST=$(desktopfiles_files)	 	\
 	$(wmproperties_files)			\
@@ -258,7 +269,17 @@ EXTRA_DIST=$(desktopfiles_files)	 	\
 	libmetacity-private.pc.in \
 	deepin-wm.css \
 	close.png \
+	close_hover.png \
+	close_normal.png \
+	close_press.png \
+	sticked_hover.png \
+	sticked_normal.png \
+	sticked_press.png \
+	unsticked_hover.png \
+	unsticked_normal.png \
+	unsticked_press.png \
 	texture.png \
+	path.svg \
 	com.deepin.wm.xml
 
 BUILT_SOURCES =					\

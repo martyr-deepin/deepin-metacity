@@ -79,9 +79,9 @@ struct _MetaScreen
   MetaRectangle rect;  /* Size of screen; rect.x & rect.y are always 0 */
   MetaUI *ui;
   DeepinTabPopup *tab_popup;
-  GtkWidget *ws_popup;
   DeepinWMBackground* ws_previewer;
   GtkWidget* exposing_windows_popup;
+  GtkWidget* workspace_indicator;
 
   MetaTilePreview *tile_preview;
 
@@ -170,7 +170,10 @@ MetaWorkspace* meta_screen_get_workspace_by_index (MetaScreen    *screen,
                                                    int            index);
 
 MetaWorkspace* meta_screen_new_workspace      (MetaScreen                 *screen);
-void           meta_screen_remove_workspace   (MetaScreen                 *screen,
+void          meta_screen_reorder_workspace   (MetaScreen                 *screen,
+                                               MetaWorkspace              *workspace,
+                                               int                         new_index);
+void          meta_screen_remove_workspace    (MetaScreen                 *screen,
                                                MetaWorkspace              *workspace);
 void          meta_screen_set_cursor          (MetaScreen                 *screen,
                                                MetaCursor                  cursor);
@@ -179,11 +182,10 @@ void          meta_screen_update_cursor       (MetaScreen                 *scree
 void          meta_screen_ensure_tab_popup    (MetaScreen                 *screen,
                                                MetaTabList                 list_type,
                                                MetaTabShowType             show_type);
-void          meta_screen_ensure_workspace_popup (MetaScreen *screen);
 
-void          meta_screen_ensure_previewing_workspace (MetaScreen* screen);
-
-void          meta_screen_ensure_exposing_windows (MetaScreen* screen);
+void          meta_screen_ensure_workspace_indicator  (MetaScreen *screen);
+void          meta_screen_ensure_previewing_workspace (MetaScreen *screen);
+void          meta_screen_ensure_exposing_windows     (MetaScreen *screen);
 
 void          meta_screen_tile_preview_update          (MetaScreen    *screen,
                                                         gboolean       delay);

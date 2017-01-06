@@ -234,8 +234,9 @@ static void _delayed_load_desktop_surface(MetaDeepinSwitchPreviewer* self)
             meta_verbose ("dock_win geom(%d,%d,  %d,%d)\n", r2.x, r2.y, r2.width, r2.height);
         }
 
+        int index = meta_workspace_index(priv->active_workspace);
         priv->desktop_surface = deepin_window_surface_manager_get_combined3(
-                deepin_background_cache_get_surface(primary, 1.0), 
+                deepin_background_cache_get_surface(primary, index, 1.0), 
                 aux1, r1.x, r1.y,
                 aux2, r2.x, r2.y,
                 1.0);

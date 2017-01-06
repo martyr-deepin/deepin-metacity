@@ -48,32 +48,19 @@ static const int ANIMATION_DURATION = 250;
 /**
  * The percent value between workspace clones' horizontal offset and monitor's height.
  */
-static const float HORIZONTAL_OFFSET_PERCENT = 0.03f;
+static const float HORIZONTAL_OFFSET_PERCENT = 0.044f;
 
 /**
  * The percent value between flow workspace's top offset and monitor's height.
  */
-static const float FLOW_CLONE_TOP_OFFSET_PERCENT = 0.24f;
+static const float FLOW_CLONE_TOP_OFFSET_PERCENT = 0.211f;
 
 /**
  * The percent value between distance of flow workspaces and its width.
  */
-static const float FLOW_CLONE_DISTANCE_PERCENT = 0.10f;
-
-
-/* WorkspaceThumbClone */
-static const int WORKSPACE_NAME_WIDTH = 70;
-static const int WORKSPACE_NAME_HEIGHT = 8;  // will pluse NAME_SHAPE_PADDING * 2 when using
-static const int WORKSPACE_NAME_MAX_LENGTH = 32;
-
-// distance between thumbnail workspace clone and workspace name field
-static const int WORKSPACE_NAME_DISTANCE = 26;
-
-// layout spacing for workspace name field
-static const int WORKSPACE_NAME_SPACING = 5;
+static const float FLOW_CLONE_DISTANCE_PERCENT = 0.078f;
 
 static const int THUMB_SHAPE_PADDING = 2;
-static const int NAME_SHAPE_PADDING = 8;
 
 
 /* WorkspaceThumbCloneContainer */
@@ -90,6 +77,25 @@ static const int CLOSE_BUTTON_SIZE = 31;
 //const AnimationMode ANIMATION_MODE = AnimationMode.EASE_OUT_QUAD;
 
 static const int MAX_WORKSPACE_NUM = 7; 
+
+/**
+ * for workspace indicator
+ */
+static const float DWI_WORKSPACE_SCALE = 0.10f;
+
+/**
+ * The distance measure in percentage of the monitor width between workspaces preview
+ */
+static const float DWI_SPACING_PERCENT = 0.0156f;
+
+static const int DWI_MARGIN_HORIZONTAL = 22;
+static const int DWI_MARGIN_VERTICAL   = 21;
+
+// drag targets for cloned widget or workspace
+enum {
+    DRAG_TARGET_WINDOW = 1,
+    DRAG_TARGET_WORKSPACE,
+};
 
 void calculate_preferred_size(gint entry_count, gint max_width,
         float* box_width, float* box_height, float* item_width,

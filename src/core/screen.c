@@ -39,8 +39,8 @@
 #include "compositor.h"
 #include "deepin-desktop-background.h"
 #include "deepin-wm-background.h"
-#include "deepin-message-hub.h"
 #include "deepin-workspace-indicator.h"
+#include "deepin-message-hub.h"
 
 #ifdef HAVE_SOLARIS_XINERAMA
 #include <X11/extensions/xinerama.h>
@@ -690,10 +690,10 @@ meta_screen_new (MetaDisplay *display,
                             screen->xscreen);
 
   screen->tab_popup = NULL;
-  screen->ws_popup = NULL;
   screen->ws_previewer = NULL;
   screen->exposing_windows_popup = NULL;
   screen->tile_preview = NULL;
+  screen->workspace_indicator = NULL;
 
   screen->tile_preview_timeout_id = 0;
 
@@ -1489,12 +1489,21 @@ meta_screen_ensure_tab_popup (MetaScreen      *screen,
 }
 
 void 
+meta_screen_ensure_workspace_indicator (MetaScreen* screen)
+{
+  if (screen->workspace_indicator) 
+    return;
+
+  screen->workspace_indicator = deepin_workspace_indicator_new (screen);
+}
+
+void 
 meta_screen_ensure_previewing_workspace (MetaScreen* screen)
 {
   if (screen->ws_previewer) 
     return;
 
-  screen->ws_previewer = deepin_wm_background_new(screen);
+  screen->ws_previewer = deepin_wm_background_new (screen);
 }
 
 void meta_screen_ensure_exposing_windows (MetaScreen* screen)
@@ -1506,33 +1515,6 @@ void meta_screen_ensure_exposing_windows (MetaScreen* screen)
   gtk_widget_set_app_paintable(GTK_WIDGET(screen->exposing_windows_popup), TRUE);
   gtk_window_set_default_size(GTK_WINDOW(screen->exposing_windows_popup), 
           screen->rect.width, screen->rect.height);
-}
-
-void
-meta_screen_ensure_workspace_popup (MetaScreen *screen)
-{
-    if (screen->ws_popup) 
-        return;
-
-    screen->ws_popup = gtk_window_new(GTK_WINDOW_POPUP);
-
-    GdkScreen* gscreen = gdk_display_get_screen(
-            gdk_display_get_default(), screen->number);
-    GdkVisual* visual = gdk_screen_get_rgba_visual (gscreen);
-    if (visual)
-        gtk_widget_set_visual(screen->ws_popup, visual);
-
-    gtk_window_set_screen(GTK_WINDOW(screen->ws_popup), gscreen);
-    gtk_widget_set_app_paintable(screen->ws_popup, TRUE);
-    gtk_window_set_position(GTK_WINDOW(screen->ws_popup),
-            GTK_WIN_POS_CENTER_ALWAYS);
-    gtk_window_set_resizable(GTK_WINDOW(screen->ws_popup), TRUE);
-
-    gtk_window_set_keep_above(GTK_WIDGET(screen->ws_popup), TRUE);
-    gtk_window_stick(GTK_WINDOW(screen->ws_popup));
-
-    DeepinWorkspaceIndicator* indi = deepin_workspace_indicator_new();
-    gtk_container_add(GTK_CONTAINER(screen->ws_popup), indi);
 }
 
 static gboolean
@@ -3101,6 +3083,54 @@ meta_screen_unset_cm_selection (MetaScreen *screen)
                       None, screen->wm_cm_timestamp);
 }
 
+void
+meta_screen_reorder_workspace (MetaScreen    *screen,
+        MetaWorkspace *workspace,
+        int            new_index)
+{
+  GList     *l;
+  int       index;
+  int       from, to;
+  int       active_index;
+
+  active_index = meta_workspace_index(screen->active_workspace);
+  l = g_list_find (screen->workspaces, workspace);
+  if (!l)
+    return;
+
+  index = meta_workspace_index (workspace);
+  if (new_index == index) 
+    return;
+
+  if (new_index < index) {
+      from = new_index;
+      to = index;
+  } else {
+      from = index;
+      to = new_index;
+  }
+
+  screen->workspaces = g_list_remove_link (screen->workspaces, l);
+  screen->workspaces = g_list_insert (screen->workspaces, l->data, new_index);
+
+  if (active_index != meta_workspace_index(screen->active_workspace))
+    {
+      guint32 timestamp =
+          meta_display_get_current_time_roundtrip (screen->display);
+      meta_workspace_activate (screen->active_workspace, timestamp);
+    }
+
+  for (; from <= to; from++) 
+    {
+      MetaWorkspace *w = g_list_nth_data(screen->workspaces, from);
+      meta_workspace_update_window_hints (w);
+    }
+
+  meta_screen_queue_workarea_recalc (screen);
+
+  deepin_message_hub_workspace_reordered (index, new_index);
+}
+
 void 
 meta_screen_remove_workspace (MetaScreen *screen,
         MetaWorkspace *workspace)
@@ -3110,7 +3140,10 @@ meta_screen_remove_workspace (MetaScreen *screen,
     GList         *next = NULL;
     gboolean       active_index_changed;
     int            new_num;
+    int            remove_index;
 
+
+    remove_index = meta_workspace_index (workspace);
     l = screen->workspaces;
     while (l) {
         MetaWorkspace *w = l->data;
@@ -3162,6 +3195,7 @@ meta_screen_remove_workspace (MetaScreen *screen,
     }
 
     meta_screen_queue_workarea_recalc (screen);
+    deepin_message_hub_workspace_removed (remove_index);
 }
 
 MetaWorkspace*
@@ -3169,8 +3203,6 @@ meta_screen_new_workspace (MetaScreen   *screen)
 {
   int new_num;
   MetaWorkspace *new_ws;
-
-
 
   new_ws = meta_workspace_new (screen);
 
@@ -3180,6 +3212,8 @@ meta_screen_new_workspace (MetaScreen   *screen)
   meta_prefs_set_num_workspaces (new_num);
 
   meta_screen_queue_workarea_recalc (screen);
+
+  deepin_message_hub_workspace_added (meta_workspace_index (new_ws));
   return new_ws;
 }
 

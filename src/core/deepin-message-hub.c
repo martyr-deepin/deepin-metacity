@@ -26,12 +26,17 @@ struct _DeepinMessageHubPrivate
 
 enum
 {
+    SIGNAL_WORKSPACE_ADDED,
+    SIGNAL_WORKSPACE_REMOVED,
+    SIGNAL_WORKSPACE_SWITCHED,
+    SIGNAL_WORKSPACE_REORDERED,
     SIGNAL_WINDOW_REMOVED,
     SIGNAL_WINDOW_ADDED,
     SIGNAL_WINDOW_DAMAGED,
     SIGNAL_DESKTOP_CHANGED,
     SIGNAL_SCREEN_CHANGED,
     SIGNAL_ABOUT_TO_CHANGE_WORKSPACE,
+    SIGNAL_WINDOW_ABOVE_STATE_CHANGED,
     SIGNAL_DRAG_END,
     SIGNAL_UNABLE_TO_OPERATE,
 
@@ -94,6 +99,14 @@ void deepin_message_hub_window_about_to_change_workspace(
             window, workspace);
 }
  
+void deepin_message_hub_window_above_state_changed(MetaWindow* window, gboolean above)
+{
+    meta_verbose("%s: set %s above = %d\n", __func__, window->desc, above);
+    g_signal_emit(deepin_message_hub_get(),
+            signals[SIGNAL_WINDOW_ABOVE_STATE_CHANGED], 0, 
+            window, above);
+}
+
 void deepin_message_hub_drag_end(void)
 {
     meta_verbose("%s\n", __func__);
@@ -152,6 +165,14 @@ static void deepin_message_hub_class_init (DeepinMessageHubClass *klass)
             G_TYPE_NONE, 2,
             G_TYPE_POINTER, G_TYPE_POINTER);
 
+    signals[SIGNAL_WINDOW_ABOVE_STATE_CHANGED] = g_signal_new (
+            "window-above-state-changed",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 2,
+            G_TYPE_POINTER, G_TYPE_BOOLEAN);
+
     signals[SIGNAL_DRAG_END] = g_signal_new (
             "drag-end",
             G_OBJECT_CLASS_TYPE (klass),
@@ -164,6 +185,30 @@ static void deepin_message_hub_class_init (DeepinMessageHubClass *klass)
             G_SIGNAL_RUN_LAST, 0,
             NULL, NULL, NULL,
             G_TYPE_NONE, 1, G_TYPE_POINTER);
+
+    signals[SIGNAL_WORKSPACE_REMOVED] = g_signal_new ("workspace-removed",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 1, G_TYPE_INT);
+
+    signals[SIGNAL_WORKSPACE_ADDED] = g_signal_new ("workspace-added",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 1, G_TYPE_INT);
+
+    signals[SIGNAL_WORKSPACE_SWITCHED] = g_signal_new ("workspace-switched",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_INT);
+
+    signals[SIGNAL_WORKSPACE_REORDERED] = g_signal_new ("workspace-reordered",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_INT);
 }
 
 static void on_message_unable_to_operate(MetaWindow* window, gpointer data)
@@ -203,6 +248,34 @@ static void on_monitors_changed(GdkScreen *gdkscreen, gpointer user_data)
 static void on_screen_resized(GdkScreen *screen, gpointer user_data)
 {
     meta_verbose("%s\n", __func__);
+}
+
+void deepin_message_hub_workspace_added(int index)
+{
+    meta_verbose("%s: %d\n", __func__, index);
+    if (!meta_get_display ()->display_opening) {
+        g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_WORKSPACE_ADDED], 0, index);
+    }
+}
+
+void deepin_message_hub_workspace_removed(int index)
+{
+    meta_verbose("%s: %d\n", __func__, index);
+    if (!meta_get_display ()->display_opening) {
+        g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_WORKSPACE_REMOVED], 0, index);
+    }
+}
+
+void deepin_message_hub_workspace_switched(int from, int to)
+{
+    meta_verbose("%s: %d -> %d\n", __func__, from, to);
+    g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_WORKSPACE_SWITCHED], 0, from, to);
+}
+
+void deepin_message_hub_workspace_reordered(int index, int new_index)
+{
+    meta_verbose("%s: %d -> %d\n", __func__, index, new_index);
+    g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_WORKSPACE_REORDERED], 0, index, new_index);
 }
 
 DeepinMessageHub* deepin_message_hub_get()

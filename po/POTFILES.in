@@ -24,10 +24,10 @@ src/tools/metacity-message.c
 src/ui/frames.c
 src/ui/menu.c
 src/ui/deepin-menu.c
+src/ui/deepin-shadow-workspace.c
 src/ui/metaaccellabel.c
 src/ui/resizepopup.c
 src/ui/theme.c
 src/ui/theme-parser.c
 src/ui/theme-viewer.c
-src/ui/deepin-workspace-indicator.c
 

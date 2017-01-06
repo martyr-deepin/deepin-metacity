@@ -54,11 +54,15 @@ gdouble deepin_shadow_workspace_get_scale(DeepinShadowWorkspace*);
 
 void deepin_shadow_workspace_set_current(DeepinShadowWorkspace*, gboolean);
 void deepin_shadow_workspace_set_thumb_mode(DeepinShadowWorkspace*, gboolean);
+void deepin_shadow_workspace_show_remove_tip(DeepinShadowWorkspace* self, gboolean);
+
 /* 
  * NOTE: this must be set before populate 
  */
 void deepin_shadow_workspace_set_enable_drag(DeepinShadowWorkspace*, gboolean);
+gboolean deepin_shadow_workspace_is_dragging(DeepinShadowWorkspace*);
 
+gboolean deepin_shadow_workspace_get_is_show_remove_tip(DeepinShadowWorkspace* self);
 gboolean deepin_shadow_workspace_get_is_thumb_mode(DeepinShadowWorkspace*);
 gboolean deepin_shadow_workspace_get_is_current(DeepinShadowWorkspace*);
 

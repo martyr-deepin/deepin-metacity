@@ -12,8 +12,11 @@
 #ifndef _DEEPIN_WORKSPACE_INDICATOR_H_
 #define _DEEPIN_WORKSPACE_INDICATOR_H_
 
+#include <X11/Xlib.h>
+#include <X11/keysym.h>
 #include <gtk/gtk.h>
-#include "core/workspace.h"
+#include <prefs.h>
+#include "../core/workspace.h"
 
 G_BEGIN_DECLS
 
@@ -28,25 +31,26 @@ typedef struct _DeepinWorkspaceIndicatorClass DeepinWorkspaceIndicatorClass;
 typedef struct _DeepinWorkspaceIndicator DeepinWorkspaceIndicator;
 typedef struct _DeepinWorkspaceIndicatorPrivate DeepinWorkspaceIndicatorPrivate;
 
-
 struct _DeepinWorkspaceIndicatorClass
 {
-	GtkLabelClass parent_class;
+	GtkWindowClass parent_class;
 };
 
 struct _DeepinWorkspaceIndicator
 {
-	GtkLabel parent_instance;
+	GtkWindow parent_instance;
 
 	DeepinWorkspaceIndicatorPrivate *priv;
 };
 
 GType deepin_workspace_indicator_get_type (void) G_GNUC_CONST;
-GtkWidget* deepin_workspace_indicator_new();
-void deepin_workspace_indicator_request_workspace_change(DeepinWorkspaceIndicator*,
-        MetaWorkspace*);
+GtkWidget* deepin_workspace_indicator_new(MetaScreen*);
+void deepin_workspace_indicator_free(DeepinWorkspaceIndicator *dwi);
+void deepin_workspace_indicator_request_workspace_change(
+        DeepinWorkspaceIndicator* self, MetaWorkspace* workspace);
 
 G_END_DECLS
 
 #endif /* _DEEPIN_WORKSPACE_INDICATOR_H_ */
+
 

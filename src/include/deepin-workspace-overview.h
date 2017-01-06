@@ -61,6 +61,7 @@ void deepin_workspace_overview_handle_event(DeepinWorkspaceOverview* self,
 MetaWorkspace* deepin_workspace_overview_get_workspace(DeepinWorkspaceOverview*);
 
 GdkWindow* deepin_workspace_overview_get_event_window(DeepinWorkspaceOverview*);
+void deepin_workspace_overview_set_present_windows(DeepinWorkspaceOverview* self, GVariant* xids);
 
 G_END_DECLS
 

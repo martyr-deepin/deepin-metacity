@@ -1162,7 +1162,7 @@ window_size (MetaCompWindow *cw)
 
   border = border_size (cw);
 
-  if (visible != None)
+  if (visible != None && border != None)
     {
       XFixesTranslateRegion (xdisplay, visible,
                          cw->attrs.x + cw->attrs.border_width,
@@ -1757,6 +1757,12 @@ free_win (MetaCompWindow *cw,
       cw->shadow_pict = None;
     }
 
+  /**
+   * FIXME: Destroy border_size and window_size may crash (e.g QQ snapshot window)
+   * and I don't know why
+   */
+  meta_error_trap_push (display);
+
   if (cw->border_size)
     {
       XFixesDestroyRegion (xdisplay, cw->border_size);
@@ -1768,6 +1774,8 @@ free_win (MetaCompWindow *cw,
       XFixesDestroyRegion (xdisplay, cw->window_size);
       cw->window_size = None;
     }
+
+  meta_error_trap_pop (display, FALSE);
 
   if (cw->border_clip)
     {
@@ -2195,6 +2203,7 @@ restack_win (MetaCompWindow *cw,
         }
     }
 
+#if 0
     for (GList *l = info->windows; l != NULL; l = l->next) {
         MetaCompWindow *cw = (MetaCompWindow *) l->data;
         if (cw->window)
@@ -2202,6 +2211,7 @@ restack_win (MetaCompWindow *cw,
                     cw->attrs.map_state == IsUnmapped ? "unmapped":
                     cw->attrs.map_state == IsViewable ? "mapped":"unviewable");
     }
+#endif
 }
 
 static void

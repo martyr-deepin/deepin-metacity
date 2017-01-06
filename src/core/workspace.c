@@ -27,6 +27,8 @@
 #include "prefs.h"
 #include <X11/Xatom.h>
 #include <string.h>
+#include "deepin-workspace-indicator.h"
+#include "deepin-message-hub.h"
 
 #ifdef HAVE_CANBERRA
 #include <canberra-gtk.h>
@@ -467,6 +469,18 @@ meta_workspace_activate_with_focus (MetaWorkspace *workspace,
       meta_topic (META_DEBUG_FOCUS, "Focusing default window on new workspace\n");
       meta_workspace_focus_default_window (workspace, NULL, timestamp);
     }
+
+  int from = meta_workspace_index (old);
+  int to = meta_workspace_index (workspace);
+
+  if (workspace->screen->display->grab_op == META_GRAB_OP_NONE ||
+          workspace->screen->display->grab_op == META_GRAB_OP_KEYBOARD_WORKSPACE_SWITCHING) {
+      meta_screen_ensure_workspace_indicator (workspace->screen);
+      DeepinWorkspaceIndicator *dwi = DEEPIN_WORKSPACE_INDICATOR(workspace->screen->workspace_indicator);
+      deepin_workspace_indicator_request_workspace_change(dwi, workspace);
+  }
+
+  deepin_message_hub_workspace_switched (from, to);
 }
 
 void

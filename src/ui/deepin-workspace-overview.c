@@ -26,6 +26,7 @@
 #include "deepin-design.h"
 #include "deepin-ease.h"
 #include "deepin-workspace-overview.h"
+#include "deepin-window-surface-manager.h"
 #include "deepin-background-cache.h"
 #include "deepin-message-hub.h"
 
@@ -950,6 +951,8 @@ void deepin_workspace_overview_populate(DeepinWorkspaceOverview* self,
     DeepinWorkspaceOverviewPrivate* priv = self->priv;
     priv->workspace = ws;
 
+    int workspace_index = meta_workspace_index(priv->workspace);
+
     GdkScreen* screen = gdk_screen_get_default();
     priv->primary = gdk_screen_get_primary_monitor(screen);
     gint n_monitors = gdk_screen_get_n_monitors(screen);
@@ -1008,36 +1011,24 @@ void deepin_workspace_overview_populate(DeepinWorkspaceOverview* self,
 
 
     priv->dock_height = 0;
-    MetaWindow *desktop_win = NULL, *dock_win = NULL;
+    MetaWindow *dock_win = NULL;
 
     GList* windows = priv->workspace->mru_list;
     while (windows != NULL) {
         MetaWindow *w = (MetaWindow*)windows->data;
-        if (w->type == META_WINDOW_DESKTOP) {
-            desktop_win = w;
-        }
-
         if (w->type == META_WINDOW_DOCK) {
             dock_win = w;
+            break;
         }
 
-        if (desktop_win && dock_win) break;
         windows = windows->next;
     }
 
     for (int i = 0; i < n_monitors; i++) {
         MonitorData* md = (MonitorData*)g_ptr_array_index(priv->monitors, i);
         if (i == priv->primary) {
-            MetaRectangle r1 = {0, 0, 0, 0}, r2 = {0, 0, 0, 0};
-            cairo_surface_t* aux1 = NULL, *aux2 = NULL;
-
-            if (desktop_win) {
-                meta_window_get_outer_rect(desktop_win, &r1);
-                aux1 = deepin_window_surface_manager_get_surface(desktop_win, 1.0); 
-                r1.x -= md->mon_rect.x;
-                r1.y -= md->mon_rect.y;
-                meta_verbose ("%s: desktop offset(%d, %d)\n", __func__, r1.x, r1.y);
-            }
+            MetaRectangle r2 = {0, 0, 0, 0};
+            cairo_surface_t *aux2 = NULL;
 
             if (dock_win) {
                 meta_window_get_outer_rect(dock_win, &r2);
@@ -1047,15 +1038,18 @@ void deepin_workspace_overview_populate(DeepinWorkspaceOverview* self,
                 r2.y -= md->mon_rect.y;
                 meta_verbose ("%s: dock offset(%d, %d)\n", __func__, r2.x, r2.y);
             }
+
             md->desktop_surface = deepin_window_surface_manager_get_combined3(
-                    deepin_background_cache_get_surface(md->monitor, 1.0), 
-                    aux1, r1.x, r1.y,
+                    deepin_background_cache_get_surface(md->monitor, workspace_index, 1.0), 
+                    NULL, 0, 0,
                     aux2, r2.x, r2.y,
                     1.0);
         } else {
-            md->desktop_surface = deepin_background_cache_get_surface(md->monitor, 1.0);
-            cairo_surface_reference(md->desktop_surface);
+            md->desktop_surface = deepin_background_cache_get_surface(md->monitor, workspace_index, 1.0);
         }
+
+        if (md->desktop_surface)
+            cairo_surface_reference(md->desktop_surface);
     }
 
     gtk_widget_queue_resize(GTK_WIDGET(self));
@@ -1247,7 +1241,7 @@ void deepin_workspace_overview_set_show_all_windows(DeepinWorkspaceOverview* sel
     self->priv->all_window_mode = val;
 }
 
-deepin_workspace_overview_set_present_windows(DeepinWorkspaceOverview* self, GVariant* xids)
+void deepin_workspace_overview_set_present_windows(DeepinWorkspaceOverview* self, GVariant* xids)
 {
     DeepinWorkspaceOverviewPrivate* priv = self->priv;
     if (xids) {
