@@ -14,6 +14,7 @@
 #include <util.h>
 #include "screen-private.h"
 #include "deepin-dbus-service.h"
+#include "deepin-background-cache.h"
 #include "deepin-message-hub.h"
 #include "deepin-dbus-wm.h"
 #include "deepin-keybindings.h"

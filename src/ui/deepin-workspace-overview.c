@@ -26,6 +26,7 @@
 #include "deepin-design.h"
 #include "deepin-ease.h"
 #include "deepin-workspace-overview.h"
+#include "deepin-window-surface-manager.h"
 #include "deepin-background-cache.h"
 #include "deepin-message-hub.h"
 
@@ -1240,7 +1241,7 @@ void deepin_workspace_overview_set_show_all_windows(DeepinWorkspaceOverview* sel
     self->priv->all_window_mode = val;
 }
 
-deepin_workspace_overview_set_present_windows(DeepinWorkspaceOverview* self, GVariant* xids)
+void deepin_workspace_overview_set_present_windows(DeepinWorkspaceOverview* self, GVariant* xids)
 {
     DeepinWorkspaceOverviewPrivate* priv = self->priv;
     if (xids) {

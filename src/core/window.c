@@ -2995,6 +2995,7 @@ meta_window_make_above (MetaWindow  *window)
   meta_window_update_layer (window);
   meta_window_raise (window);
   set_net_wm_state (window);
+  deepin_message_hub_window_above_state_changed(window, TRUE);
 }
 
 void
@@ -3004,6 +3005,7 @@ meta_window_unmake_above (MetaWindow  *window)
   meta_window_raise (window);
   meta_window_update_layer (window);
   set_net_wm_state (window);
+  deepin_message_hub_window_above_state_changed(window, FALSE);
 }
 
 void

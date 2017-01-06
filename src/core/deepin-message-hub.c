@@ -36,6 +36,7 @@ enum
     SIGNAL_DESKTOP_CHANGED,
     SIGNAL_SCREEN_CHANGED,
     SIGNAL_ABOUT_TO_CHANGE_WORKSPACE,
+    SIGNAL_WINDOW_ABOVE_STATE_CHANGED,
     SIGNAL_DRAG_END,
     SIGNAL_UNABLE_TO_OPERATE,
 
@@ -98,6 +99,14 @@ void deepin_message_hub_window_about_to_change_workspace(
             window, workspace);
 }
  
+void deepin_message_hub_window_above_state_changed(MetaWindow* window, gboolean above)
+{
+    meta_verbose("%s: set %s above = %d\n", __func__, window->desc, above);
+    g_signal_emit(deepin_message_hub_get(),
+            signals[SIGNAL_WINDOW_ABOVE_STATE_CHANGED], 0, 
+            window, above);
+}
+
 void deepin_message_hub_drag_end(void)
 {
     meta_verbose("%s\n", __func__);
@@ -155,6 +164,14 @@ static void deepin_message_hub_class_init (DeepinMessageHubClass *klass)
             NULL, NULL, NULL,
             G_TYPE_NONE, 2,
             G_TYPE_POINTER, G_TYPE_POINTER);
+
+    signals[SIGNAL_WINDOW_ABOVE_STATE_CHANGED] = g_signal_new (
+            "window-above-state-changed",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 2,
+            G_TYPE_POINTER, G_TYPE_BOOLEAN);
 
     signals[SIGNAL_DRAG_END] = g_signal_new (
             "drag-end",

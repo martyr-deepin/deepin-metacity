@@ -28,6 +28,7 @@
 #include <X11/Xatom.h>
 #include <string.h>
 #include "deepin-workspace-indicator.h"
+#include "deepin-message-hub.h"
 
 #ifdef HAVE_CANBERRA
 #include <canberra-gtk.h>

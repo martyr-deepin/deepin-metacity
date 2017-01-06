@@ -14,6 +14,7 @@
 #include <gtk/gtk.h>
 
 #include "deepin-workspace-adder.h"
+#include "deepin-background-cache.h"
 #include "deepin-design.h"
 
 struct _DeepinWorkspaceAdderPrivate

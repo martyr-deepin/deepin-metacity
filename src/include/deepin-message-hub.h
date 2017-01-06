@@ -54,6 +54,7 @@ void deepin_message_hub_window_added(MetaWindow*);
 void deepin_message_hub_window_damaged(MetaWindow*, XRectangle*, int);
 void deepin_message_hub_desktop_changed(void);
 void deepin_message_hub_window_about_to_change_workspace(MetaWindow*, MetaWorkspace*);
+void deepin_message_hub_window_above_state_changed(MetaWindow*, gboolean above);
 void deepin_message_hub_unable_to_operate(MetaWindow* window);
 void deepin_message_hub_drag_end(void);
 void deepin_message_hub_workspace_added(int index);
