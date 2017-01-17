@@ -78,6 +78,8 @@ libdeepin_metacity_private_la_SOURCES=			\
 	core/keybindings.h			\
 	core/deepin-keybindings.c   \
 	core/deepin-keybindings.h   \
+	core/deepin-corner-indicator.c 	\
+	core/deepin-corner-indicator.h 	\
 	core/deepin-timeline.c	    \
 	include/deepin-timeline.h	\
 	core/main-private.c			\
@@ -256,7 +258,11 @@ styles_DATA = deepin-wm.css texture.png close.png path.svg \
 	sticked_press.png \
 	unsticked_hover.png \
 	unsticked_normal.png \
-	unsticked_press.png 
+	unsticked_press.png \
+	topleft.png \
+	topright.png \
+	bottomleft.png \
+	bottomright.png
 
 EXTRA_DIST=$(desktopfiles_files)	 	\
 	$(wmproperties_files)			\
@@ -278,6 +284,10 @@ EXTRA_DIST=$(desktopfiles_files)	 	\
 	unsticked_hover.png \
 	unsticked_normal.png \
 	unsticked_press.png \
+	topleft.png \
+	topright.png \
+	bottomleft.png \
+	bottomright.png
 	texture.png \
 	path.svg \
 	com.deepin.wm.xml

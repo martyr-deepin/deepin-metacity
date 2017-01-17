@@ -25,6 +25,7 @@
  */
 
 #include <config.h>
+#include <gdk/gdk.h>
 #include <gdk/gdkx.h>
 #include "screen-private.h"
 #include "util.h"
@@ -38,6 +39,7 @@
 #include "xprops.h"
 #include "compositor.h"
 #include "deepin-desktop-background.h"
+#include "deepin-corner-indicator.h"
 #include "deepin-wm-background.h"
 #include "deepin-workspace-indicator.h"
 #include "deepin-message-hub.h"
@@ -387,6 +389,86 @@ create_guard_window (Display *xdisplay, MetaScreen *screen)
   return guard_window;
 }
 
+#define CORNER_SIZE 32
+
+static Window
+create_screen_corner_window (Display *xdisplay, MetaScreen *screen, MetaScreenCorner corner)
+{
+  XSetWindowAttributes attributes;
+  Window edge_window;
+  gulong create_serial;
+  int x = 0, y = 0, w = CORNER_SIZE, h = CORNER_SIZE;
+
+  attributes.event_mask = PointerMotionMask | EnterWindowMask | LeaveWindowMask;
+  attributes.override_redirect = True;
+
+  switch (corner) {
+      case META_SCREEN_TOPLEFT:
+          x = y = 0;
+          break;
+      case META_SCREEN_TOPRIGHT:
+          x = screen->rect.width - CORNER_SIZE; y = 0; break;
+      case META_SCREEN_BOTTOMLEFT:
+          x = 0;
+          y = screen->rect.height - CORNER_SIZE; 
+          break;
+      case META_SCREEN_BOTTOMRIGHT:
+          x = screen->rect.width - CORNER_SIZE;
+          y = screen->rect.height - CORNER_SIZE;
+          break;
+  }
+
+  /* We have to call record_add() after we have the new window ID,
+   * so save the serial for the CreateWindow request until then */
+  create_serial = XNextRequest(xdisplay);
+  edge_window =
+    XCreateWindow (xdisplay,
+		   screen->xroot,
+           //FIXME: topleft now
+		   x, /* x */
+		   y, /* y */
+		   w,
+		   h,
+		   0, /* border width */
+		   0, /* depth */
+		   InputOnly, /* class */
+		   CopyFromParent, /* visual */
+		   CWEventMask|CWOverrideRedirect,
+		   &attributes);
+
+  XStoreName (xdisplay, edge_window, "mutter corner window");
+
+  {
+    unsigned char mask_bits[XIMaskLen (XI_LASTEVENT)] = { 0 };
+    XIEventMask mask = { XIAllMasterDevices, sizeof (mask_bits), mask_bits };
+
+    XISetMask (mask.mask, XI_Enter);
+    XISetMask (mask.mask, XI_Leave);
+    XISetMask (mask.mask, XI_Motion);
+
+    /* Sync on the connection we created the window on to
+     * make sure it's created before we select on it on the
+     * backend connection. */
+    XSync (xdisplay, False);
+
+    XISelectEvents (xdisplay, edge_window, &mask, 1);
+  }
+
+  {
+      XWindowChanges changes;
+
+      meta_error_trap_push (screen->display);
+
+      changes.stack_mode = Above;
+      XConfigureWindow (xdisplay, edge_window, CWStackMode, &changes);
+
+      meta_error_trap_pop (screen->display, FALSE);
+  }
+
+  XMapWindow (xdisplay, edge_window);
+  return edge_window;
+}
+
 static DeepinDesktopBackground* create_desktop_background(MetaScreen* screen, gint monitor)
 {
     GtkWidget* widget = (GtkWidget*)deepin_desktop_background_new(screen, monitor);
@@ -601,6 +683,10 @@ meta_screen_new (MetaDisplay *display,
   screen->starting_corner = META_SCREEN_TOPLEFT;
   screen->compositor_data = NULL;
   screen->guard_window = None;
+  screen->corner_windows[0] = None;
+  screen->corner_windows[1] = None;
+  screen->corner_windows[2] = None;
+  screen->corner_windows[3] = None;
   screen->desktop_bgs = NULL;
   screen->desktop_bg_windows = NULL;
 
@@ -725,6 +811,25 @@ meta_screen_new (MetaDisplay *display,
 
   g_signal_connect(deepin_message_hub_get(), "screen-changed", 
           (GCallback)on_screen_changed, NULL);
+
+  MetaScreenCorner corners[] = {
+      META_SCREEN_TOPLEFT,
+      META_SCREEN_TOPRIGHT,
+      META_SCREEN_BOTTOMLEFT,
+      META_SCREEN_BOTTOMRIGHT,
+  };
+
+  const char *keys[] = {
+      "left-up", "right-up", "left-down", "right-down" 
+  };
+
+  int i;
+  for (i = 0; i < 4; i++) 
+  {
+    screen->corner_indicator[i] = deepin_corner_indicator_new (
+            screen, corners[i], keys[i]);
+    gtk_widget_show (screen->corner_indicator[i]);
+  }
 
   meta_verbose ("Added screen %d ('%s') root 0x%lx\n",
                 screen->number, screen->screen_name, screen->xroot);
@@ -876,6 +981,22 @@ meta_screen_manage_all_windows (MetaScreen *screen)
   if (screen->guard_window == None)
     screen->guard_window = create_guard_window (screen->display->xdisplay,
                                                 screen);
+  if (screen->corner_windows[0] == None) {
+      int i;
+      MetaScreenCorner corners[] = {
+          META_SCREEN_TOPLEFT,
+          META_SCREEN_TOPRIGHT,
+          META_SCREEN_BOTTOMLEFT,
+          META_SCREEN_BOTTOMRIGHT,
+      };
+
+      for (i = 0; i < 4; i++) 
+      {
+          screen->corner_windows[i] = create_screen_corner_window (
+                  screen->display->xdisplay, screen, corners[i]);
+      }
+  }
+
   if (!screen->desktop_bgs) {
       gint n_monitors = gdk_screen_get_n_monitors(gdk_screen_get_default());
       screen->desktop_bgs = g_ptr_array_new_full(n_monitors,
@@ -2465,6 +2586,47 @@ on_screen_changed(DeepinMessageHub* hub, MetaScreen* screen,
                        &changes);
     }
 
+  if (screen->corner_windows[0] != None) 
+    {
+      int i;
+      MetaScreenCorner corners[] = {
+          META_SCREEN_TOPLEFT,
+          META_SCREEN_TOPRIGHT,
+          META_SCREEN_BOTTOMLEFT,
+          META_SCREEN_BOTTOMRIGHT,
+      };
+
+      for (i = 0; i < 4; i++) 
+        {
+          XWindowChanges changes;
+          int x = 0, y = 0;
+
+          switch (corners[i]) {
+              case META_SCREEN_TOPLEFT:
+                  x = y = 0;
+                  break;
+              case META_SCREEN_TOPRIGHT:
+                  x = screen->rect.width - CORNER_SIZE;
+                  y = 0;
+                  break;
+              case META_SCREEN_BOTTOMLEFT:
+                  x = 0;
+                  y = screen->rect.height - CORNER_SIZE; 
+                  break;
+              case META_SCREEN_BOTTOMRIGHT:
+                  x = screen->rect.width - CORNER_SIZE;
+                  y = screen->rect.height - CORNER_SIZE;
+                  break;
+          }
+
+          changes.x = x;
+          changes.y = y;
+
+          XConfigureWindow(screen->display->xdisplay, screen->corner_windows[i],
+                           CWX | CWY, &changes);
+        }
+    }
+
   if (screen->desktop_bgs) {
       gint n_monitors = gdk_screen_get_n_monitors(gdk_screen_get_default());
       guint old_len = screen->desktop_bgs->len;
@@ -3281,6 +3443,20 @@ meta_screen_cancel_hide_windows(MetaScreen* screen)
 
   g_hash_table_remove_all (kept_state_windows);
   display->hiding_windows_mode = FALSE;
+}
+
+void          
+meta_screen_enter_corner (MetaScreen *screen, MetaScreenCorner corner)
+{
+  XUnmapWindow (screen->display->xdisplay, screen->corner_windows[corner]);
+  deepin_message_hub_screen_corner_entered (screen, corner);
+}
+
+void          
+meta_screen_leave_corner (MetaScreen *screen, MetaScreenCorner corner)
+{
+  XMapWindow (screen->display->xdisplay, screen->corner_windows[corner]);
+  deepin_message_hub_screen_corner_leaved (screen, corner);
 }
 
 #endif /* HAVE_COMPOSITE_EXTENSIONS */

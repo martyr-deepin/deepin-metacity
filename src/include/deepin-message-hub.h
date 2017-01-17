@@ -61,6 +61,8 @@ void deepin_message_hub_workspace_added(int index);
 void deepin_message_hub_workspace_removed(int index);
 void deepin_message_hub_workspace_switched(int from, int to);
 void deepin_message_hub_workspace_reordered(int index, int new_index);
+void deepin_message_hub_screen_corner_entered(MetaScreen*, MetaScreenCorner);
+void deepin_message_hub_screen_corner_leaved(MetaScreen*, MetaScreenCorner);
 
 G_END_DECLS
 

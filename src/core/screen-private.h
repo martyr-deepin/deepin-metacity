@@ -147,6 +147,12 @@ struct _MetaScreen
    * this allows us to provide live previews of unmapped windows */
   Window guard_window;
 
+  /* Windows used to support hot-zone functionality.
+   */
+  Window corner_windows[4];
+
+  GtkWidget *corner_indicator[4];
+
   /* DeepinDesktopBackground's */
   GPtrArray* desktop_bgs;
   GArray* desktop_bg_windows;
@@ -251,5 +257,11 @@ void	 meta_screen_composite_all_windows (MetaScreen *screen);
 
 void meta_screen_request_hide_windows(MetaScreen* screen);
 void meta_screen_cancel_hide_windows(MetaScreen* screen);
+
+void meta_screen_enter_corner (MetaScreen *screen,
+                               MetaScreenCorner corner);
+void meta_screen_leave_corner (MetaScreen *screen,
+                               MetaScreenCorner corner);
+
 
 #endif

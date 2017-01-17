@@ -39,6 +39,8 @@ enum
     SIGNAL_WINDOW_ABOVE_STATE_CHANGED,
     SIGNAL_DRAG_END,
     SIGNAL_UNABLE_TO_OPERATE,
+    SIGNAL_SCREEN_CORNER_ENTERED,
+    SIGNAL_SCREEN_CORNER_LEAVED,
 
     LAST_SIGNAL
 };
@@ -209,6 +211,18 @@ static void deepin_message_hub_class_init (DeepinMessageHubClass *klass)
             G_SIGNAL_RUN_LAST, 0,
             NULL, NULL, NULL,
             G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_INT);
+
+    signals[SIGNAL_SCREEN_CORNER_ENTERED] = g_signal_new ("screen-corner-entered",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 1, G_TYPE_INT);
+
+    signals[SIGNAL_SCREEN_CORNER_LEAVED] = g_signal_new ("screen-corner-leaved",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 1, G_TYPE_INT);
 }
 
 static void on_message_unable_to_operate(MetaWindow* window, gpointer data)
@@ -276,6 +290,18 @@ void deepin_message_hub_workspace_reordered(int index, int new_index)
 {
     meta_verbose("%s: %d -> %d\n", __func__, index, new_index);
     g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_WORKSPACE_REORDERED], 0, index, new_index);
+}
+
+void deepin_message_hub_screen_corner_entered(MetaScreen *screen, MetaScreenCorner corner)
+{
+    meta_verbose("%s: %d\n", __func__, corner);
+    g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_SCREEN_CORNER_ENTERED], 0, corner);
+}
+
+void deepin_message_hub_screen_corner_leaved(MetaScreen *screen, MetaScreenCorner corner)
+{
+    meta_verbose("%s: %d\n", __func__, corner);
+    g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_SCREEN_CORNER_LEAVED], 0, corner);
 }
 
 DeepinMessageHub* deepin_message_hub_get()
