@@ -112,7 +112,7 @@ static gboolean blocked (DeepinCornerIndicator *self)
         return FALSE;
 
     gboolean isLauncherShowing = FALSE;
-    g_debug("%s: title %s", __func__, active_window->title);
+    meta_verbose("%s: title %s\n", __func__, active_window->title);
     if (active_window->title != NULL) {
         if (string_contains(active_window->title, "dde-launcher")) {
             isLauncherShowing = TRUE;
@@ -123,7 +123,7 @@ static gboolean blocked (DeepinCornerIndicator *self)
         if (string_contains(priv->action, "com.deepin.dde.Launcher")) {
             return FALSE;
         }
-        g_debug ("launcher is showing, do not exec action");
+        meta_verbose ("launcher is showing, do not exec action\n");
         return TRUE;
     }
 
@@ -162,7 +162,7 @@ static gboolean should_perform_action (DeepinCornerIndicator *self)
 
     int pid = active_window->net_wm_pid;
     if (is_app_in_list(self, pid, black_list)) {
-        g_debug("active window app in blacklist");
+        meta_verbose("active window app in blacklist\n");
         g_strfreev (black_list);
         return FALSE;
     }
@@ -171,11 +171,11 @@ static gboolean should_perform_action (DeepinCornerIndicator *self)
     if (active_window->fullscreen) {
         char ** white_list = g_settings_get_strv(priv->settings, "white-list");
         if (is_app_in_list(self, pid, white_list)) {
-            g_debug("active window is fullscreen, and in whiteList");
+            meta_verbose("active window is fullscreen, and in whiteList\n");
             g_strfreev (white_list);
             return TRUE;
         }
-        g_debug("active window is fullscreen, and not in whiteList");
+        meta_verbose("active window is fullscreen, and not in whiteList\n");
         g_strfreev (white_list);
         return FALSE;
     }
@@ -191,7 +191,7 @@ static void corner_leaved(DeepinCornerIndicator *self, MetaScreenCorner corner)
         return;
 
     if (priv->startRecord) {
-        g_debug ("leave [%s]", priv->key);
+        meta_verbose ("leave [%s]\n", priv->key);
         priv->strokeCount = 0;
         priv->startRecord = FALSE;
         priv->last_distance_factor = 0.0f;
@@ -267,7 +267,7 @@ static gboolean reach_threshold (DeepinCornerIndicator *self, GdkPoint pos)
         priv->opacity = priv->last_distance_factor;
         gtk_widget_queue_draw(GTK_WIDGET(self));
         hit = d == 1.0f;
-        g_debug ("distance factor = %f", d);
+        meta_verbose ("distance factor = %f\n", d);
     }
     return hit;
 }
@@ -333,7 +333,7 @@ static void perform_action (DeepinCornerIndicator *self)
     DeepinCornerIndicatorPrivate *priv = self->priv;
 
     if (!blocked(self) && should_perform_action(self)) {
-        g_debug ("[%s]: action: %s", priv->key, priv->action);
+        meta_verbose ("[%s]: action: %s\n", priv->key, priv->action);
 
         int d = 0;
         if (string_contains(priv->action, "com.deepin.dde.ControlCenter")) 
@@ -403,12 +403,13 @@ static void corner_entered(DeepinMessageHub *hub, MetaScreenCorner corner,
     if (corner != priv->corner)
         return;
 
-    if (blocked (self))
+    if (blocked (self)) {
+        meta_screen_leave_corner(priv->screen, priv->corner);
         return;
-    fprintf(stderr, "%s\n", __func__);
+    }
 
     priv->startRecord = TRUE;
-    g_debug ("enter [%s]", priv->key);
+    meta_verbose ("enter [%s]\n", priv->key);
 
     if (priv->polling_id != 0) {
         g_source_remove (priv->polling_id);
