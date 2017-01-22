@@ -2596,12 +2596,20 @@ on_screen_changed(DeepinMessageHub* hub, MetaScreen* screen,
           META_SCREEN_BOTTOMRIGHT,
       };
 
-      for (i = 0; i < 4; i++) 
+      // re-arrange all corner related windows
+      Window windows[8];
+      for (i = 0; i < 4; i++)
+        {
+          windows[i*2] = GDK_WINDOW_XID(gtk_widget_get_window(screen->corner_indicator[i]));
+          windows[i*2+1] = screen->corner_windows[i];
+        }
+
+      for (i = 0; i < 8; i++) 
         {
           XWindowChanges changes;
           int x = 0, y = 0;
 
-          switch (corners[i]) {
+          switch (corners[i/2]) {
               case META_SCREEN_TOPLEFT:
                   x = y = 0;
                   break;
@@ -2621,9 +2629,16 @@ on_screen_changed(DeepinMessageHub* hub, MetaScreen* screen,
 
           changes.x = x;
           changes.y = y;
-
-          XConfigureWindow(screen->display->xdisplay, screen->corner_windows[i],
-                           CWX | CWY, &changes);
+          if (i == 0) {
+              changes.stack_mode = Above;
+              XConfigureWindow(screen->display->xdisplay, windows[i],
+                      CWX | CWY | CWStackMode, &changes);
+          } else {
+              changes.stack_mode = Below;
+              changes.sibling = windows[i-1];
+              XConfigureWindow(screen->display->xdisplay, windows[i],
+                      CWX | CWY | CWStackMode | CWSibling, &changes);
+          }
         }
     }
 
