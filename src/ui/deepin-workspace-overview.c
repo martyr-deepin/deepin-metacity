@@ -20,6 +20,7 @@
 
 #include "../core/screen-private.h"
 #include "../core/workspace.h"
+#include "deepin-stated-image.h"
 #include "boxes.h"
 #include "deepin-cloned-widget.h"
 #include "compositor.h"
@@ -993,12 +994,7 @@ void deepin_workspace_overview_populate(DeepinWorkspaceOverview* self,
     g_list_free(ls);
 
     {
-        priv->close_button = gtk_event_box_new();
-        gtk_event_box_set_above_child(GTK_EVENT_BOX(priv->close_button), FALSE);
-        gtk_event_box_set_visible_window(GTK_EVENT_BOX(priv->close_button), FALSE);
-
-        GtkWidget* image = gtk_image_new_from_file(METACITY_PKGDATADIR "/close.png");
-        gtk_container_add(GTK_CONTAINER(priv->close_button), image);
+        priv->close_button = deepin_stated_image_new_from_file ("close");
 
         deepin_fixed_put(DEEPIN_FIXED(self), priv->close_button, 0, 0);
         gtk_widget_set_opacity(self->priv->close_button, 0.0);
