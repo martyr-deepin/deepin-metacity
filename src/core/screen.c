@@ -438,7 +438,7 @@ static void meta_screen_calc_corner_positions (MetaScreen *screen, int* position
         br_x - CORNER_SIZE, br_y - CORNER_SIZE,
     };
 
-    fprintf(stderr, "%s: (%d, %d), (%d, %d), (%d, %d), (%d, %d)\n", __func__,
+    meta_verbose ("%s: (%d, %d), (%d, %d), (%d, %d), (%d, %d)\n", __func__,
             tl_x, tl_y, tr_x, tr_y, bl_x, bl_y, br_x, br_y);
 
     memcpy (positions, result, sizeof result);
@@ -2668,7 +2668,6 @@ on_screen_changed(DeepinMessageHub* hub, MetaScreen* screen,
 
           changes.x = positions[(i/2) * 2];
           changes.y = positions[(i/2) * 2 + 1];
-          fprintf(stderr, "%s: (%d, %d)\n", __func__, changes.x, changes.y);
 
           if (i == 0) {
               changes.stack_mode = Above;

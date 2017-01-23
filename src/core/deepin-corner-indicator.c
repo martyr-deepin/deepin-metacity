@@ -410,8 +410,10 @@ static gboolean deepin_corner_indicator_real_draw(GtkWidget *widget, cairo_t* cr
 {
     DeepinCornerIndicatorPrivate* priv = DEEPIN_CORNER_INDICATOR(widget)->priv;
 
+#ifdef G_DEBUG
     cairo_set_source_rgba(cr, 0, 0, 0, 0.4);
     cairo_paint(cr);
+#endif
 
     if (priv->effect) {
         cairo_set_source_surface(cr, priv->effect, 0, 0);
