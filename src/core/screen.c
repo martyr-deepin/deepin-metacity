@@ -1012,6 +1012,30 @@ list_windows (MetaScreen *screen)
   return g_list_reverse (result);
 }
 
+static void meta_screen_rebuild_backgrounds (MetaScreen *screen)
+{
+  if (screen->desktop_bgs) {
+    g_clear_pointer (&screen->desktop_bgs, g_ptr_array_unref);
+    g_clear_pointer (&screen->desktop_bg_windows, g_array_unref);
+  }
+
+  gint n_monitors = gdk_screen_get_n_monitors(gdk_screen_get_default());
+  screen->desktop_bgs = g_ptr_array_new_full(n_monitors,
+          (GDestroyNotify)gtk_widget_destroy);
+  screen->desktop_bg_windows = g_array_sized_new(FALSE, FALSE, sizeof(Window), n_monitors);
+
+  meta_stack_freeze(screen->stack);
+
+  for (int monitor = 0; monitor < n_monitors; monitor++) {
+      DeepinDesktopBackground* widget = create_desktop_background(screen, monitor);
+      g_ptr_array_add(screen->desktop_bgs, widget);
+      Window xid = GDK_WINDOW_XID(gtk_widget_get_window(widget));
+      g_array_append_val(screen->desktop_bg_windows, xid);
+  }
+
+  meta_stack_thaw(screen->stack);
+}
+
 void
 meta_screen_manage_all_windows (MetaScreen *screen)
 {
@@ -1040,19 +1064,7 @@ meta_screen_manage_all_windows (MetaScreen *screen)
       }
   }
 
-  if (!screen->desktop_bgs) {
-      gint n_monitors = gdk_screen_get_n_monitors(gdk_screen_get_default());
-      screen->desktop_bgs = g_ptr_array_new_full(n_monitors,
-              (GDestroyNotify)gtk_widget_destroy);
-      screen->desktop_bg_windows = g_array_sized_new(FALSE, FALSE, sizeof(Window), n_monitors);
-
-      for (int monitor = 0; monitor < n_monitors; monitor++) {
-          DeepinDesktopBackground* widget = create_desktop_background(screen, monitor);
-          g_ptr_array_add(screen->desktop_bgs, widget);
-          Window xid = GDK_WINDOW_XID(gtk_widget_get_window(widget));
-          g_array_append_val(screen->desktop_bg_windows, xid);
-      }
-  }
+  meta_screen_rebuild_backgrounds (screen);
 
   meta_display_grab (screen->display);
 
@@ -2671,29 +2683,7 @@ on_screen_changed(DeepinMessageHub* hub, MetaScreen* screen,
         }
     }
 
-  if (screen->desktop_bgs) {
-      gint n_monitors = gdk_screen_get_n_monitors(gdk_screen_get_default());
-      guint old_len = screen->desktop_bgs->len;
-      if (old_len < n_monitors) {
-          meta_stack_freeze(screen->stack);
-          for (int monitor = old_len; monitor < n_monitors; monitor++) {
-              DeepinDesktopBackground* widget = create_desktop_background(screen, monitor);
-              g_ptr_array_add(screen->desktop_bgs, widget);
-              Window xid = GDK_WINDOW_XID(gtk_widget_get_window(widget));
-              g_array_append_val(screen->desktop_bg_windows, xid);
-          }
-
-          meta_stack_thaw(screen->stack);
-
-      } else if (old_len > n_monitors) {
-          meta_stack_freeze(screen->stack);
-
-          g_ptr_array_remove_range(screen->desktop_bgs, n_monitors, old_len - n_monitors);
-          g_array_remove_range(screen->desktop_bg_windows, n_monitors, old_len - n_monitors);
-
-          meta_stack_thaw(screen->stack);
-      }
-  }
+  meta_screen_rebuild_backgrounds (screen);
 
   reload_xinerama_infos (screen);
   set_desktop_geometry_hint (screen);

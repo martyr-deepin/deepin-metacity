@@ -35,6 +35,7 @@ static void deepin_desktop_background_init (DeepinDesktopBackground *self)
 
 static void deepin_desktop_background_finalize (GObject *object)
 {
+    g_signal_handlers_disconnect_by_data(G_OBJECT(deepin_message_hub_get()), object);
     G_OBJECT_CLASS (deepin_desktop_background_parent_class)->finalize (object);
 }
 
