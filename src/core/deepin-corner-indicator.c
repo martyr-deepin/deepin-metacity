@@ -211,21 +211,12 @@ static gboolean inside_effect_region(DeepinCornerIndicator *self, GdkPoint pos)
 {
     DeepinCornerIndicatorPrivate *priv = self->priv;
 
-    switch (priv->corner) {
-        case META_SCREEN_TOPLEFT:
-            return pos.x < CORNER_SIZE && pos.y < CORNER_SIZE; break;
+    int x1, x2, y1, y2;
+    gdk_window_get_geometry (gtk_widget_get_window(self), &x1, &y1, &x2, &y2);
+    x2 += x1;
+    y2 += y1;
 
-        case META_SCREEN_TOPRIGHT:
-            return pos.x > priv->screen->rect.width - CORNER_SIZE && pos.y < CORNER_SIZE; break;
-
-        case META_SCREEN_BOTTOMLEFT:
-            return pos.x < CORNER_SIZE && pos.y > priv->screen->rect.height - CORNER_SIZE; break;
-
-        case META_SCREEN_BOTTOMRIGHT:
-            return pos.x > priv->screen->rect.width - CORNER_SIZE && pos.y > priv->screen->rect.height - CORNER_SIZE; break;
-    }
-
-    return TRUE;
+    return pos.x >= x1 && pos.x <= x2 && pos.y >= y1 && pos.y <= y2;
 }
 
 static float distance_factor(DeepinCornerIndicator *self, GdkPoint pos, float cx, float cy)
@@ -242,24 +233,36 @@ static float distance_factor(DeepinCornerIndicator *self, GdkPoint pos, float cx
     return 1.0f - fmaxf(fminf(factor, 1.0f), 0.0f);
 }
 
+static float distance_factor_for_corner (DeepinCornerIndicator *self, GdkPoint pos)
+{
+    int x1, x2, y1, y2;
+    gdk_window_get_geometry (gtk_widget_get_window(self), &x1, &y1, &x2, &y2);
+    x2 += x1;
+    y2 += y1;
+
+    float d = 0.0f;
+    switch (self->priv->corner) {
+        case META_SCREEN_TOPLEFT:
+            d = distance_factor (self, pos, x1, y1); break;
+
+        case META_SCREEN_TOPRIGHT:
+            d = distance_factor (self, pos, x2-1, y1); break;
+
+        case META_SCREEN_BOTTOMLEFT:
+            d = distance_factor (self, pos, x1, y2-1); break;
+
+        case META_SCREEN_BOTTOMRIGHT:
+            d = distance_factor (self, pos, x2-1, y2-1); break;
+    }
+
+    return d;
+}
+
 static gboolean reach_threshold (DeepinCornerIndicator *self, GdkPoint pos)
 {
     DeepinCornerIndicatorPrivate *priv = self->priv;
 
-    float d = 0.0f;
-    switch (priv->corner) {
-        case META_SCREEN_TOPLEFT:
-            d = distance_factor(self, pos, 0.0f, 0.0f); break;
-
-        case META_SCREEN_TOPRIGHT:
-            d = distance_factor(self, pos, priv->screen->rect.width-1, 0.0f); break;
-
-        case META_SCREEN_BOTTOMLEFT:
-            d = distance_factor(self, pos, 0.0f, priv->screen->rect.height-1); break;
-
-        case META_SCREEN_BOTTOMRIGHT:
-            d = distance_factor(self, pos, priv->screen->rect.width-1, priv->screen->rect.height-1); break;
-    }
+    float d = distance_factor_for_corner (self, pos);
 
     gboolean hit = FALSE;
     if (priv->last_distance_factor != d) {
@@ -276,22 +279,7 @@ static gboolean at_trigger_point(DeepinCornerIndicator *self, GdkPoint pos)
 {
     DeepinCornerIndicatorPrivate *priv = self->priv;
 
-    float d = 0.0f;
-    switch (priv->corner) {
-        case META_SCREEN_TOPLEFT:
-            d = distance_factor (self, pos, 0.0f, 0.0f); break;
-
-        case META_SCREEN_TOPRIGHT:
-            d = distance_factor (self, pos, priv->screen->rect.width-1, 0.0f); break;
-
-        case META_SCREEN_BOTTOMLEFT:
-            d = distance_factor (self, pos, 0.0f, priv->screen->rect.height-1); break;
-
-        case META_SCREEN_BOTTOMRIGHT:
-            d = distance_factor (self, pos, priv->screen->rect.width-1, priv->screen->rect.height-1); break;
-    }
-
-    return d == 1.0f;
+    return distance_factor_for_corner (self, pos) == 1.0f;
 }
 
 static void push_back (DeepinCornerIndicator *self, GdkPoint pos) 
@@ -422,6 +410,9 @@ static gboolean deepin_corner_indicator_real_draw(GtkWidget *widget, cairo_t* cr
 {
     DeepinCornerIndicatorPrivate* priv = DEEPIN_CORNER_INDICATOR(widget)->priv;
 
+    cairo_set_source_rgba(cr, 0, 0, 0, 0.4);
+    cairo_paint(cr);
+
     if (priv->effect) {
         cairo_set_source_surface(cr, priv->effect, 0, 0);
         cairo_paint_with_alpha(cr, priv->opacity);
@@ -465,7 +456,7 @@ static GdkPixbuf* get_button_pixbuf (DeepinCornerIndicator *self)
 }
 
 GtkWidget* deepin_corner_indicator_new (MetaScreen *screen, MetaScreenCorner corner,
-        const char* key)
+        const char* key, int x, int y)
 {
     GtkWidget *widget = g_object_new (DEEPIN_TYPE_CORNER_INDICATOR, NULL);
 
@@ -490,25 +481,6 @@ GtkWidget* deepin_corner_indicator_new (MetaScreen *screen, MetaScreenCorner cor
 
     gtk_widget_realize (widget);
     gdk_window_set_override_redirect (gtk_widget_get_window (widget), TRUE);
-
-    int x, y;
-    switch (corner) {
-        case META_SCREEN_TOPLEFT:
-            x = y = 0;
-            break;
-        case META_SCREEN_TOPRIGHT:
-            x = screen->rect.width - CORNER_SIZE;
-            y = 0;
-            break;
-        case META_SCREEN_BOTTOMLEFT:
-            x = 0;
-            y = screen->rect.height - CORNER_SIZE; 
-            break;
-        case META_SCREEN_BOTTOMRIGHT:
-            x = screen->rect.width - CORNER_SIZE;
-            y = screen->rect.height - CORNER_SIZE;
-            break;
-    }
 
     gdk_window_move_resize (gtk_widget_get_window (widget), x, y, CORNER_SIZE, CORNER_SIZE);
     gdk_window_raise (gtk_widget_get_window (widget));

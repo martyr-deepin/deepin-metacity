@@ -391,32 +391,69 @@ create_guard_window (Display *xdisplay, MetaScreen *screen)
 
 #define CORNER_SIZE 32
 
+static void meta_screen_calc_corner_positions (MetaScreen *screen, int* positions)
+{
+    int width = screen->rect.width, height = screen->rect.height;
+
+    int n = gdk_screen_get_n_monitors(gdk_screen_get_default());
+    int tl_x, tl_y, tr_x, tr_y, bl_x, bl_y, br_x, br_y;
+
+    tl_x = 0;
+    tl_y = height;
+    bl_x = 0;
+    bl_y = 0;
+    for (int i = 0; i < n; i++) {
+        // test if monitor is on the left
+        GdkRectangle geo;
+        gdk_screen_get_monitor_geometry(gdk_screen_get_default(), i, &geo);
+        if (geo.x != 0) {
+            continue;
+        }
+
+        tl_y = MIN (geo.y, tl_y);
+        bl_y = MAX (geo.y + geo.height, bl_y);
+    }
+
+
+    tr_x = width;
+    tr_y = height;
+    br_x = width;
+    br_y = 0;
+    for (int i = 0; i < n; i++) {
+        // test if monitor is on the right
+        GdkRectangle geo;
+        gdk_screen_get_monitor_geometry(gdk_screen_get_default(), i, &geo);
+        if (geo.x + geo.width != width) {
+            continue;
+        }
+
+        tr_y = MIN (geo.y, tr_y);
+        br_y = MAX (geo.y + geo.height, br_y);
+    }
+
+    int result[] = {
+        tl_x, tl_y,
+        tr_x - CORNER_SIZE, tr_y,
+        bl_x, bl_y - CORNER_SIZE, 
+        br_x - CORNER_SIZE, br_y - CORNER_SIZE,
+    };
+
+    fprintf(stderr, "%s: (%d, %d), (%d, %d), (%d, %d), (%d, %d)\n", __func__,
+            tl_x, tl_y, tr_x, tr_y, bl_x, bl_y, br_x, br_y);
+
+    memcpy (positions, result, sizeof result);
+}
+
 static Window
-create_screen_corner_window (Display *xdisplay, MetaScreen *screen, MetaScreenCorner corner)
+create_screen_corner_window (Display *xdisplay, MetaScreen *screen, MetaScreenCorner corner, int x, int y)
 {
   XSetWindowAttributes attributes;
   Window edge_window;
   gulong create_serial;
-  int x = 0, y = 0, w = CORNER_SIZE, h = CORNER_SIZE;
+  int w = CORNER_SIZE, h = CORNER_SIZE;
 
   attributes.event_mask = PointerMotionMask | EnterWindowMask | LeaveWindowMask;
   attributes.override_redirect = True;
-
-  switch (corner) {
-      case META_SCREEN_TOPLEFT:
-          x = y = 0;
-          break;
-      case META_SCREEN_TOPRIGHT:
-          x = screen->rect.width - CORNER_SIZE; y = 0; break;
-      case META_SCREEN_BOTTOMLEFT:
-          x = 0;
-          y = screen->rect.height - CORNER_SIZE; 
-          break;
-      case META_SCREEN_BOTTOMRIGHT:
-          x = screen->rect.width - CORNER_SIZE;
-          y = screen->rect.height - CORNER_SIZE;
-          break;
-  }
 
   /* We have to call record_add() after we have the new window ID,
    * so save the serial for the CreateWindow request until then */
@@ -823,11 +860,14 @@ meta_screen_new (MetaDisplay *display,
       "left-up", "right-up", "left-down", "right-down" 
   };
 
+  int positions[8];
+  meta_screen_calc_corner_positions (screen, positions);
+
   int i;
   for (i = 0; i < 4; i++) 
   {
     screen->corner_indicator[i] = deepin_corner_indicator_new (
-            screen, corners[i], keys[i]);
+            screen, corners[i], keys[i], positions[i*2], positions[i*2+1]);
     gtk_widget_show (screen->corner_indicator[i]);
   }
 
@@ -990,10 +1030,13 @@ meta_screen_manage_all_windows (MetaScreen *screen)
           META_SCREEN_BOTTOMRIGHT,
       };
 
+      int positions[8];
+      meta_screen_calc_corner_positions (screen, positions);
+
       for (i = 0; i < 4; i++) 
       {
           screen->corner_windows[i] = create_screen_corner_window (
-                  screen->display->xdisplay, screen, corners[i]);
+                  screen->display->xdisplay, screen, corners[i], positions[i*2], positions[i*2+1]);
       }
   }
 
@@ -2596,6 +2639,9 @@ on_screen_changed(DeepinMessageHub* hub, MetaScreen* screen,
           META_SCREEN_BOTTOMRIGHT,
       };
 
+      int positions[8];
+      meta_screen_calc_corner_positions (screen, positions);
+
       // re-arrange all corner related windows
       Window windows[8];
       for (i = 0; i < 4; i++)
@@ -2607,28 +2653,11 @@ on_screen_changed(DeepinMessageHub* hub, MetaScreen* screen,
       for (i = 0; i < 8; i++) 
         {
           XWindowChanges changes;
-          int x = 0, y = 0;
 
-          switch (corners[i/2]) {
-              case META_SCREEN_TOPLEFT:
-                  x = y = 0;
-                  break;
-              case META_SCREEN_TOPRIGHT:
-                  x = screen->rect.width - CORNER_SIZE;
-                  y = 0;
-                  break;
-              case META_SCREEN_BOTTOMLEFT:
-                  x = 0;
-                  y = screen->rect.height - CORNER_SIZE; 
-                  break;
-              case META_SCREEN_BOTTOMRIGHT:
-                  x = screen->rect.width - CORNER_SIZE;
-                  y = screen->rect.height - CORNER_SIZE;
-                  break;
-          }
+          changes.x = positions[(i/2) * 2];
+          changes.y = positions[(i/2) * 2 + 1];
+          fprintf(stderr, "%s: (%d, %d)\n", __func__, changes.x, changes.y);
 
-          changes.x = x;
-          changes.y = y;
           if (i == 0) {
               changes.stack_mode = Above;
               XConfigureWindow(screen->display->xdisplay, windows[i],

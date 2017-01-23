@@ -44,7 +44,7 @@ struct _DeepinCornerIndicator
 
 GType deepin_corner_indicator_get_type (void) G_GNUC_CONST;
 
-GtkWidget* deepin_corner_indicator_new (MetaScreen *, MetaScreenCorner, const char*);
+GtkWidget* deepin_corner_indicator_new (MetaScreen *, MetaScreenCorner, const char*, int, int);
 
 G_END_DECLS
 
