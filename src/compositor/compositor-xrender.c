@@ -2144,6 +2144,7 @@ destroy_win (MetaDisplay *display,
       g_hash_table_remove (info->windows_by_xid, (gpointer) xwindow);
     }
 
+  meta_verbose ("%s: id 0x%x\n", __func__, xwindow);
   free_win (cw, TRUE);
 }
 
@@ -2595,10 +2596,7 @@ process_unmap (MetaCompositorXRender *compositor,
 
   cw = find_window_in_display (compositor->display, event->window);
   if (cw && cw->attrs.map_state == IsViewable) {
-      if (cw->attrs.override_redirect)
-          unmap_win (compositor->display, cw->screen, event->window);
-      else 
-          destroy_win (compositor->display, event->window, FALSE);
+      unmap_win (compositor->display, cw->screen, event->window);
   }
 }
 
@@ -3000,8 +2998,15 @@ xrender_free_window (MetaCompositor *compositor,
        * http://bugzilla.gnome.org/show_bug.cgi?id=504876
        */
 
+        /* destroy withdrawn window when DestroyNotify gets received, 
+         * so we dont destroy here. because withdrawn window may just 
+         * be umapped not destroyed, and we need window info to do correct
+         * restack operation.
+         */
+#if 0
        if (window->withdrawn)
          xwindow = meta_window_get_xwindow (window); 
+#endif
     }
 
   if (xwindow != None)
