@@ -149,12 +149,16 @@ static cairo_surface_t* _create_solid_background(DeepinBackgroundCache* self, Gd
     return bg;
 }
 
+static char *get_default_uri()
+{
+    return g_strdup_printf("file://%s", fallback_background_name);
+}
+
 static char* get_picture_filename(DeepinBackgroundCache *self, int monitor_index, int workspace_index)
 {
     DeepinBackgroundCachePrivate *priv = self->priv;
     
     char* filename = NULL;
-    char* default_uri = g_settings_get_string(priv->bg_settings, GSETTINGS_BG_KEY);
     char** extra_uris = g_settings_get_strv(priv->extra_settings, GSETTINGS_EXTRA_URIS);
     int nr_uris = g_strv_length (extra_uris);
 
@@ -164,7 +168,7 @@ static char* get_picture_filename(DeepinBackgroundCache *self, int monitor_index
     }
 
     if (uri == NULL || g_strcmp0(uri, "") == 0) {
-        uri = default_uri;
+        uri = get_default_uri();
     }
 
     if (g_uri_parse_scheme (uri) != NULL) {
@@ -178,11 +182,10 @@ static char* get_picture_filename(DeepinBackgroundCache *self, int monitor_index
         filename = g_strdup(uri);
     }
 
-    g_free(default_uri);
     g_strfreev(extra_uris);
 
     if (filename == NULL) {
-        return g_strdup(fallback_background_name);
+        return get_default_uri();
     }
 
     return filename;
@@ -349,7 +352,6 @@ static void change_background (DeepinBackgroundCache *self, int index, const cha
     }
     g_free(old);
 
-    char* default_uri = g_settings_get_string(priv->bg_settings, GSETTINGS_BG_KEY);
     char** extra_uris = g_settings_get_strv(priv->extra_settings, GSETTINGS_EXTRA_URIS);
     int nr_uris = g_strv_length (extra_uris);
 
@@ -365,7 +367,7 @@ static void change_background (DeepinBackgroundCache *self, int index, const cha
         extra_uris = (char**)g_realloc(extra_uris, sizeof(char*) * (nr_ws+1));
 
         for (int i = oldsz; i < nr_ws; i++) {
-            extra_uris[i] = g_strdup(default_uri);
+            extra_uris[i] = get_default_uri();
         }
     }
 
@@ -373,7 +375,6 @@ static void change_background (DeepinBackgroundCache *self, int index, const cha
     extra_uris[new_size] = NULL;
     g_settings_set_strv (priv->extra_settings, "background-uris", extra_uris);
 
-    g_free(default_uri);
     g_strfreev(extra_uris);
 
     deepin_background_cache_invalidate(self, index);
@@ -396,9 +397,9 @@ char* deepin_get_background_uri (int index)
 static void on_workspace_added(DeepinMessageHub* hub, gint index,
         DeepinBackgroundCache* self)
 {
-    char* default_uri = g_settings_get_string(self->priv->bg_settings, GSETTINGS_BG_KEY);
+    char *default_uri = get_default_uri();
     change_background (self, index, default_uri);
-    g_free(default_uri);
+    free(default_uri);
 }
 
 static gboolean on_idle_emit_change(gpointer data)
@@ -416,7 +417,6 @@ static void on_workspace_removed(DeepinMessageHub* hub, gint index,
     int nr_ws = meta_screen_get_n_workspaces (screen);
     if (index > nr_ws) return;
 
-    char* default_uri = g_settings_get_string(priv->bg_settings, GSETTINGS_BG_KEY);
     char** extra_uris = g_settings_get_strv(priv->extra_settings, GSETTINGS_EXTRA_URIS);
     int nr_uris = g_strv_length (extra_uris);
 
@@ -431,7 +431,7 @@ static void on_workspace_removed(DeepinMessageHub* hub, gint index,
 
     for (int i = index; i < nr_ws; i++) {
         if (i+1 >= nr_uris) {
-            new_extra_uris[i] = g_strdup(default_uri);
+            new_extra_uris[i] = get_default_uri();
         } else {
             new_extra_uris[i] = g_strdup(extra_uris[i+1]);
         }
@@ -449,7 +449,6 @@ static void on_workspace_removed(DeepinMessageHub* hub, gint index,
     g_idle_add(on_idle_emit_change, NULL);
 
 cleanup:
-    g_free(default_uri);
     g_strfreev(extra_uris);
 }
 
@@ -461,7 +460,6 @@ static void reorder_workspace_background(DeepinBackgroundCache *self, int from, 
     meta_verbose("%s: %d <-> %d\n", __func__, from, to);
     int nr_ws = meta_screen_get_n_workspaces (screen);
 
-    char* default_uri = g_settings_get_string(priv->bg_settings, GSETTINGS_BG_KEY);
     char** extra_uris = g_settings_get_strv(priv->extra_settings, GSETTINGS_EXTRA_URIS);
     int nr_uris = g_strv_length (extra_uris);
 
@@ -484,7 +482,6 @@ static void reorder_workspace_background(DeepinBackgroundCache *self, int from, 
     g_settings_set_strv (priv->extra_settings, "background-uris", new_extra_uris);
 
     g_strfreev(new_extra_uris);
-    g_free(default_uri);
     g_strfreev(extra_uris);
 
     for (int k = from; d > 0 ? k <= to : k >= to; k += d) {

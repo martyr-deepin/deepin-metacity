@@ -21,6 +21,7 @@
 #include "../core/display-private.h"
 #include "deepin-design.h"
 #include "deepin-shadow-workspace.h"
+#include "deepin-stated-image.h"
 #include "deepin-window-surface-manager.h"
 #include "deepin-fixed.h"
 #include "deepin-workspace-adder.h"
@@ -314,12 +315,7 @@ static void _create_close_button(DeepinWMBackground* self)
 {
     DeepinWMBackgroundPrivate* priv= self->priv;
 
-    priv->close_button = gtk_event_box_new();
-    gtk_event_box_set_above_child(GTK_EVENT_BOX(priv->close_button), TRUE);
-    gtk_event_box_set_visible_window(GTK_EVENT_BOX(priv->close_button), FALSE);
-
-    GtkWidget* image = gtk_image_new_from_file(METACITY_PKGDATADIR "/close.png");
-    gtk_container_add(GTK_CONTAINER(priv->close_button), image);
+    priv->close_button = deepin_stated_image_new_from_file ("close");
 
     deepin_fixed_put(DEEPIN_FIXED(priv->fixed), priv->close_button, -100, -100);
     gtk_widget_set_opacity(priv->close_button, 0.0);
