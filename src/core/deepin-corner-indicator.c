@@ -58,8 +58,9 @@ G_DEFINE_TYPE (DeepinCornerIndicator, deepin_corner_indicator, GTK_TYPE_WINDOW);
 static void deepin_corner_indicator_settings_chagned(GSettings *settings,
         gchar* key, gpointer user_data)
 {
-    /*if (g_str_equal(key, GSETTINGS_BG_KEY)) {*/
-    /*}*/
+    DeepinCornerIndicatorPrivate *priv = DEEPIN_CORNER_INDICATOR(user_data)->priv;
+    if (priv->action != NULL) free(priv->action);
+    priv->action = g_settings_get_string(priv->settings, priv->key);
 }
 
 static void deepin_corner_indicator_init (DeepinCornerIndicator *self)
@@ -104,7 +105,7 @@ static gboolean blocked (DeepinCornerIndicator *self)
 {
     DeepinCornerIndicatorPrivate *priv = self->priv;
 
-    if (priv->action == NULL)
+    if (priv->action == NULL || strlen(priv->action) == 0)
         return TRUE;
 
     MetaWindow *active_window = meta_display_get_focus_window (priv->screen->display);
@@ -341,6 +342,8 @@ static void mouse_move(DeepinCornerIndicator *self, GdkPoint pos)
             return;
         }
 
+        if (blocked(self)) return;
+
         gint64 timestamp = g_get_monotonic_time () / 1000;
         if (reach_threshold(self, pos)) {
             if (priv->strokeCount > 1) {
@@ -390,11 +393,6 @@ static void corner_entered(DeepinMessageHub *hub, MetaScreenCorner corner,
 
     if (corner != priv->corner)
         return;
-
-    if (blocked (self)) {
-        meta_screen_leave_corner(priv->screen, priv->corner);
-        return;
-    }
 
     priv->startRecord = TRUE;
     meta_verbose ("enter [%s]\n", priv->key);

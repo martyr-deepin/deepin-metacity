@@ -134,6 +134,8 @@ struct _MetaScreen
   guint all_keys_grabbed : 1;
   guint show_desktop_before_grab: 1;
 
+  guint corner_actions_enabled: 1;
+
   int closing;
 
   /* gc for XOR on root window */
@@ -150,6 +152,7 @@ struct _MetaScreen
   /* Windows used to support hot-zone functionality.
    */
   Window corner_windows[4];
+  gint corner_enabled[4];
 
   GtkWidget *corner_indicator[4];
 
@@ -262,6 +265,10 @@ void meta_screen_enter_corner (MetaScreen *screen,
                                MetaScreenCorner corner);
 void meta_screen_leave_corner (MetaScreen *screen,
                                MetaScreenCorner corner);
+void          meta_screen_enable_corner_actions (MetaScreen *screen, gboolean enable);
+void          meta_screen_enable_corner        (MetaScreen                 *screen,
+                                               MetaScreenCorner            corner, 
+                                               gboolean                    val);
 
 
 #endif

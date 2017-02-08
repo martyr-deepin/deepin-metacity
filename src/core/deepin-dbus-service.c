@@ -83,6 +83,20 @@ static gboolean deepin_dbus_service_handle_toggle_debug( DeepinDBusWm *object,
     return TRUE;
 }
 
+static gboolean deepin_dbus_service_handle_enable_zone_detected (
+        DeepinDBusWm *object,
+        GDBusMethodInvocation *invocation,
+        gboolean val, gpointer data)
+{
+    meta_verbose("%s\n", __func__);
+
+    MetaDisplay* display = meta_get_display();
+    meta_screen_enable_corner_actions (display->active_screen, val);
+    deepin_dbus_wm_complete_enable_zone_detected(object, invocation);
+
+    return TRUE;
+}
+
 static gboolean deepin_dbus_service_handle_present_windows (
         DeepinDBusWm *object,
         GDBusMethodInvocation *invocation,
@@ -184,6 +198,7 @@ DeepinDBusWm* deepin_dbus_service_get()
                 "signal::handle_request_hide_windows", deepin_dbus_service_handle_request_hide_windows,  NULL,
                 "signal::handle_cancel_hide_windows", deepin_dbus_service_handle_cancel_hide_windows, NULL,
                 "signal::handle_toggle_debug", deepin_dbus_service_handle_toggle_debug, NULL,
+                "signal::handle_enable_zone_detected", deepin_dbus_service_handle_enable_zone_detected, NULL,
                 "signal::handle_change_current_workspace_background",
                 deepin_dbus_service_handle_change_current_workspace_background, NULL,
                 "signal::handle_get_current_workspace_background",

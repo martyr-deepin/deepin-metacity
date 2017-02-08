@@ -2164,30 +2164,31 @@ event_callback (XEvent   *event,
         }
     }
 
-  {
-    int i;
-    MetaScreenCorner corners[] = {
-        META_SCREEN_TOPLEFT,
-        META_SCREEN_TOPRIGHT,
-        META_SCREEN_BOTTOMLEFT,
-        META_SCREEN_BOTTOMRIGHT,
-    };
+  if (display->active_screen->corner_actions_enabled)
+    {
+      int i;
+      MetaScreenCorner corners[] = {
+          META_SCREEN_TOPLEFT,
+          META_SCREEN_TOPRIGHT,
+          META_SCREEN_BOTTOMLEFT,
+          META_SCREEN_BOTTOMRIGHT,
+      };
 
-    for (i = 0; i < 4; i++) 
-     {
-       if (event->xany.window == display->active_screen->corner_windows[i]) 
-         {
-           if (event->xany.type == EnterNotify) {
-             meta_screen_enter_corner (display->active_screen, corners[i]);
-           } else if (event->xany.type == LeaveNotify) {
-             /*meta_screen_leave_corner (display->screen, META_SCREEN_TOPLEFT);*/
+      for (i = 0; i < 4; i++) 
+       {
+         if (event->xany.window == display->active_screen->corner_windows[i]) 
+           {
+             if (event->xany.type == EnterNotify) {
+               meta_screen_enter_corner (display->active_screen, corners[i]);
+             } else if (event->xany.type == LeaveNotify) {
+               /*meta_screen_leave_corner (display->screen, META_SCREEN_TOPLEFT);*/
+             }
+
+             /*filter_out_event = TRUE;*/
+             return TRUE;
            }
-
-           /*filter_out_event = TRUE;*/
-           return TRUE;
-         }
-     }
-  }
+       }
+    }
 
   if (input_event) {
       handle_input_xevent (display, window, modified, frame_was_receiver, event, input_event);
