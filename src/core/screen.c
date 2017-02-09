@@ -1029,8 +1029,6 @@ static void meta_screen_rebuild_backgrounds (MetaScreen *screen)
           (GDestroyNotify)gtk_widget_destroy);
   screen->desktop_bg_windows = g_array_sized_new(FALSE, FALSE, sizeof(Window), n_monitors);
 
-  meta_stack_freeze(screen->stack);
-
   for (int monitor = 0; monitor < n_monitors; monitor++) {
       DeepinDesktopBackground* widget = create_desktop_background(screen, monitor);
       g_ptr_array_add(screen->desktop_bgs, widget);
@@ -1038,7 +1036,12 @@ static void meta_screen_rebuild_backgrounds (MetaScreen *screen)
       g_array_append_val(screen->desktop_bg_windows, xid);
   }
 
-  meta_stack_thaw(screen->stack);
+  if (screen->desktop_bg_windows->len) {
+      XLowerWindow (screen->display->xdisplay, *(Window*)screen->desktop_bg_windows->data);
+      XRestackWindows (screen->display->xdisplay,
+              (Window *)screen->desktop_bg_windows->data,
+              screen->desktop_bg_windows->len);
+  }
 }
 
 void
