@@ -89,9 +89,9 @@ static void deepin_corner_indicator_init (DeepinCornerIndicator *self)
 static void deepin_corner_indicator_finalize (GObject *object)
 {
     DeepinCornerIndicatorPrivate *priv = DEEPIN_CORNER_INDICATOR (object)->priv;
-    if (priv->effect) {
-        g_clear_pointer (&priv->effect, cairo_surface_destroy);
-    }
+    g_clear_pointer(&priv->effect, cairo_surface_destroy);
+    g_clear_pointer(&priv->settings, g_object_unref);
+
     G_OBJECT_CLASS (deepin_corner_indicator_parent_class)->finalize (object);
 }
 
