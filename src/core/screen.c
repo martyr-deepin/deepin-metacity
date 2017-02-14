@@ -186,14 +186,13 @@ reload_xinerama_infos (MetaScreen *screen)
   screen->display->xinerama_cache_invalidated = TRUE;
 
 #ifdef HAVE_XFREE_XINERAMA
-  if (XineramaIsActive (display->xdisplay))
     {
-      XineramaScreenInfo *infos;
       int n_infos;
       int i;
+      GdkScreen *gscreen;
 
-      n_infos = 0;
-      infos = XineramaQueryScreens (display->xdisplay, &n_infos);
+      gscreen = gdk_screen_get_default ();
+      n_infos = gdk_screen_get_n_monitors (gscreen);
 
       meta_topic (META_DEBUG_XINERAMA,
                   "Found %d Xinerama screens on display %s\n",
@@ -207,11 +206,11 @@ reload_xinerama_infos (MetaScreen *screen)
           i = 0;
           while (i < n_infos)
             {
-              screen->xinerama_infos[i].number = infos[i].screen_number;
-              screen->xinerama_infos[i].rect.x = infos[i].x_org;
-              screen->xinerama_infos[i].rect.y = infos[i].y_org;
-              screen->xinerama_infos[i].rect.width = infos[i].width;
-              screen->xinerama_infos[i].rect.height = infos[i].height;
+              GdkRectangle r;
+              gdk_screen_get_monitor_geometry (gscreen, i, &r);
+
+              screen->xinerama_infos[i].number = i;
+              screen->xinerama_infos[i].rect = *(MetaRectangle*) &r;
 
               meta_topic (META_DEBUG_XINERAMA,
                           "Xinerama %d is %d,%d %d x %d\n",
@@ -224,14 +223,6 @@ reload_xinerama_infos (MetaScreen *screen)
               ++i;
             }
         }
-
-      meta_XFree (infos);
-    }
-  else
-    {
-      meta_topic (META_DEBUG_XINERAMA,
-                  "No XFree86 Xinerama extension or XFree86 Xinerama inactive on display %s\n",
-                  display->name);
     }
 #else
   meta_topic (META_DEBUG_XINERAMA,
