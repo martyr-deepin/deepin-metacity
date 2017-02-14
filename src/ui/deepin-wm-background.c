@@ -481,6 +481,12 @@ static void _handle_drag_motion(GtkWidget* widget, GdkDragContext* context,
     if (dsw_switching == dsw_dragging) 
         dsw_switching = NULL;
 
+    // we need to take care of the case when a cloned widget is dragging, 
+    // so no dsw_dragging at all
+    if (dsw_dragging == NULL) {
+        return;
+    }
+
     WorkspaceDragOperation op = get_drag_operation(self, dsw_dragging, x, y);
     switch(op) {
         case DRAG_TO_REMOVE: {
