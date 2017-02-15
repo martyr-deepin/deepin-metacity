@@ -258,6 +258,7 @@ static void deepin_background_cache_load_background_for_workspace(DeepinBackgrou
     if (!pixbuf) {
         meta_verbose("%s\n", error->message);
         g_free(path);
+        path = NULL;
         g_error_free(error);
         goto _next;
     }
@@ -297,7 +298,7 @@ _next:
                 monitor, workspace_index);
     }
 
-    g_free(path);
+    if (path) g_free(path);
     if (pixbuf) g_object_unref(pixbuf);
 }
 
