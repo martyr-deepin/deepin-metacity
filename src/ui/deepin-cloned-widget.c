@@ -721,6 +721,7 @@ void meta_deepin_cloned_widget_set_size(MetaDeepinClonedWidget* self,
     MetaRectangle r;
     meta_window_get_outer_rect(priv->meta_window, &r);
 
+    g_clear_pointer (&priv->snapshot, cairo_surface_destroy);
     priv->snapshot = deepin_window_surface_manager_get_surface(
             priv->meta_window, (double)width/r.width);
     if (priv->snapshot) cairo_surface_reference(priv->snapshot);

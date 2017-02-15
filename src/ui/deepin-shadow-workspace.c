@@ -740,14 +740,12 @@ static void on_desktop_changed(DeepinMessageHub* hub, gpointer data)
     DeepinShadowWorkspace* self = DEEPIN_SHADOW_WORKSPACE(data);
     DeepinShadowWorkspacePrivate* priv = self->priv;
 
-    if (priv->background) {
-        g_clear_pointer(&priv->background, cairo_surface_destroy);
-    }
+    g_clear_pointer(&priv->background, cairo_surface_destroy);
 
     int index = meta_workspace_index(priv->workspace);
     priv->background = deepin_background_cache_get_surface(
             priv->primary, index, priv->scale);
-    cairo_surface_reference(priv->background);
+    if (priv->background) cairo_surface_reference(priv->background);
     
     if (gtk_widget_is_visible(self)) {
         gtk_widget_queue_draw(self);
@@ -785,6 +783,9 @@ static void deepin_shadow_workspace_dispose (GObject *object)
         g_ptr_array_free(priv->clones, FALSE);
         priv->clones = NULL;
     }
+
+    g_clear_pointer (&priv->background, cairo_surface_destroy);
+    g_clear_pointer (&priv->remove_icon, cairo_surface_destroy);
 
     G_OBJECT_CLASS (deepin_shadow_workspace_parent_class)->dispose (object);
 }
@@ -1394,7 +1395,7 @@ void deepin_shadow_workspace_populate(DeepinShadowWorkspace* self,
     int index = meta_workspace_index(priv->workspace);
     priv->background = deepin_background_cache_get_surface(
             priv->primary, index, priv->scale);
-    cairo_surface_reference(priv->background);
+    if (priv->background) cairo_surface_reference(priv->background);
 
     gtk_widget_queue_resize(GTK_WIDGET(self));
 }
