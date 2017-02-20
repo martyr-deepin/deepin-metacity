@@ -23,6 +23,7 @@
 
 #define DEEPIN_ZONE_SETTINGS "com.deepin.dde.zone"
 #define CORNER_THRESHOLD 150
+#define REACTIVATION_THRESHOLD  450 // cooldown time for consective reactivation
 
 struct _DeepinCornerIndicatorPrivate
 {
@@ -33,7 +34,6 @@ struct _DeepinCornerIndicatorPrivate
     char* key;
     char* action;
 
-    int strokeCount;
     gboolean startRecord;
 
     float last_distance_factor;
@@ -71,7 +71,6 @@ static void deepin_corner_indicator_init (DeepinCornerIndicator *self)
 
     priv->key = NULL;
     priv->action = NULL;
-    priv->strokeCount = 0;
     priv->startRecord = FALSE;
     priv->last_distance_factor = 0.0f;
     priv->opacity = priv->last_distance_factor;
@@ -193,7 +192,6 @@ static void corner_leaved(DeepinCornerIndicator *self, MetaScreenCorner corner)
 
     if (priv->startRecord) {
         meta_verbose ("leave [%s]\n", priv->key);
-        priv->strokeCount = 0;
         priv->startRecord = FALSE;
         priv->last_distance_factor = 0.0f;
         priv->opacity = priv->last_distance_factor;
@@ -259,21 +257,18 @@ static float distance_factor_for_corner (DeepinCornerIndicator *self, GdkPoint p
     return d;
 }
 
-static gboolean reach_threshold (DeepinCornerIndicator *self, GdkPoint pos)
+static void update_distance_factor (DeepinCornerIndicator *self, GdkPoint pos)
 {
     DeepinCornerIndicatorPrivate *priv = self->priv;
 
     float d = distance_factor_for_corner (self, pos);
 
-    gboolean hit = FALSE;
     if (priv->last_distance_factor != d) {
         priv->last_distance_factor = d;
         priv->opacity = priv->last_distance_factor;
         gtk_widget_queue_draw(GTK_WIDGET(self));
-        hit = d == 1.0f;
         meta_verbose ("distance factor = %f\n", d);
     }
-    return hit;
 }
 
 static gboolean at_trigger_point(DeepinCornerIndicator *self, GdkPoint pos)
@@ -332,45 +327,58 @@ static void perform_action (DeepinCornerIndicator *self)
     }
 }
 
+static gboolean can_activate (DeepinCornerIndicator *self, GdkPoint pos, gint64 timestamp)
+{
+    DeepinCornerIndicatorPrivate *priv = self->priv;
+
+    if (priv->last_reset_time == 0 || (timestamp - priv->last_reset_time) > REACTIVATION_THRESHOLD) {
+        priv->last_reset_time = timestamp;
+        return FALSE;
+    }
+
+    if (priv->last_trigger_time != 0 && 
+            (timestamp - priv->last_trigger_time) < REACTIVATION_THRESHOLD - CORNER_THRESHOLD) {
+        // still cooldown
+        return FALSE;
+    }
+
+    if (timestamp - priv->last_reset_time < CORNER_THRESHOLD) {
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
 static void mouse_move(DeepinCornerIndicator *self, GdkPoint pos)
 {
     DeepinCornerIndicatorPrivate *priv = self->priv;
 
-    if (priv->startRecord) {
-        if (!inside_effect_region(self, pos)) {
-            corner_leaved(self, priv->corner);
-            return;
-        }
+    if (!inside_effect_region(self, pos)) {
+        corner_leaved(self, priv->corner);
+        return;
+    }
 
-        if (blocked(self)) return;
+    if (blocked(self)) return;
 
-        gint64 timestamp = g_get_monotonic_time () / 1000;
-        if (reach_threshold(self, pos)) {
-            if (priv->strokeCount > 1) {
-                perform_action(self);
-                priv->strokeCount = 0;
-                priv->last_trigger_time = g_get_monotonic_time () / 1000;
-                priv->last_reset_time = 0;
+    update_distance_factor (self, pos);
+    if (!at_trigger_point (self, pos)) {
+        return;
+    }
 
-            } else if (priv->last_reset_time != 0) {
-                if (timestamp - priv->last_reset_time >= CORNER_THRESHOLD) {
-                    priv->strokeCount++;
-                }
+    gint64 timestamp = g_get_monotonic_time () / 1000;
+    if (priv->last_trigger_time != 0 && 
+            (timestamp - priv->last_trigger_time) < REACTIVATION_THRESHOLD - CORNER_THRESHOLD) {
+        // still cooldown
+        return;
+    }
 
-            } else if (priv->last_trigger_time == 0 || 
-                    timestamp - priv->last_trigger_time >= CORNER_THRESHOLD) {
-                priv->last_reset_time = g_get_monotonic_time () / 1000;
-                priv->strokeCount++;
-            }
-
-        } else if (at_trigger_point(self, pos)) {
-            if (priv->last_reset_time != 0 && 
-                    timestamp - priv->last_reset_time >= CORNER_THRESHOLD) {
-                priv->strokeCount++;
-                // warp mouse cursor back a little
-                push_back(self, pos);
-            }
-        }
+    if (can_activate (self, pos, timestamp)) {
+        priv->last_trigger_time = timestamp;
+        priv->last_reset_time = 0;
+        perform_action (self);
+    } else {
+        // warp mouse cursor back a little
+        push_back (self, pos);
     }
 }
 
