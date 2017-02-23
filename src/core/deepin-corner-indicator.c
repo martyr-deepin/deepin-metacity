@@ -23,7 +23,7 @@
 
 #define DEEPIN_ZONE_SETTINGS "com.deepin.dde.zone"
 #define CORNER_THRESHOLD 150
-#define REACTIVATION_THRESHOLD  450 // cooldown time for consective reactivation
+#define REACTIVATION_THRESHOLD  550 // cooldown time for consective reactivation
 
 struct _DeepinCornerIndicatorPrivate
 {
