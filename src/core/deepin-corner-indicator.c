@@ -309,6 +309,8 @@ static gboolean on_delayed_action (DeepinCornerIndicator *self)
         g_error_free(error);
     }
 
+    self->priv->last_trigger_time = g_get_monotonic_time () / 1000;
+    self->priv->last_reset_time = 0;
     return FALSE;
 }
 
@@ -373,9 +375,9 @@ static void mouse_move(DeepinCornerIndicator *self, GdkPoint pos)
     }
 
     if (can_activate (self, pos, timestamp)) {
-        priv->last_trigger_time = timestamp;
-        priv->last_reset_time = 0;
         perform_action (self);
+        push_back (self, pos);
+
     } else {
         // warp mouse cursor back a little
         push_back (self, pos);
