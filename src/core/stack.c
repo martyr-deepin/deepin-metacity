@@ -1034,6 +1034,117 @@ raise_window_relative_to_managed_windows (MetaScreen *screen,
     XFree (children);
 }
 
+  
+static void
+restack_override_redirected_windows_relative_to_managed (MetaStack *stack)
+{
+  MetaScreen* screen;
+  Window ignored1, ignored2;
+  Window *children;
+  unsigned int n_children;
+  int i;
+
+  screen = stack->screen;
+
+  /* Normally XQueryTree() means "must grab server" but here
+   * we don't, since we know we won't manage any new windows
+   * or restack any windows before using the XQueryTree results.
+   */
+
+  meta_error_trap_push_with_return (screen->display);
+
+  XQueryTree (screen->display->xdisplay,
+              screen->xroot,
+              &ignored1, &ignored2, &children, &n_children);
+
+  if (meta_error_trap_pop_with_return (screen->display, TRUE) != Success)
+    {
+      meta_topic (META_DEBUG_STACK,
+                  "Error querying root children to raise or windows\n");
+      return;
+    }
+
+  // sorted in top-to-bottom order for XRestackWindows
+  GArray *or_windows = g_array_new (FALSE, FALSE, sizeof (Window));
+  Window topmost_managed = None;
+  int guard_id = 0;
+
+  /* First, find topmost managed and guard_window as boundary */
+  i = n_children - 1;
+  while (i >= 0)
+    {
+      if (topmost_managed == None && 
+              meta_display_lookup_x_window (screen->display, children[i]) != NULL)
+        {
+            topmost_managed = children[i];
+        }
+
+      if (screen->guard_window == children[i])
+        {
+          guard_id = i;
+          break;
+        }
+      
+      --i;
+    }
+
+  if (topmost_managed == None) goto out;
+
+  /* Collect all OR windows visible below the topmost managed, and restack them 
+   * restack is heavy, we deliberately reduce the amount of windows need to be 
+   * restacked by checking map state. I assume XGetWindowAttributes is sort of 
+   * more light-weight than XConfigureWindow
+   **/
+  i = guard_id+1;
+  while (i < n_children)
+    {
+      if (topmost_managed == children[i]) break;
+
+      if (meta_display_lookup_x_window (screen->display, children[i]) == NULL)
+        {
+          XWindowAttributes attrs;
+
+          meta_error_trap_push_with_return (screen->display);
+          if (XGetWindowAttributes (screen->display->xdisplay, children[i], &attrs))
+           {
+              if(meta_error_trap_pop_with_return (screen->display, TRUE) == Success &&
+                      attrs.map_state == IsViewable)
+               {
+                 g_array_prepend_val (or_windows, children[i]);
+               }
+           }
+        }
+
+      ++i;
+    }
+
+  i = 0;
+  while (i < or_windows->len) {
+      Window or_window = g_array_index (or_windows, Window, i);
+      meta_verbose (META_DEBUG_STACK, "Moving or 0x%lx above topmost managed window 0x%lx\n",
+              or_window, topmost_managed);
+
+      XWindowChanges changes;
+      changes.sibling = topmost_managed;
+      changes.stack_mode = Above;
+
+      meta_error_trap_push (screen->display);
+      XConfigureWindow (screen->display->xdisplay,
+                        or_window,
+                        CWSibling | CWStackMode,
+                        &changes);
+      meta_error_trap_pop (screen->display, FALSE);
+      ++i;
+  }
+
+out:
+  g_array_free (or_windows, TRUE);
+
+  if (children)
+    XFree (children);
+
+}
+
 /**
  * Order the windows on the X server to be the same as in our structure.
  * We do this using XRestackWindows if we don't know the previous order,
@@ -1230,6 +1341,8 @@ stack_sync_to_server (MetaStack *stack)
                            (Window *) newp, new_end - newp);
         }
     }
+
+  restack_override_redirected_windows_relative_to_managed (stack);
 
   /* Push hidden windows to the bottom of the stack under the guard window */
   XLowerWindow (stack->screen->display->xdisplay, stack->screen->guard_window);
