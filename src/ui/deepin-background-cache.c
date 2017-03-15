@@ -12,9 +12,12 @@
 #include <config.h>
 #include <math.h>
 #include <util.h>
+#include <string.h>
+#include <stdlib.h>
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
 #include <cairo.h>
+#include <json-glib/json-glib.h>
 #include "deepin-background-cache.h"
 #include "deepin-message-hub.h"
 
@@ -36,9 +39,13 @@ typedef struct _ScaledCacheInfo
 
 struct _DeepinBackgroundCachePrivate
 {
-    GList* caches;
+    GList *caches;
 
-    GList* defaults; // caches for default, monitor&workspace is useless
+    GList *defaults; // caches for default, monitor&workspace is useless
+
+    GList *preinstalled_wallpapers;
+    GDBusProxy *appearance_intf;
+    char *default_uri;
 
     GSettings *bg_settings;
     GSettings *extra_settings;
@@ -51,6 +58,8 @@ G_DEFINE_TYPE (DeepinBackgroundCache, deepin_background_cache, G_TYPE_OBJECT);
 
 static void _clear_cache_list(GList **caches) 
 {
+    if (caches == NULL) return;
+
     GList* l = *caches;
     while (l) {
         ScaledCacheInfo* sci = (ScaledCacheInfo*)l->data;
@@ -149,10 +158,6 @@ static cairo_surface_t* _create_solid_background(DeepinBackgroundCache* self, Gd
     return bg;
 }
 
-static char *get_default_uri()
-{
-    return g_strdup_printf("file://%s", fallback_background_name);
-}
 
 static char* get_picture_filename(DeepinBackgroundCache *self, int monitor_index, int workspace_index)
 {
@@ -168,7 +173,7 @@ static char* get_picture_filename(DeepinBackgroundCache *self, int monitor_index
     }
 
     if (uri == NULL || g_strcmp0(uri, "") == 0) {
-        uri = get_default_uri();
+        uri = priv->default_uri;
     }
 
     if (g_uri_parse_scheme (uri) != NULL) {
@@ -185,7 +190,7 @@ static char* get_picture_filename(DeepinBackgroundCache *self, int monitor_index
     g_strfreev(extra_uris);
 
     if (filename == NULL) {
-        return get_default_uri();
+        return g_strdup(fallback_background_name);
     }
 
     return filename;
@@ -368,7 +373,7 @@ static void change_background (DeepinBackgroundCache *self, int index, const cha
         extra_uris = (char**)g_realloc(extra_uris, sizeof(char*) * (nr_ws+1));
 
         for (int i = oldsz; i < nr_ws; i++) {
-            extra_uris[i] = get_default_uri();
+            extra_uris[i] = g_strdup(priv->default_uri);
         }
     }
 
@@ -398,9 +403,7 @@ char* deepin_get_background_uri (int index)
 static void on_workspace_added(DeepinMessageHub* hub, gint index,
         DeepinBackgroundCache* self)
 {
-    char *default_uri = get_default_uri();
-    change_background (self, index, default_uri);
-    free(default_uri);
+    change_background (self, index, self->priv->default_uri);
 }
 
 static gboolean on_idle_emit_change(gpointer data)
@@ -432,7 +435,7 @@ static void on_workspace_removed(DeepinMessageHub* hub, gint index,
 
     for (int i = index; i < nr_ws; i++) {
         if (i+1 >= nr_uris) {
-            new_extra_uris[i] = get_default_uri();
+            new_extra_uris[i] = g_strdup(priv->default_uri);
         } else {
             new_extra_uris[i] = g_strdup(extra_uris[i+1]);
         }
@@ -503,6 +506,9 @@ static void deepin_background_cache_init (DeepinBackgroundCache *self)
 	self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, DEEPIN_TYPE_BACKGROUND_CACHE, DeepinBackgroundCachePrivate);
 
     self->priv->caches = NULL;
+    self->priv->preinstalled_wallpapers = NULL;
+    self->priv->default_uri = g_strdup_printf("file://%s", fallback_background_name);
+    self->priv->appearance_intf = NULL;
 
     self->priv->bg_settings = g_settings_new(BACKGROUND_SCHEMA);
     self->priv->extra_settings = g_settings_new(EXTRA_BACKGROUND_SCHEMA);
@@ -599,7 +605,8 @@ cairo_surface_t* deepin_background_cache_get_surface(gint monitor, gint workspac
 // right now, now need to cache scales at all
 cairo_surface_t* deepin_background_cache_get_default(double scale)
 {
-    DeepinBackgroundCachePrivate* priv = deepin_get_background()->priv;
+    DeepinBackgroundCache* self = deepin_get_background();
+    DeepinBackgroundCachePrivate* priv = self->priv;
 
     GList* l = priv->defaults;
     if (l) {
@@ -609,3 +616,68 @@ cairo_surface_t* deepin_background_cache_get_default(double scale)
     return NULL;
 }
 
+void deepin_background_cache_request_new_default_uri ()
+{
+    DeepinBackgroundCache *self = deepin_get_background ();
+    DeepinBackgroundCachePrivate *priv = self->priv;
+
+    GError *error = NULL;
+    if (priv->appearance_intf == NULL) {
+        char *json_str = NULL;
+        GList *nodes = NULL;
+        GVariant *ret = NULL;
+        JsonNode *root = NULL;
+
+        priv->appearance_intf = g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SESSION, 
+                G_DBUS_PROXY_FLAGS_NONE, NULL, 
+                "com.deepin.daemon.Appearance", "/com/deepin/daemon/Appearance",
+                "com.deepin.daemon.Appearance", NULL, &error);
+        if (error) {
+            meta_warning ("%s: %s\n", __func__, error->message);
+            g_error_free(error);
+            goto done;
+        }
+
+        ret = g_dbus_proxy_call_sync(priv->appearance_intf, "List", g_variant_new("(s)", 
+                    "background"), G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error);
+        if (error) {
+            meta_warning ("%s: %s\n", __func__, error->message);
+            g_error_free(error);
+            goto done;
+        }
+
+        g_variant_get(ret, "(s)", &json_str);
+        root = json_from_string (json_str, &error);
+        if (error) {
+            meta_warning ("%s: %s\n", __func__, error->message);
+            g_error_free(error);
+            goto done;
+        }
+
+        nodes = json_array_get_elements(json_node_get_array(root));
+        GList *np = nodes;
+        while (np) {
+            JsonObject *obj = json_node_get_object(np->data);
+            if (json_object_get_boolean_member(obj, "Deletable") == FALSE) {
+                priv->preinstalled_wallpapers = g_list_append(priv->preinstalled_wallpapers,
+                        strdup(json_object_get_string_member(obj, "Id")));
+            }
+            np = np->next;
+        }
+
+done:
+        if (nodes) g_list_free(nodes);
+        if (root) json_node_unref(root);
+        if (json_str) free(json_str);
+        if (ret) g_variant_unref(ret);
+    }
+
+
+    if (priv->preinstalled_wallpapers != NULL) {
+        int index = g_random_int_range (0, g_list_length(priv->preinstalled_wallpapers));
+        priv->default_uri = (char*)g_list_nth_data(priv->preinstalled_wallpapers, index);
+
+        _clear_cache_list(&priv->defaults);
+        deepin_background_cache_load_default_background(self);
+    }
+}

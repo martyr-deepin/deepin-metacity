@@ -110,6 +110,7 @@ static gboolean deepin_workspace_adder_draw(GtkWidget *widget,
 static gboolean deepin_workspace_adder_enter(GtkWidget *widget, GdkEventCrossing *event)
 {
     DEEPIN_WORKSPACE_ADDER(widget)->priv->hover = TRUE;
+    deepin_background_cache_request_new_default_uri();
     gtk_widget_queue_draw(widget);
     if (GTK_WIDGET_CLASS (deepin_workspace_adder_parent_class)->enter_notify_event)
         return GTK_WIDGET_CLASS(deepin_workspace_adder_parent_class)->enter_notify_event (widget, event);
@@ -128,6 +129,7 @@ static gboolean deepin_workspace_adder_drag_motion(GtkWidget* widget, GdkDragCon
 {
     if (DEEPIN_WORKSPACE_ADDER(widget)->priv->hover == FALSE) {
         DEEPIN_WORKSPACE_ADDER(widget)->priv->hover = TRUE;
+        deepin_background_cache_request_new_default_uri();
         gtk_widget_queue_draw(widget);
     }
     if (GTK_WIDGET_CLASS (deepin_workspace_adder_parent_class)->drag_motion)

@@ -16,6 +16,7 @@
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
 #include <prefs.h>
+#include "deepin-background-cache.h"
 #include "deepin-wm-background.h"
 #include "../core/screen-private.h"
 #include "../core/display-private.h"
