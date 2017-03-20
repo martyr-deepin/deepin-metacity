@@ -17,6 +17,7 @@
 #include <gdk/gdkx.h>
 #include "deepin-message-hub.h"
 #include "deepin-corner-indicator.h"
+#include "deepin-animation-image.h"
 #include "window-private.h"
 #include "screen-private.h"
 #include "display-private.h"
@@ -28,6 +29,8 @@
 struct _DeepinCornerIndicatorPrivate
 {
     guint disposed: 1;
+    guint blind_close: 1;
+
     MetaScreenCorner corner;
     MetaScreen *screen;
 
@@ -43,6 +46,8 @@ struct _DeepinCornerIndicatorPrivate
 
     cairo_surface_t *effect;
 
+    GtkWidget *close_image;
+
     GSettings *settings;
     uint polling_id;
 
@@ -55,12 +60,21 @@ struct _DeepinCornerIndicatorPrivate
 
 G_DEFINE_TYPE (DeepinCornerIndicator, deepin_corner_indicator, GTK_TYPE_WINDOW);
 
+static void deepin_corner_indicator_set_action (DeepinCornerIndicator *self)
+{
+    DeepinCornerIndicatorPrivate *priv = self->priv;
+
+    g_clear_pointer (&priv->action, g_free);
+    priv->action = g_settings_get_string (priv->settings, priv->key);
+    priv->blind_close = g_strcmp0 (priv->action, "!wm:close") == 0;
+}
+
 static void deepin_corner_indicator_settings_chagned(GSettings *settings,
         gchar* key, gpointer user_data)
 {
     DeepinCornerIndicatorPrivate *priv = DEEPIN_CORNER_INDICATOR(user_data)->priv;
-    if (priv->action != NULL) free(priv->action);
-    priv->action = g_settings_get_string(priv->settings, priv->key);
+
+    deepin_corner_indicator_set_action (DEEPIN_CORNER_INDICATOR (user_data));
 }
 
 static void deepin_corner_indicator_init (DeepinCornerIndicator *self)
@@ -78,18 +92,20 @@ static void deepin_corner_indicator_init (DeepinCornerIndicator *self)
     priv->last_trigger_time = 0;
 
     priv->effect = NULL;
-    
-    priv->pointer = gdk_seat_get_pointer (gdk_display_get_default_seat ( gdk_display_get_default ()));
-    priv->settings = g_settings_new(DEEPIN_ZONE_SETTINGS);
-    g_signal_connect(G_OBJECT(priv->settings), "changed",
+    priv->blind_close = FALSE;
+
+    priv->pointer = gdk_seat_get_pointer (gdk_display_get_default_seat (gdk_display_get_default ()));
+    priv->settings = g_settings_new (DEEPIN_ZONE_SETTINGS);
+    g_signal_connect (G_OBJECT(priv->settings), "changed",
             (GCallback)deepin_corner_indicator_settings_chagned, self);
 }
 
 static void deepin_corner_indicator_finalize (GObject *object)
 {
     DeepinCornerIndicatorPrivate *priv = DEEPIN_CORNER_INDICATOR (object)->priv;
-    g_clear_pointer(&priv->effect, cairo_surface_destroy);
-    g_clear_pointer(&priv->settings, g_object_unref);
+    g_clear_pointer (&priv->effect, cairo_surface_destroy);
+    g_clear_pointer (&priv->settings, g_object_unref);
+    g_clear_pointer (&priv->action, g_free);
 
     G_OBJECT_CLASS (deepin_corner_indicator_parent_class)->finalize (object);
 }
@@ -196,6 +212,9 @@ static void corner_leaved(DeepinCornerIndicator *self, MetaScreenCorner corner)
         priv->last_distance_factor = 0.0f;
         priv->opacity = priv->last_distance_factor;
         gtk_widget_queue_draw(GTK_WIDGET(self));
+        if (priv->blind_close) {
+            deepin_animation_image_deactivate (priv->close_image);
+        }
 
         if (priv->polling_id != 0) {
             g_source_remove (priv->polling_id);
@@ -303,14 +322,26 @@ static void push_back (DeepinCornerIndicator *self, GdkPoint pos)
 
 static gboolean on_delayed_action (DeepinCornerIndicator *self)
 {
+    DeepinCornerIndicatorPrivate *priv = self->priv;
+
+    if (priv->blind_close) {
+        MetaWindow *active_window = meta_display_get_focus_window (priv->screen->display);
+        if (active_window == NULL) 
+            return TRUE;
+
+        meta_window_delete (active_window, meta_display_get_current_time (priv->screen->display));
+        deepin_animation_image_deactivate (priv->close_image);
+        return FALSE;
+    } 
+
     GError *error = NULL;
-    if (!g_spawn_command_line_async(self->priv->action, &error)) {
+    if (!g_spawn_command_line_async(priv->action, &error)) {
         g_warning("%s", error->message);
         g_error_free(error);
     }
 
-    self->priv->last_trigger_time = g_get_monotonic_time () / 1000;
-    self->priv->last_reset_time = 0;
+    priv->last_trigger_time = g_get_monotonic_time () / 1000;
+    priv->last_reset_time = 0;
     return FALSE;
 }
 
@@ -351,6 +382,42 @@ static gboolean can_activate (DeepinCornerIndicator *self, GdkPoint pos, gint64 
     return TRUE;
 }
 
+static gboolean is_blind_close_viable (DeepinCornerIndicator *self, GdkPoint pos)
+{
+    DeepinCornerIndicatorPrivate *priv = self->priv;
+
+    if (!priv->blind_close) return FALSE;
+
+    MetaWindow *active_window = meta_display_get_focus_window (priv->screen->display);
+    if (active_window == NULL) 
+        return FALSE;
+
+    if (meta_window_is_maximized (active_window)) {
+        int id = meta_screen_get_xinerama_for_window (priv->screen, active_window)->number;
+        if (meta_screen_get_current_xinerama (priv->screen)->number == id) {
+            meta_verbose ("blind_close is viable\n");
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static gboolean inside_close_region (DeepinCornerIndicator *self, GdkPoint pos)
+{
+    DeepinCornerIndicatorPrivate *priv = self->priv;
+
+    int x1, x2, y1, y2, w, h;
+    int sz = 4;
+
+    gdk_window_get_geometry (gtk_widget_get_window(self), &x1, &y1, &w, &h);
+    x1 += w - sz;
+    x2 = x1 + sz;
+    y2 = y1 + sz;
+
+    return pos.x >= x1 && pos.x <= x2 && pos.y >= y1 && pos.y <= y2;
+}
+
 static void mouse_move(DeepinCornerIndicator *self, GdkPoint pos)
 {
     DeepinCornerIndicatorPrivate *priv = self->priv;
@@ -361,8 +428,21 @@ static void mouse_move(DeepinCornerIndicator *self, GdkPoint pos)
     }
 
     if (blocked(self)) return;
-
     update_distance_factor (self, pos);
+
+    if (priv->blind_close) {
+        if (!is_blind_close_viable (self, pos)) {
+            return;
+        } 
+
+        if (inside_close_region (self, pos)) {
+            deepin_animation_image_activate (priv->close_image);
+        } else {
+            deepin_animation_image_deactivate (priv->close_image);
+        }
+    }
+
+
     if (!at_trigger_point (self, pos)) {
         return;
     }
@@ -414,6 +494,26 @@ static void corner_entered(DeepinMessageHub *hub, MetaScreenCorner corner,
     priv->polling_id = g_timeout_add(50, polling_timeout, self);
 }
 
+static void deepin_corner_indicator_size_allocate (GtkWidget* widget, GtkAllocation* allocation)
+{
+    DeepinCornerIndicatorPrivate *priv = DEEPIN_CORNER_INDICATOR (widget)->priv;
+    GtkAllocation child_allocation;
+    GtkRequisition child_requisition;
+
+    GTK_WIDGET_CLASS(deepin_corner_indicator_parent_class)->size_allocate(
+            widget, allocation);
+
+    if (priv->close_image != NULL) {
+        gtk_widget_get_preferred_size (priv->close_image, &child_requisition, NULL);
+        child_allocation.x = CORNER_SIZE - child_requisition.width;
+        child_allocation.y = 0;
+
+        child_allocation.width = child_requisition.width;
+        child_allocation.height = child_requisition.height;
+        gtk_widget_size_allocate (priv->close_image, &child_allocation);
+    }
+}
+
 static gboolean deepin_corner_indicator_real_draw(GtkWidget *widget, cairo_t* cr)
 {
     DeepinCornerIndicatorPrivate* priv = DEEPIN_CORNER_INDICATOR(widget)->priv;
@@ -423,7 +523,32 @@ static gboolean deepin_corner_indicator_real_draw(GtkWidget *widget, cairo_t* cr
     cairo_paint(cr);
 #endif
 
-    if (priv->effect) {
+    // we only use close_image as a signal, and do not use it as child widget and 
+    // do animation. since it has problems and deepin-metacity should keep low.
+    if (priv->blind_close) {
+        static cairo_surface_t *close_surface = NULL;
+
+        if (close_surface == NULL) {
+            GError *error = NULL;
+            const char * name = METACITY_PKGDATADIR "/close_marker_6.png";
+            GdkPixbuf *pb = gdk_pixbuf_new_from_file (name, &error);
+            if (pb == NULL) {
+                g_warning ("%s\n", error->message);
+                g_error_free (error);
+                return TRUE;
+            }
+            close_surface = gdk_cairo_surface_create_from_pixbuf (pb, 1, NULL);
+            g_object_unref (pb);
+        }
+
+        if (deepin_animation_image_get_activated (priv->close_image)) {
+            float scale = CORNER_SIZE / 38.0;
+            cairo_scale (cr, scale, scale);
+            cairo_set_source_surface(cr, close_surface, 0, 0);
+            cairo_paint_with_alpha(cr, 1.0);
+        }
+
+    } else if (priv->effect) {
         cairo_set_source_surface(cr, priv->effect, 0, 0);
         cairo_paint_with_alpha(cr, priv->opacity);
     }
@@ -441,6 +566,7 @@ static void deepin_corner_indicator_class_init (DeepinCornerIndicatorClass *klas
     object_class->finalize = deepin_corner_indicator_finalize;
 
     widget_class->draw = deepin_corner_indicator_real_draw;
+    widget_class->size_allocate = deepin_corner_indicator_size_allocate;
 }
 
 static GdkPixbuf* get_button_pixbuf (DeepinCornerIndicator *self)
@@ -471,17 +597,37 @@ GtkWidget* deepin_corner_indicator_new (MetaScreen *screen, MetaScreenCorner cor
     GtkWidget *widget = g_object_new (DEEPIN_TYPE_CORNER_INDICATOR, NULL);
 
     DeepinCornerIndicator *self = DEEPIN_CORNER_INDICATOR (widget);
+    DeepinCornerIndicatorPrivate *priv = self->priv;
 
-    self->priv->corner = corner;
-    self->priv->screen = screen;
-    self->priv->key = strdup(key);
-    self->priv->action = g_settings_get_string(self->priv->settings, key);
+    priv->corner = corner;
+    priv->screen = screen;
+    priv->key = strdup(key);
+
+    deepin_corner_indicator_set_action (self);
 
     GdkPixbuf *pixbuf = get_button_pixbuf (self);
     if (pixbuf) {
-        self->priv->effect = gdk_cairo_surface_create_from_pixbuf (pixbuf, 0, NULL);
+        priv->effect = gdk_cairo_surface_create_from_pixbuf (pixbuf, 0, NULL);
         g_object_unref (pixbuf);
     }
+
+    if (priv->corner == META_SCREEN_TOPRIGHT) {
+        const char* names[] = {
+           METACITY_PKGDATADIR "/close_marker_1.png",
+           METACITY_PKGDATADIR "/close_marker_2.png",
+           METACITY_PKGDATADIR "/close_marker_3.png",
+           METACITY_PKGDATADIR "/close_marker_4.png",
+           METACITY_PKGDATADIR "/close_marker_5.png",
+           METACITY_PKGDATADIR "/close_marker_6.png"
+        };
+        GPtrArray *frame_names = g_ptr_array_new ();
+        for (int i = 0; i < G_N_ELEMENTS (names); i++) {
+            g_ptr_array_add (frame_names, names[i]);
+        }
+        priv->close_image = deepin_animation_image_new (frame_names);
+        g_ptr_array_unref (frame_names);
+    }
+    
 
     GdkVisual *visual = gdk_screen_get_rgba_visual(gdk_screen_get_default());
     if (visual) gtk_widget_set_visual(widget, visual);
