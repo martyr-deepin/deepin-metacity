@@ -14,6 +14,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <util.h>
+#include <gdk/gdk.h>
 #include <gdk/gdkx.h>
 #include "deepin-message-hub.h"
 #include "deepin-corner-indicator.h"
@@ -67,13 +68,25 @@ static void deepin_corner_indicator_set_action (DeepinCornerIndicator *self)
     g_clear_pointer (&priv->action, g_free);
     priv->action = g_settings_get_string (priv->settings, priv->key);
     priv->blind_close = g_strcmp0 (priv->action, "!wm:close") == 0;
+
+    if (priv->corner == META_SCREEN_TOPRIGHT) {
+        cairo_region_t *shape_region = NULL;
+        if (priv->blind_close) {
+            cairo_rectangle_int_t r = {CORNER_SIZE - 4, 0, 4, 4};
+            shape_region = cairo_region_create_rectangle (&r);
+        } else {
+            cairo_rectangle_int_t r = {0, 0, 0, 0};
+            shape_region = cairo_region_create_rectangle (&r);
+        }
+        gdk_window_input_shape_combine_region (gtk_widget_get_window (GTK_WIDGET(self)), 
+                shape_region, 0, 0);
+        cairo_region_destroy (shape_region);
+    }
 }
 
 static void deepin_corner_indicator_settings_chagned(GSettings *settings,
         gchar* key, gpointer user_data)
 {
-    DeepinCornerIndicatorPrivate *priv = DEEPIN_CORNER_INDICATOR(user_data)->priv;
-
     deepin_corner_indicator_set_action (DEEPIN_CORNER_INDICATOR (user_data));
 }
 
@@ -324,16 +337,6 @@ static gboolean on_delayed_action (DeepinCornerIndicator *self)
 {
     DeepinCornerIndicatorPrivate *priv = self->priv;
 
-    if (priv->blind_close) {
-        MetaWindow *active_window = meta_display_get_focus_window (priv->screen->display);
-        if (active_window == NULL) 
-            return TRUE;
-
-        meta_window_delete (active_window, meta_display_get_current_time (priv->screen->display));
-        deepin_animation_image_deactivate (priv->close_image);
-        return FALSE;
-    } 
-
     GError *error = NULL;
     if (!g_spawn_command_line_async(priv->action, &error)) {
         g_warning("%s", error->message);
@@ -440,6 +443,7 @@ static void mouse_move(DeepinCornerIndicator *self, GdkPoint pos)
         } else {
             deepin_animation_image_deactivate (priv->close_image);
         }
+        return;
     }
 
 
@@ -514,7 +518,7 @@ static void deepin_corner_indicator_size_allocate (GtkWidget* widget, GtkAllocat
     }
 }
 
-static gboolean deepin_corner_indicator_real_draw(GtkWidget *widget, cairo_t* cr)
+static gboolean deepin_corner_indicator_real_draw (GtkWidget *widget, cairo_t* cr)
 {
     DeepinCornerIndicatorPrivate* priv = DEEPIN_CORNER_INDICATOR(widget)->priv;
 
@@ -556,6 +560,22 @@ static gboolean deepin_corner_indicator_real_draw(GtkWidget *widget, cairo_t* cr
     return TRUE;
 }
 
+static gboolean deepin_corner_indicator_button_released (GtkWidget *widget, GdkEventButton *kev)
+{
+    DeepinCornerIndicatorPrivate* priv = DEEPIN_CORNER_INDICATOR(widget)->priv;
+
+    if (priv->blind_close) {
+        MetaWindow *active_window = meta_display_get_focus_window (priv->screen->display);
+        if (active_window == NULL) 
+            return TRUE;
+
+        meta_window_delete (active_window, meta_display_get_current_time (priv->screen->display));
+        deepin_animation_image_deactivate (priv->close_image);
+    } 
+
+    return TRUE;
+}
+
 static void deepin_corner_indicator_class_init (DeepinCornerIndicatorClass *klass)
 {
     GObjectClass* object_class = G_OBJECT_CLASS (klass);
@@ -567,6 +587,7 @@ static void deepin_corner_indicator_class_init (DeepinCornerIndicatorClass *klas
 
     widget_class->draw = deepin_corner_indicator_real_draw;
     widget_class->size_allocate = deepin_corner_indicator_size_allocate;
+    widget_class->button_release_event = deepin_corner_indicator_button_released;
 }
 
 static GdkPixbuf* get_button_pixbuf (DeepinCornerIndicator *self)
@@ -602,8 +623,6 @@ GtkWidget* deepin_corner_indicator_new (MetaScreen *screen, MetaScreenCorner cor
     priv->corner = corner;
     priv->screen = screen;
     priv->key = strdup(key);
-
-    deepin_corner_indicator_set_action (self);
 
     GdkPixbuf *pixbuf = get_button_pixbuf (self);
     if (pixbuf) {
@@ -646,6 +665,8 @@ GtkWidget* deepin_corner_indicator_new (MetaScreen *screen, MetaScreenCorner cor
     gdk_window_input_shape_combine_region (gtk_widget_get_window (widget), 
             shape_region, 0, 0);
     cairo_region_destroy (shape_region);
+    
+    deepin_corner_indicator_set_action (self);
 
     g_object_connect(G_OBJECT(deepin_message_hub_get()),
             "signal::screen-corner-entered", (GCallback)corner_entered, self, 
