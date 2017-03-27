@@ -550,7 +550,7 @@ static gboolean deepin_corner_indicator_real_draw (GtkWidget *widget, cairo_t* c
 
         if (close_surface == NULL) {
             GError *error = NULL;
-            const char * name = METACITY_PKGDATADIR "/close_marker_6.png";
+            const char * name = METACITY_PKGDATADIR "/close_marker_7.png";
             GdkPixbuf *pb = gdk_pixbuf_new_from_file (name, &error);
             if (pb == NULL) {
                 g_warning ("%s\n", error->message);
@@ -687,7 +687,8 @@ GtkWidget* deepin_corner_indicator_new (MetaScreen *screen, MetaScreenCorner cor
            METACITY_PKGDATADIR "/close_marker_3.png",
            METACITY_PKGDATADIR "/close_marker_4.png",
            METACITY_PKGDATADIR "/close_marker_5.png",
-           METACITY_PKGDATADIR "/close_marker_6.png"
+           METACITY_PKGDATADIR "/close_marker_6.png",
+           METACITY_PKGDATADIR "/close_marker_7.png"
         };
         GPtrArray *frame_names = g_ptr_array_new ();
         for (int i = 0; i < G_N_ELEMENTS (names); i++) {
