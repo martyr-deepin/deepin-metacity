@@ -31,6 +31,7 @@ struct _DeepinCornerIndicatorPrivate
 {
     guint disposed: 1;
     guint blind_close: 1;
+    guint blind_close_press_down: 1;
 
     MetaScreenCorner corner;
     MetaScreen *screen;
@@ -61,18 +62,15 @@ struct _DeepinCornerIndicatorPrivate
 
 G_DEFINE_TYPE (DeepinCornerIndicator, deepin_corner_indicator, GTK_TYPE_WINDOW);
 
-static void deepin_corner_indicator_set_action (DeepinCornerIndicator *self)
+static void deepin_corner_indicator_update_input_shape (DeepinCornerIndicator *self)
 {
     DeepinCornerIndicatorPrivate *priv = self->priv;
-
-    g_clear_pointer (&priv->action, g_free);
-    priv->action = g_settings_get_string (priv->settings, priv->key);
-    priv->blind_close = g_strcmp0 (priv->action, "!wm:close") == 0;
 
     if (priv->corner == META_SCREEN_TOPRIGHT) {
         cairo_region_t *shape_region = NULL;
         if (priv->blind_close) {
-            cairo_rectangle_int_t r = {CORNER_SIZE - 4, 0, 4, 4};
+            int sz = deepin_animation_image_get_activated (priv->close_image) ? 24 : 4;
+            cairo_rectangle_int_t r = {CORNER_SIZE - sz, 0, sz, sz};
             shape_region = cairo_region_create_rectangle (&r);
         } else {
             cairo_rectangle_int_t r = {0, 0, 0, 0};
@@ -82,6 +80,17 @@ static void deepin_corner_indicator_set_action (DeepinCornerIndicator *self)
                 shape_region, 0, 0);
         cairo_region_destroy (shape_region);
     }
+}
+
+static void deepin_corner_indicator_set_action (DeepinCornerIndicator *self)
+{
+    DeepinCornerIndicatorPrivate *priv = self->priv;
+
+    g_clear_pointer (&priv->action, g_free);
+    priv->action = g_settings_get_string (priv->settings, priv->key);
+    priv->blind_close = g_strcmp0 (priv->action, "!wm:close") == 0;
+
+    deepin_corner_indicator_update_input_shape (self);
 }
 
 static void deepin_corner_indicator_settings_chagned(GSettings *settings,
@@ -106,6 +115,7 @@ static void deepin_corner_indicator_init (DeepinCornerIndicator *self)
 
     priv->effect = NULL;
     priv->blind_close = FALSE;
+    priv->blind_close_press_down = FALSE;
 
     priv->pointer = gdk_seat_get_pointer (gdk_display_get_default_seat (gdk_display_get_default ()));
     priv->settings = g_settings_new (DEEPIN_ZONE_SETTINGS);
@@ -227,6 +237,8 @@ static void corner_leaved(DeepinCornerIndicator *self, MetaScreenCorner corner)
         gtk_widget_queue_draw(GTK_WIDGET(self));
         if (priv->blind_close) {
             deepin_animation_image_deactivate (priv->close_image);
+            deepin_corner_indicator_update_input_shape (self);
+            priv->blind_close_press_down = FALSE;
         }
 
         if (priv->polling_id != 0) {
@@ -411,7 +423,7 @@ static gboolean inside_close_region (DeepinCornerIndicator *self, GdkPoint pos)
     DeepinCornerIndicatorPrivate *priv = self->priv;
 
     int x1, x2, y1, y2, w, h;
-    int sz = 4;
+    int sz = deepin_animation_image_get_activated (priv->close_image) ? 24 : 4;
 
     gdk_window_get_geometry (gtk_widget_get_window(self), &x1, &y1, &w, &h);
     x1 += w - sz;
@@ -440,8 +452,11 @@ static void mouse_move(DeepinCornerIndicator *self, GdkPoint pos)
 
         if (inside_close_region (self, pos)) {
             deepin_animation_image_activate (priv->close_image);
+            deepin_corner_indicator_update_input_shape (self);
         } else {
             deepin_animation_image_deactivate (priv->close_image);
+            priv->blind_close_press_down = FALSE;
+            deepin_corner_indicator_update_input_shape (self);
         }
         return;
     }
@@ -531,6 +546,7 @@ static gboolean deepin_corner_indicator_real_draw (GtkWidget *widget, cairo_t* c
     // do animation. since it has problems and deepin-metacity should keep low.
     if (priv->blind_close) {
         static cairo_surface_t *close_surface = NULL;
+        static cairo_surface_t *press_hold_surface = NULL;
 
         if (close_surface == NULL) {
             GError *error = NULL;
@@ -545,12 +561,30 @@ static gboolean deepin_corner_indicator_real_draw (GtkWidget *widget, cairo_t* c
             g_object_unref (pb);
         }
 
-        if (deepin_animation_image_get_activated (priv->close_image)) {
+        if (press_hold_surface == NULL) {
+            GError *error = NULL;
+            const char * name = METACITY_PKGDATADIR "/close_marker_press.png";
+            GdkPixbuf *pb = gdk_pixbuf_new_from_file (name, &error);
+            if (pb == NULL) {
+                g_warning ("%s\n", error->message);
+                g_error_free (error);
+                return TRUE;
+            }
+            press_hold_surface = gdk_cairo_surface_create_from_pixbuf (pb, 1, NULL);
+            g_object_unref (pb);
+        }
+
+        if (priv->blind_close_press_down) {
+            float scale = CORNER_SIZE / 38.0;
+            cairo_scale (cr, scale, scale);
+            cairo_set_source_surface(cr, press_hold_surface, 0, 0);
+            cairo_paint_with_alpha(cr, 1.0);
+        } else if (deepin_animation_image_get_activated (priv->close_image)) {
             float scale = CORNER_SIZE / 38.0;
             cairo_scale (cr, scale, scale);
             cairo_set_source_surface(cr, close_surface, 0, 0);
             cairo_paint_with_alpha(cr, 1.0);
-        }
+        } 
 
     } else if (priv->effect) {
         cairo_set_source_surface(cr, priv->effect, 0, 0);
@@ -560,17 +594,32 @@ static gboolean deepin_corner_indicator_real_draw (GtkWidget *widget, cairo_t* c
     return TRUE;
 }
 
+static gboolean deepin_corner_indicator_button_pressed (GtkWidget *widget, GdkEventButton *kev)
+{
+    DeepinCornerIndicatorPrivate* priv = DEEPIN_CORNER_INDICATOR(widget)->priv;
+
+    if (priv->blind_close && deepin_animation_image_get_activated (priv->close_image)) {
+        priv->blind_close_press_down = TRUE;
+        gtk_widget_queue_draw (widget);
+    } 
+
+    return TRUE;
+}
+
 static gboolean deepin_corner_indicator_button_released (GtkWidget *widget, GdkEventButton *kev)
 {
     DeepinCornerIndicatorPrivate* priv = DEEPIN_CORNER_INDICATOR(widget)->priv;
 
-    if (priv->blind_close) {
+    if (priv->blind_close && deepin_animation_image_get_activated (priv->close_image)) {
+        priv->blind_close_press_down = FALSE;
         MetaWindow *active_window = meta_display_get_focus_window (priv->screen->display);
         if (active_window == NULL) 
             return TRUE;
 
         meta_window_delete (active_window, meta_display_get_current_time (priv->screen->display));
         deepin_animation_image_deactivate (priv->close_image);
+        deepin_corner_indicator_update_input_shape (DEEPIN_CORNER_INDICATOR (widget));
+        gtk_widget_queue_draw (widget);
     } 
 
     return TRUE;
@@ -588,6 +637,7 @@ static void deepin_corner_indicator_class_init (DeepinCornerIndicatorClass *klas
     widget_class->draw = deepin_corner_indicator_real_draw;
     widget_class->size_allocate = deepin_corner_indicator_size_allocate;
     widget_class->button_release_event = deepin_corner_indicator_button_released;
+    widget_class->button_press_event = deepin_corner_indicator_button_pressed;
 }
 
 static GdkPixbuf* get_button_pixbuf (DeepinCornerIndicator *self)
