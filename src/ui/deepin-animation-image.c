@@ -220,7 +220,7 @@ static void deepin_animation_image_class_init (DeepinAnimationImageClass *class)
                 ("Animation duration"),
                 ("Animation duration"),
                 0, G_MAXINT,
-                240,
+                280,
                 G_PARAM_READWRITE | G_PARAM_CONSTRUCT);
 
     g_object_class_install_properties (gobject_class, NUM_PROPERTIES, image_props);

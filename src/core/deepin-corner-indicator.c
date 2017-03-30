@@ -407,6 +407,9 @@ static gboolean is_blind_close_viable (DeepinCornerIndicator *self, GdkPoint pos
     if (active_window == NULL) 
         return FALSE;
 
+    if (active_window->type == META_WINDOW_DESKTOP) 
+        return FALSE;
+
     if (meta_window_is_maximized (active_window)) {
         int id = meta_screen_get_xinerama_for_window (priv->screen, active_window)->number;
         if (meta_screen_get_current_xinerama (priv->screen)->number == id) {
@@ -612,11 +615,14 @@ static gboolean deepin_corner_indicator_button_released (GtkWidget *widget, GdkE
 
     if (priv->blind_close && deepin_animation_image_get_activated (priv->close_image)) {
         priv->blind_close_press_down = FALSE;
-        MetaWindow *active_window = meta_display_get_focus_window (priv->screen->display);
-        if (active_window == NULL) 
-            return TRUE;
 
-        meta_window_delete (active_window, meta_display_get_current_time (priv->screen->display));
+        GdkPoint pos;
+        gdk_device_get_position (priv->pointer, NULL, &pos.x, &pos.y);
+        if (is_blind_close_viable (DEEPIN_CORNER_INDICATOR(widget), pos)) {
+            MetaWindow *active_window = meta_display_get_focus_window (priv->screen->display);
+            meta_window_delete (active_window, meta_display_get_current_time (priv->screen->display));
+        }
+
         deepin_animation_image_deactivate (priv->close_image);
         deepin_corner_indicator_update_input_shape (DEEPIN_CORNER_INDICATOR (widget));
         gtk_widget_queue_draw (widget);
