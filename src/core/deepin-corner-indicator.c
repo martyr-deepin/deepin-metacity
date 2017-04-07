@@ -139,6 +139,8 @@ static gboolean string_contains (const char *src, const char *pattern)
     return g_strstr_len(src, -1, pattern) != NULL;
 }
 
+static gboolean is_active_fullscreen (DeepinCornerIndicator *self, MetaWindow *active_window);
+
 static gboolean blocked (DeepinCornerIndicator *self)
 {
     DeepinCornerIndicatorPrivate *priv = self->priv;
@@ -149,6 +151,10 @@ static gboolean blocked (DeepinCornerIndicator *self)
     MetaWindow *active_window = meta_display_get_focus_window (priv->screen->display);
     if (active_window == NULL) 
         return FALSE;
+
+    if (is_active_fullscreen (self, active_window)) {
+        return TRUE;
+    }
 
     gboolean isLauncherShowing = FALSE;
     meta_verbose("%s: title %s\n", __func__, active_window->title);
@@ -188,6 +194,24 @@ static gboolean is_app_in_list (DeepinCornerIndicator *self, int pid, const char
     return FALSE;
 }
 
+static gboolean is_active_fullscreen (DeepinCornerIndicator *self, MetaWindow *active_window)
+{
+    DeepinCornerIndicatorPrivate *priv = self->priv;
+    if (active_window->fullscreen) {
+        char ** white_list = g_settings_get_strv(priv->settings, "white-list");
+        int pid = active_window->net_wm_pid;
+        if (is_app_in_list(self, pid, white_list)) {
+            meta_verbose("active window is fullscreen, and in whiteList\n");
+            g_strfreev (white_list);
+            return FALSE;
+        }
+        meta_verbose("active window is fullscreen, and not in whiteList\n");
+        g_strfreev (white_list);
+        return TRUE;
+    }
+    return FALSE;
+}
+
 static gboolean should_perform_action (DeepinCornerIndicator *self)
 {
     DeepinCornerIndicatorPrivate *priv = self->priv;
@@ -206,18 +230,6 @@ static gboolean should_perform_action (DeepinCornerIndicator *self)
         return FALSE;
     }
     g_strfreev (black_list);
-
-    if (active_window->fullscreen) {
-        char ** white_list = g_settings_get_strv(priv->settings, "white-list");
-        if (is_app_in_list(self, pid, white_list)) {
-            meta_verbose("active window is fullscreen, and in whiteList\n");
-            g_strfreev (white_list);
-            return TRUE;
-        }
-        meta_verbose("active window is fullscreen, and not in whiteList\n");
-        g_strfreev (white_list);
-        return FALSE;
-    }
 
     return TRUE;
 }
@@ -407,8 +419,13 @@ static gboolean is_blind_close_viable (DeepinCornerIndicator *self, GdkPoint pos
     if (active_window == NULL) 
         return FALSE;
 
-    if (active_window->type == META_WINDOW_DESKTOP) 
+    if (active_window->type == META_WINDOW_DESKTOP) {
         return FALSE;
+    }
+
+    if (is_active_fullscreen (self, active_window)) {
+        return FALSE;
+    }
 
     if (meta_window_is_maximized (active_window)) {
         int id = meta_screen_get_xinerama_for_window (priv->screen, active_window)->number;
