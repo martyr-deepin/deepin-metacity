@@ -28,6 +28,7 @@ typedef struct _DeepinTabPopup DeepinTabPopup;
 typedef void *DeepinTabEntryKey;
 
 typedef struct _MetaDeepinSwitchPreviewer        MetaDeepinSwitchPreviewer;
+typedef struct _MetaDeepinSwitchPreviewerSimple  MetaDeepinSwitchPreviewerSimple;
 
 struct _DeepinTabEntry
 {
@@ -47,7 +48,11 @@ struct _DeepinTabPopup
   DeepinTabEntry *current_selected_entry;
   GtkWidget *outline_window;
   int max_width;
+#ifndef __sw_64__
   MetaDeepinSwitchPreviewer* previewer;
+#else
+  MetaDeepinSwitchPreviewerSimple* previewer;
+#endif
   GList *idle_relayout_ids;
 };
 

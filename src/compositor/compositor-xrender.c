@@ -2850,7 +2850,11 @@ xrender_manage_screen (MetaCompositor *compositor,
   info->overlays = 0;
   info->clip_changed = TRUE;
 
+#ifndef __sw_64__
   info->have_shadows = (g_getenv("META_DEBUG_NO_SHADOW") == NULL);
+#else
+  info->have_shadows = FALSE; // force to disable shadows
+#endif
   if (info->have_shadows)
     {
       meta_verbose ("Enabling shadows\n");

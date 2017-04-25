@@ -104,12 +104,21 @@ static void deepin_workspace_indicator_class_init (DeepinWorkspaceIndicatorClass
 
 static void deepin_workspace_indicator_setup_style(DeepinWorkspaceIndicator *dwi)
 {
-    deepin_setup_style_class(dwi, "deepin-window-switcher");
+    const char* styles[2] = {
+#ifndef __sw_64__
+        "deepin-window-switcher",
+        "deepin-workspace-thumb-clone"
+#else
+        "deepin-window-switcher-sw",
+        "deepin-workspace-thumb-clone-sw"
+#endif
+    };
+    deepin_setup_style_class(dwi, styles[0]);
 
     GList *l = dwi->priv->workspaces;
     while (l) {
         DeepinWorkspacePreviewEntry *dwpe = DEEPIN_WORKSPACE_PREVIEW_ENTRY(l->data);
-        deepin_setup_style_class(GTK_WIDGET(dwpe), "deepin-workspace-thumb-clone");
+        deepin_setup_style_class(GTK_WIDGET(dwpe), styles[1]);
         l = l->next;
     }
 }
@@ -219,9 +228,10 @@ GtkWidget* deepin_workspace_indicator_new(MetaScreen* screen)
     priv->child_width = monitor_geom.width * DWI_WORKSPACE_SCALE;
     priv->child_height  = monitor_geom.height * DWI_WORKSPACE_SCALE;
 
+#ifndef __sw_64__
     GdkVisual* visual = gdk_screen_get_rgba_visual (gdkscreen);
-    if (visual)
-        gtk_widget_set_visual (dwi, visual);
+    if (visual) gtk_widget_set_visual (dwi, visual);
+#endif
 
     MetaDisplay* display = meta_get_display();
     priv->screen = display->active_screen;

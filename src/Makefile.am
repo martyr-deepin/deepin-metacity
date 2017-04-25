@@ -145,6 +145,8 @@ libdeepin_metacity_private_la_SOURCES=			\
 	include/deepin-stackblur.h			\
 	ui/deepin-switch-previewer.c		\
 	include/deepin-switch-previewer.h	\
+	ui/deepin-switch-previewer-simple.c		\
+	include/deepin-switch-previewer-simple.h\
 	ui/deepin-cloned-widget.c			\
 	include/deepin-cloned-widget.h		\
 	ui/deepin-wm-background.c			\

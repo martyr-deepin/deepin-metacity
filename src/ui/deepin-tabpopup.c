@@ -24,7 +24,11 @@
 #include "select-workspace.h"
 #include "deepin-design.h"
 #include "deepin-message-hub.h"
+#ifndef __sw_64__
 #include "deepin-switch-previewer.h"
+#else
+#include "deepin-switch-previewer-simple.h"
+#endif
 #include "deepin-window-surface-manager.h"
 #include "deepin-background-cache.h"
 #include "deepin-desktop-background.h"
@@ -83,13 +87,23 @@ static DeepinTabEntry* deepin_tab_entry_new (const MetaTabEntry *entry)
 
 static void deepin_tab_popup_setup_style(DeepinTabPopup* popup)
 {
-    deepin_setup_style_class(popup->window, "deepin-window-switcher");
+    const char* styles[2] = {
+#ifndef __sw_64__
+        "deepin-window-switcher",
+        "deepin-window-switcher-item"
+#else
+        "deepin-window-switcher-sw",
+        "deepin-window-switcher-item-sw"
+#endif
+    };
+
+    deepin_setup_style_class(popup->window, styles[0]);
 
     GList* tmp = popup->entries;
     while (tmp) {
         DeepinTabEntry* te = (DeepinTabEntry*)tmp->data;
         if (te->widget && META_IS_DEEPIN_TAB_WIDGET(te->widget)) {
-            deepin_setup_style_class(te->widget, "deepin-window-switcher-item");
+            deepin_setup_style_class(te->widget, styles[1]);
         }
         tmp = tmp->next;
     }
@@ -225,7 +239,11 @@ static void display_entry (DeepinTabPopup *popup,
     }
 
     meta_deepin_tab_widget_select (META_DEEPIN_TAB_WIDGET (te->widget));
+#ifndef __sw_64__
     meta_deepin_switch_previewer_select(popup->previewer, te);
+#else
+    meta_deepin_switch_previewer_simple_select(popup->previewer, te);
+#endif
 
     /* Must be before we handle an expose for the outline window */
     popup->current_selected_entry = te;
@@ -291,9 +309,11 @@ static void on_screen_changed(DeepinMessageHub* hub, MetaScreen* screen,
     gint primary = gdk_screen_get_primary_monitor(gdkscreen);
     gdk_screen_get_monitor_geometry(gdkscreen, primary, &mon_geom);
 
+#ifndef __sw_64__
     gdk_window_move_resize(gtk_widget_get_window(GTK_WIDGET(self->outline_window)),
             0, 0,
             gdk_screen_get_width(gdkscreen), gdk_screen_get_height(gdkscreen));
+#endif
 
     GtkAllocation alloc;
     gtk_widget_get_allocation(self->window, &alloc);
@@ -339,17 +359,15 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
             screen_number);
     visual = gdk_screen_get_rgba_visual (screen);
 
-    popup->outline_window = gtk_window_new (GTK_WINDOW_POPUP);
-
-    if (visual)
-        gtk_widget_set_visual (popup->outline_window, visual);
-
-    gtk_window_set_screen (GTK_WINDOW (popup->outline_window),
-            screen);
-
-
     gint primary = gdk_screen_get_primary_monitor(screen);
     gdk_screen_get_monitor_geometry(screen, primary, &mon_geom);
+
+
+#ifndef __sw_64__
+    popup->outline_window = gtk_window_new (GTK_WINDOW_POPUP);
+
+    if (visual) gtk_widget_set_visual (popup->outline_window, visual);
+    gtk_window_set_screen (GTK_WINDOW (popup->outline_window), screen);
 
     gtk_widget_set_app_paintable(popup->outline_window, TRUE);
     gtk_window_move (GTK_WINDOW (popup->outline_window), 0, 0);
@@ -361,11 +379,15 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
     gtk_container_add(GTK_CONTAINER(popup->outline_window), (GtkWidget*)popup->previewer);
 
     popup->window = gtk_window_new (GTK_WINDOW_POPUP);
-    if (visual)
-        gtk_widget_set_visual (popup->window, visual);
+    if (visual) gtk_widget_set_visual (popup->window, visual);
 
-    gtk_window_set_screen (GTK_WINDOW (popup->window),
-            screen);
+#else
+    popup->previewer = (MetaDeepinSwitchPreviewerSimple*)meta_deepin_switch_previewer_simple_new(popup);
+
+    popup->window = gtk_window_new (GTK_WINDOW_POPUP);
+#endif
+
+    gtk_window_set_screen (GTK_WINDOW (popup->window), screen);
 
     /* enable resizing, to get never-shrink behavior */
     gtk_window_set_resizable (GTK_WINDOW (popup->window), TRUE);
@@ -437,7 +459,11 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
     }
 
     deepin_tab_popup_setup_style(popup);
+#ifndef __sw_64__
     meta_deepin_switch_previewer_populate(popup->previewer);
+#else
+    meta_deepin_switch_previewer_simple_populate(popup->previewer);
+#endif
 
     g_object_connect(G_OBJECT(deepin_message_hub_get()), 
             "signal::window-removed", on_window_removed, popup,
@@ -466,12 +492,18 @@ void deepin_tab_popup_free (DeepinTabPopup *popup)
     g_signal_handlers_disconnect_by_data(G_OBJECT(deepin_message_hub_get()), 
             popup);
 
+#ifndef __sw_64__
     if (popup->outline_window != NULL) {
         gtk_widget_destroy (GTK_WIDGET(popup->previewer));
         gtk_widget_destroy (popup->outline_window);
         popup->previewer = NULL;
         popup->outline_window = NULL;
     }
+#else
+    g_object_unref(popup->previewer);
+    popup->previewer = NULL;
+#endif
+
     gtk_widget_destroy(popup->window);
 
     g_list_foreach (popup->entries, free_deepin_tab_entry, NULL);
@@ -487,9 +519,11 @@ void deepin_tab_popup_set_showing (DeepinTabPopup *popup,
 {
     if (showing)
     {
+#ifndef __sw_64__
         gtk_widget_show_all(popup->outline_window);
         GdkWindow *window = gtk_widget_get_window (popup->outline_window);
         gdk_window_raise(window);
+#endif
 
         gtk_widget_show_all (popup->window);
     }

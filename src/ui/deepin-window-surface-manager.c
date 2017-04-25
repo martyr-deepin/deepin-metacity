@@ -87,6 +87,27 @@ static gint scale_compare(gconstpointer a, gconstpointer b, gpointer data)
     return 0;
 }
 
+static cairo_surface_t* get_window_surface_from_xlib(MetaWindow* window)
+{
+    cairo_surface_t *surface;
+    Display *display;
+
+    display = GDK_DISPLAY_XDISPLAY (gdk_display_get_default ());
+
+    MetaRectangle r;
+    meta_window_get_outer_rect(window, &r);
+
+    surface = cairo_xlib_surface_create (display, window->xwindow, window->xvisual,
+            r.width, r.height);
+    cairo_xlib_surface_set_size (surface, r.width, r.height);
+
+    if (cairo_surface_status (surface) != CAIRO_STATUS_SUCCESS) {
+        fprintf(stderr, "%s: invalid surface\n", __func__);
+    }
+
+    return surface;
+}
+
 cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
         double scale)
 {
@@ -103,8 +124,12 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
     *s = 1.0;
     cairo_surface_t* ref = (cairo_surface_t*)g_tree_lookup(t, s);
     if (!ref) {
-        ref = meta_compositor_get_window_surface(window->display->compositor,
-            window);
+        if (window->display->compositor) {
+            ref = meta_compositor_get_window_surface(window->display->compositor, window);
+        } else {
+            ref = get_window_surface_from_xlib(window);
+            fprintf(stderr, "%s: get surface from xlib %p\n", __func__, ref);
+        }
         if (!ref) {
             g_free(s);
             return NULL;
@@ -143,6 +168,7 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
         int error_code = meta_error_trap_pop_with_return (window->display, FALSE);
         if (error_code != 0) {
             meta_verbose("draw surface error %d\n", error_code);
+            fprintf (stderr, "draw surface error %d\n", error_code);
             g_free(s);
             cairo_surface_destroy(ret);
             return NULL;

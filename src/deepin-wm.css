@@ -16,7 +16,7 @@
  */
 
 .deepin-window-manager {
-    background: rgba(105, 105, 105, 1.0);
+    background: rgb(105, 105, 105);
 }
 
 .deepin-window-switcher {
@@ -75,4 +75,30 @@
     background: rgba(0, 0, 120, 1.0);
     color: rgba(255, 255, 255, 1.0);
 }
+
+/* for shenwei */
+.deepin-window-switcher-sw {
+    background: rgb(100, 100, 100);
+    border-radius: 4px;
+}
+
+.deepin-window-switcher-item-sw {
+    background: rgb(100, 100, 100);
+    border-radius: 4px;
+}
+
+.deepin-window-switcher-item-sw:selected {
+    background: rgb(1, 189, 255);
+}
+
+.deepin-workspace-thumb-clone-sw {
+    border-radius: 4px;
+}
+
+.deepin-workspace-thumb-clone-sw:selected {
+    background: rgb(36, 171, 255);
+    border-radius: 4px;
+}
+
+/* ~ */
 
