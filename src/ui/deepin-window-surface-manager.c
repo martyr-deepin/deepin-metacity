@@ -95,14 +95,15 @@ static cairo_surface_t* get_window_surface_from_xlib(MetaWindow* window)
     display = GDK_DISPLAY_XDISPLAY (gdk_display_get_default ());
 
     MetaRectangle r;
-    meta_window_get_outer_rect(window, &r);
+    meta_window_get_input_rect(window, &r);
 
     surface = cairo_xlib_surface_create (display, window->xwindow, window->xvisual,
             r.width, r.height);
     cairo_xlib_surface_set_size (surface, r.width, r.height);
+    fprintf(stderr, "%s: win 0x%x (%d, %d)\n", __func__, window->xwindow, r.width, r.height);
 
     if (cairo_surface_status (surface) != CAIRO_STATUS_SUCCESS) {
-        fprintf(stderr, "%s: invalid surface\n", __func__);
+        meta_warning ("%s: invalid surface\n", __func__);
     }
 
     return surface;
@@ -128,7 +129,6 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
             ref = meta_compositor_get_window_surface(window->display->compositor, window);
         } else {
             ref = get_window_surface_from_xlib(window);
-            fprintf(stderr, "%s: get surface from xlib %p\n", __func__, ref);
         }
         if (!ref) {
             g_free(s);
@@ -167,8 +167,7 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
 
         int error_code = meta_error_trap_pop_with_return (window->display, FALSE);
         if (error_code != 0) {
-            meta_verbose("draw surface error %d\n", error_code);
-            fprintf (stderr, "draw surface error %d\n", error_code);
+            meta_warning ("draw surface error %d\n", error_code);
             g_free(s);
             cairo_surface_destroy(ret);
             return NULL;
