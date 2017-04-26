@@ -51,7 +51,6 @@
 #endif
 
 #define SCHEMA_COMMON_KEYBINDINGS "com.deepin.wrap.gnome.desktop.wm.keybindings"
-#define SCHEMA_METACITY_KEYBINDINGS "com.deepin.wrap.gnome.metacity.keybindings"
 
 static gboolean all_bindings_disabled = FALSE;
 
@@ -3776,6 +3775,7 @@ init_builtin_key_bindings (MetaDisplay *display)
                           META_KEYBINDING_ACTION_TOGGLE_MAXIMIZED,
                           (MetaKeyHandlerFunc) handle_toggle_maximized, 0);
 
+#if 0
   add_builtin_keybinding (display,
                           "toggle-tiled-left",
                           SCHEMA_METACITY_KEYBINDINGS,
@@ -3789,6 +3789,7 @@ init_builtin_key_bindings (MetaDisplay *display)
                           META_KEY_BINDING_PER_WINDOW,
                           META_KEYBINDING_ACTION_TOGGLE_TILED_RIGHT,
                           handle_toggle_tiled, META_TILE_RIGHT);
+#endif
 
   add_builtin_keybinding (display,
                           "toggle-above",
@@ -4135,17 +4136,3 @@ deepin_meta_override_keybinding_handler(const char* name, MetaKeyHandlerFunc fun
   return FALSE;
 }
 
-guint deepin_meta_display_add_keybinding (MetaDisplay *display,
-                             const char          *name,
-                             MetaKeyBindingFlags  flags,
-                             MetaKeyHandlerFunc   handler,
-                             gint                 data)
-{
-  guint new_action = next_dynamic_keybinding_action ();
-
-  if (!add_builtin_keybinding(display, name, SCHEMA_METACITY_KEYBINDINGS, 
-              flags, new_action, handler, data))
-    return META_KEYBINDING_ACTION_NONE;
-
-  return new_action;
-}

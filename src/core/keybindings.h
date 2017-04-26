@@ -84,11 +84,5 @@ gboolean deepin_meta_override_keybinding_handler(const char* name,
                                                  MetaKeyHandlerFunc func,
                                                  gpointer data,
                                                  GDestroyNotify data_free_func);
-
-guint deepin_meta_display_add_keybinding (MetaDisplay *display,
-                             const char          *name,
-                             MetaKeyBindingFlags  flags,
-                             MetaKeyHandlerFunc   handler,
-                             gint                 data);
                              
 #endif
