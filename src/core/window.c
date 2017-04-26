@@ -3945,6 +3945,11 @@ meta_window_move_resize_internal (MetaWindow          *window,
       meta_topic (META_DEBUG_GEOMETRY, "Size/position not modified\n");
     }
 
+  if (need_resize_frame || need_resize_client) 
+    {
+      deepin_message_hub_window_damaged(window, NULL, 0);
+    }
+
   if (window->display->grab_wireframe_active)
     meta_window_update_wireframe (window, root_x_nw, root_y_nw, w, h);
   else
