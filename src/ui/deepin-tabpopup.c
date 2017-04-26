@@ -87,14 +87,10 @@ static DeepinTabEntry* deepin_tab_entry_new (const MetaTabEntry *entry)
 
 static void deepin_tab_popup_setup_style(DeepinTabPopup* popup)
 {
+    // use shenwei version of style for fastest performance
     const char* styles[2] = {
-#ifndef __sw_64__
-        "deepin-window-switcher",
-        "deepin-window-switcher-item"
-#else
         "deepin-window-switcher-sw",
         "deepin-window-switcher-item-sw"
-#endif
     };
 
     deepin_setup_style_class(popup->window, styles[0]);

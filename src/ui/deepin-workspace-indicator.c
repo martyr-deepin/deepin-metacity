@@ -104,14 +104,10 @@ static void deepin_workspace_indicator_class_init (DeepinWorkspaceIndicatorClass
 
 static void deepin_workspace_indicator_setup_style(DeepinWorkspaceIndicator *dwi)
 {
+    // use shenwei version of style for fastest performance
     const char* styles[2] = {
-#ifndef __sw_64__
-        "deepin-window-switcher",
-        "deepin-workspace-thumb-clone"
-#else
         "deepin-window-switcher-sw",
         "deepin-workspace-thumb-clone-sw"
-#endif
     };
     deepin_setup_style_class(dwi, styles[0]);
 

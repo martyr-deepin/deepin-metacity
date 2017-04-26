@@ -1073,11 +1073,8 @@ GtkWidget* deepin_workspace_overview_new(void)
     self->priv->fixed_height = gdk_screen_get_height(screen);
 
     SET_STATE (self, GTK_STATE_FLAG_NORMAL);
-#ifndef __sw_64__
-    deepin_setup_style_class(GTK_WIDGET(self), "deepin-workspace-clone"); 
-#else
+    //use shenwei version of style for performance reason
     deepin_setup_style_class(GTK_WIDGET(self), "deepin-workspace-clone-sw"); 
-#endif
     
     g_object_connect(G_OBJECT(self),
             "signal::show", on_deepin_workspace_overview_show, NULL,
