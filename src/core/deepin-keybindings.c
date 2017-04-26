@@ -306,82 +306,6 @@ static void on_drag_end(DeepinMessageHub* hub, GtkWidget* top)
     _do_grab(display->active_screen, top, TRUE);
 }
 
-void do_preview_workspace(MetaDisplay *display, MetaScreen *screen,
-        MetaWindow *window, guint32 timestamp,
-        MetaKeyBinding *binding, gpointer user_data, 
-        gboolean user_op)
-{
-    meta_verbose("%s\n", __func__);
-
-    if (display->hiding_windows_mode) {
-        return;
-    }
-
-    unsigned int grab_mask = binding ? binding->mask: 0;
-    if (meta_display_begin_grab_op (display,
-                screen,
-                NULL,
-                META_GRAB_OP_KEYBOARD_PREVIEWING_WORKSPACE,
-                FALSE,
-                FALSE,
-                0,
-                grab_mask,
-                timestamp,
-                0, 0))
-    {
-        gboolean grabbed_before_release = 
-            user_op? primary_modifier_still_pressed (display, grab_mask): TRUE;
-
-        meta_topic (META_DEBUG_KEYBINDINGS, "Activating workspace preview\n");
-
-        if (!grabbed_before_release) {
-            /* end the grab right away, modifier possibly released
-             * before we could establish the grab and receive the
-             * release event. Must end grab before we can switch
-             * spaces.
-             */
-            meta_verbose("not grabbed_before_release\n");
-            meta_display_end_grab_op (display, timestamp);
-            return;
-        }
-
-        deepin_wm_background_setup(screen->ws_previewer);
-
-        gtk_widget_show_all(GTK_WIDGET(screen->ws_previewer));
-        gtk_window_move(GTK_WINDOW(screen->ws_previewer), 0, 0);
-        gtk_window_set_focus(GTK_WINDOW(screen->ws_previewer), NULL);
-
-        g_signal_connect(G_OBJECT(deepin_message_hub_get()),
-                "drag-end", (GCallback)on_drag_end, screen->ws_previewer);
-
-        /* rely on auto ungrab when destroyed */
-        _do_grab(screen, (GtkWidget*)screen->ws_previewer, TRUE);
-    }
-}
-
-static void handle_preview_workspace(MetaDisplay *display, MetaScreen *screen,
-        MetaWindow *window, XIDeviceEvent *event,
-        MetaKeyBinding *binding, gpointer user_data)
-{
-    if (display->hiding_windows_mode) {
-        return;
-    }
-
-    if (!display->focus_window) {
-        MetaWindow* focus_window = meta_stack_get_default_focus_window (
-                screen->stack, screen->active_workspace, NULL);
-        if (focus_window) {
-            meta_window_focus (focus_window, event->time);
-        } else {
-            XSetInputFocus (display->xdisplay, screen->xroot,
-                    RevertToPointerRoot, event->time);
-        }
-    }
-
-    do_preview_workspace(display, screen, window, event->time, binding,
-            user_data, TRUE);
-}
-
 enum {
     EXPOSE_WORKSPACE = 1,
     EXPOSE_ALL_WINDOWS = 2,
@@ -554,13 +478,5 @@ void deepin_init_custom_handlers(MetaDisplay* display)
             handle_move_to_workspace, NULL, NULL);
     deepin_meta_override_keybinding_handler("move-to-workspace-right",
             handle_move_to_workspace, NULL, NULL);
-                          
-
-    deepin_meta_display_add_keybinding(display, "expose-all-windows",
-            META_KEY_BINDING_NONE, handle_expose_windows, EXPOSE_ALL_WINDOWS);
-    deepin_meta_display_add_keybinding(display, "expose-windows",
-            META_KEY_BINDING_NONE, handle_expose_windows, EXPOSE_WORKSPACE);
-    deepin_meta_display_add_keybinding(display, "preview-workspace",
-            META_KEY_BINDING_NONE, handle_preview_workspace, 2);
 }
 

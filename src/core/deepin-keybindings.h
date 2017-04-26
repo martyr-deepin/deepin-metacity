@@ -21,10 +21,6 @@
 #include "window-private.h"
 
 void deepin_init_custom_handlers(MetaDisplay* display);
-void do_preview_workspace(MetaDisplay *display, MetaScreen *screen,
-        MetaWindow *window, guint32 timestamp,
-        MetaKeyBinding *binding, gpointer user_data, 
-        gboolean user_op);
 
 /* when expose_mode == 3, xids is used */
 void do_expose_windows(MetaDisplay *display, MetaScreen *screen,

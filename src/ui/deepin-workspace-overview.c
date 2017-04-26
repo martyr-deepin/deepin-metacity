@@ -493,35 +493,6 @@ static void deepin_workspace_overview_get_preferred_height (GtkWidget *widget,
     *minimum = *natural = self->priv->fixed_height;
 }
 
-static void _draw_round_box(cairo_t* cr, gint width, gint height, double radius)
-{
-    cairo_set_antialias(cr, CAIRO_ANTIALIAS_BEST);
-
-    double xc = radius, yc = radius;
-    double angle1 = 180.0  * (M_PI/180.0);  /* angles are specified */
-    double angle2 = 270.0 * (M_PI/180.0);  /* in radians           */
-
-    cairo_arc (cr, xc, yc, radius, angle1, angle2);
-
-    xc = width - radius;
-    angle1 = 270.0 * (M_PI/180.0);
-    angle2 = 360.0 * (M_PI/180.0);
-    cairo_arc (cr, xc, yc, radius, angle1, angle2);
-
-    yc = height - radius;
-    angle1 = 0.0 * (M_PI/180.0);
-    angle2 = 90.0 * (M_PI/180.0);
-    cairo_arc (cr, xc, yc, radius, angle1, angle2);
-
-    xc = radius;
-    angle1 = 90.0 * (M_PI/180.0);
-    angle2 = 180.0 * (M_PI/180.0);
-    cairo_arc (cr, xc, yc, radius, angle1, angle2);
-
-    cairo_set_antialias(cr, CAIRO_ANTIALIAS_DEFAULT);
-    cairo_close_path(cr);
-}
-
 static gboolean deepin_workspace_overview_draw (GtkWidget *widget,
         cairo_t *cr)
 {
@@ -538,7 +509,9 @@ static gboolean deepin_workspace_overview_draw (GtkWidget *widget,
 
     cairo_save(cr);
 
+#ifndef __sw_64__
     gtk_render_background(context, cr, 0, 0, req.width, req.height);
+#endif
 
     for (int i = 0; i < priv->monitors->len; i++) {
         MonitorData* md = (MonitorData*)g_ptr_array_index(priv->monitors, i);
@@ -1100,7 +1073,11 @@ GtkWidget* deepin_workspace_overview_new(void)
     self->priv->fixed_height = gdk_screen_get_height(screen);
 
     SET_STATE (self, GTK_STATE_FLAG_NORMAL);
+#ifndef __sw_64__
     deepin_setup_style_class(GTK_WIDGET(self), "deepin-workspace-clone"); 
+#else
+    deepin_setup_style_class(GTK_WIDGET(self), "deepin-workspace-clone-sw"); 
+#endif
     
     g_object_connect(G_OBJECT(self),
             "signal::show", on_deepin_workspace_overview_show, NULL,

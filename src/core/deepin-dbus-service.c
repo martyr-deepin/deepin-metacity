@@ -24,7 +24,7 @@ static DeepinDBusWm* _the_service = NULL;
 enum ActionType
 {
     NONE = 0,
-    SHOW_WORKSPACE_VIEW,
+    SHOW_WORKSPACE_VIEW, /* disabled forever ever */
     MAXIMIZE_CURRENT,
     MINIMIZE_CURRENT,
     OPEN_LAUNCHER,
@@ -42,9 +42,6 @@ static gboolean deepin_dbus_service_handle_perform_action(DeepinDBusWm *object,
     guint32 timestamp = meta_display_get_current_time_roundtrip(display);
     switch((enum ActionType)type) {
         case SHOW_WORKSPACE_VIEW: 
-            do_preview_workspace(display, display->active_screen, 
-                    NULL, timestamp, NULL, NULL, FALSE);
-            
             break;
 
         case WINDOW_OVERVIEW:

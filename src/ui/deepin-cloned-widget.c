@@ -232,6 +232,7 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
     gdouble alpha = priv->alpha;
 
     x = w/2, y = h/2;
+#ifndef __sw_64__
     if (priv->render_background) {
         gtk_render_background(context, cr, -x, -y, w, h);
     }
@@ -243,6 +244,7 @@ static gboolean meta_deepin_cloned_widget_draw (GtkWidget *widget, cairo_t* cr)
         gdouble fh = h + borders.top + borders.bottom;
         gtk_render_frame(context, cr, -x, -y, fw, fh);
     }
+#endif
 
     if (priv->meta_window->unmanaging || !priv->snapshot) return TRUE;
 
@@ -597,7 +599,11 @@ GtkWidget * meta_deepin_cloned_widget_new (MetaWindow* meta, gboolean show_icon)
 
     widget = (MetaDeepinClonedWidget*)g_object_new (META_TYPE_DEEPIN_CLONED_WIDGET, "show-icon", show_icon, NULL);
     widget->priv->meta_window = meta;
+#ifndef __sw_64__
     deepin_setup_style_class(GTK_WIDGET(widget), "deepin-window-clone");
+#else
+    deepin_setup_style_class(GTK_WIDGET(widget), "deepin-window-clone-sw");
+#endif
 
     g_object_connect(G_OBJECT(widget), 
             "signal::drag-data-get", on_deepin_cloned_widget_drag_data_get, NULL,
