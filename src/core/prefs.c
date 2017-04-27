@@ -1602,6 +1602,14 @@ update_binding (MetaKeyPref *binding,
               "Binding \"%s\" has new GSettings value\n",
               binding->name);
 
+  /**
+   * if strokes are empty, there is a great chance that bindings changed 
+   */
+  if (!strokes || *strokes == NULL)
+    {
+      changed = TRUE;
+    }
+
   /* Okay, so, we're about to provide a new list of key combos for this
    * action. Delete any pre-existing list.
    */

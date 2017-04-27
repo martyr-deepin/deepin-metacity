@@ -807,7 +807,7 @@ meta_ui_parse_accelerator (const char          *accel,
   *keycode = 0;
   *mask = 0;
 
-  if (strcmp (accel, "disabled") == 0)
+  if (!accel[0] || strcmp (accel, "disabled") == 0)
     return TRUE;
 
   meta_ui_accelerator_parse (accel, &gdk_sym, &gdk_code, &gdk_mask);
