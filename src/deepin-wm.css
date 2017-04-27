@@ -78,11 +78,13 @@
 
 /* for fastest performance */
 .deepin-window-switcher-sw {
-    background: rgb(100, 100, 100);
+    background: rgb(252, 252, 252);
+    border: 1px solid rgb(239, 239, 239);
+
 }
 
 .deepin-window-switcher-item-sw {
-    background: rgb(100, 100, 100);
+    background: rgb(252, 252, 252);
 }
 
 .deepin-window-switcher-item-sw:selected {
