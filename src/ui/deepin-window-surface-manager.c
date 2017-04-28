@@ -14,12 +14,15 @@
 #include <util.h>
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
-#include <cairo-xlib.h>
-#ifdef HAVE_COMPOSITE_EXTENSIONS
+#include <cairo/cairo-xlib.h>
 #include <X11/extensions/Xrender.h>
-#endif
+#include <X11/extensions/Xcomposite.h>
+
 #include "errors.h"
+#include "../core/frame-private.h"
 #include "../core/window-private.h"
+#include "../core/display-private.h"
+#include "../core/screen-private.h"
 #include "compositor.h"
 #include "deepin-design.h"
 #include "deepin-window-surface-manager.h"
@@ -87,20 +90,49 @@ static gint scale_compare(gconstpointer a, gconstpointer b, gpointer data)
     return 0;
 }
 
+static cairo_surface_t* get_desktop_window_surface_from_xlib(MetaWindow* win)
+{
+    MetaDisplay *display;
+    Display *xdisplay;
+    MetaScreen *screen;
+    Window xwindow;
+
+    display = win->screen->display;
+    xdisplay = display->xdisplay;
+    xwindow = win->xwindow;
+
+    g_return_val_if_fail (display->desktop_pm != None, NULL);
+
+    return cairo_xlib_surface_create (xdisplay, 
+            display->desktop_pm, win->xvisual, win->rect.width, win->rect.height); 
+}
+
 static cairo_surface_t* get_window_surface_from_xlib(MetaWindow* window)
 {
     cairo_surface_t *surface;
-    Display *display;
+    Display *xdisplay;
+    MetaDisplay *display;
+    Window xwindow;
 
-    display = GDK_DISPLAY_XDISPLAY (gdk_display_get_default ());
+    display = window->screen->display;
+    xdisplay = display->xdisplay;
+
+    if (window == display->desktop_win) {
+        return get_desktop_window_surface_from_xlib(window);
+    }
 
     MetaRectangle r;
     meta_window_get_input_rect(window, &r);
 
-    surface = cairo_xlib_surface_create (display, window->xwindow, window->xvisual,
+    xwindow = window->xwindow;
+    if (window->frame) {
+        xwindow = window->frame->xwindow;
+    }
+    surface = cairo_xlib_surface_create (xdisplay, xwindow, window->xvisual,
             r.width, r.height);
     cairo_xlib_surface_set_size (surface, r.width, r.height);
-    fprintf(stderr, "%s: win 0x%x (%d, %d)\n", __func__, window->xwindow, r.width, r.height);
+
+    cairo_surface_flush (surface);
 
     if (cairo_surface_status (surface) != CAIRO_STATUS_SUCCESS) {
         meta_warning ("%s: invalid surface\n", __func__);

@@ -37,6 +37,7 @@
 #include "screen-private.h"
 #include "window-private.h"
 #include "deepin-message-hub.h"
+#include "deepin-dbus-service.h"
 #include "deepin-shadow-workspace.h"
 #include "window-props.h"
 #include "group-props.h"
@@ -422,6 +423,11 @@ meta_display_open (void)
 
   the_display->window_with_menu = NULL;
   the_display->window_menu = NULL;
+
+  the_display->desktop_win = NULL;
+  the_display->desktop_surface = NULL;
+  the_display->desktop_pm = None;
+  the_display->desktop_damage = None;
 
   the_display->screens = NULL;
   the_display->active_screen = NULL;
@@ -1962,6 +1968,73 @@ handle_input_xevent (MetaDisplay  *display, MetaWindow* window, Window modified,
     }
 }
 
+static void meta_display_process_compositing_event(MetaDisplay* display,
+        XEvent *event, MetaWindow* window)
+{
+  meta_error_trap_push (display);
+  switch (event->type) {
+      case ConfigureNotify:
+          if (event->xconfigure.width != display->desktop_rect.width ||
+                  event->xconfigure.height != display->desktop_rect.height) {
+              meta_verbose ("%s: configure, rebuild pixmap\n", __func__);
+              if (display->desktop_pm != None) {
+                  XFreePixmap(display->xdisplay, display->desktop_pm);
+                  display->desktop_pm = XCompositeNameWindowPixmap(display->xdisplay, 
+                          window->xwindow);
+              }
+
+              g_clear_pointer (&display->desktop_surface, cairo_surface_destroy);
+
+              display->desktop_rect = window->rect;
+
+              // do a full redraw
+              GPtrArray* desktop_bgs = display->active_screen->desktop_bgs;
+              for (int i = 0, n = desktop_bgs->len; i < n; i++) {
+                  gtk_widget_queue_draw(g_ptr_array_index(desktop_bgs, i));
+              }
+          }
+
+          break;
+
+      case Expose:
+          meta_verbose ("%s: expose win 0x%x\n", __func__, event->xexpose.window);
+          break;
+
+      default:
+          if (event->type == meta_display_get_damage_event_base (display) + XDamageNotify) {
+
+              XserverRegion parts = XFixesCreateRegion (display->xdisplay, 0, 0);
+              XDamageSubtract (display->xdisplay, display->desktop_damage, None, parts);
+              if (parts) {
+                  int nrects;
+                  XRectangle *rects;
+                  XRectangle bounds;
+
+                  rects = XFixesFetchRegionAndBounds (display->xdisplay, parts, &nrects, &bounds);
+                  if (nrects > 0) {
+                      deepin_message_hub_window_damaged(window, rects, nrects);
+                  }
+
+                  XFree (rects);
+                  /*meta_verbose ("%s: damage (%d, %d, %d, %d)\n", __func__,*/
+                  /*bounds.x, bounds.y, bounds.width, bounds.height);*/
+                  GPtrArray* desktop_bgs = display->active_screen->desktop_bgs;
+                  for (int i = 0, n = desktop_bgs->len; i < n; i++) {
+                      gtk_widget_queue_draw_area(g_ptr_array_index(desktop_bgs, i), 
+                              bounds.x, bounds.y, bounds.width, bounds.height);
+                  }
+              }
+
+          } else {
+              meta_error_trap_pop (display, FALSE);
+              return;
+          }
+          break;
+  }
+
+  meta_error_trap_pop (display, FALSE);
+}
+
 /**
  * This is the most important function in the whole program. It is the heart,
  * it is the nexus, it is the Grand Central Station of Metacity's world.
@@ -2669,6 +2742,10 @@ event_callback (XEvent   *event,
       meta_compositor_process_event (display->compositor,
 				     event,
 				     window);
+    }
+  else if (window == display->desktop_win)
+    {
+      meta_display_process_compositing_event(display, event, window);
     }
 
   display->current_time = CurrentTime;

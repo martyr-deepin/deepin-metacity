@@ -11,8 +11,13 @@
 
 #include "deepin-desktop-background.h"
 #include <gdk/gdkx.h>
+#include <cairo/cairo.h>
+#include <cairo/cairo-xlib.h>
 #include "deepin-background-cache.h"
+#include "deepin-window-surface-manager.h"
 #include "../core/workspace.h"
+#include "../core/window-private.h"
+#include "../core/display-private.h"
 #include "../core/screen-private.h"
 #include "deepin-message-hub.h"
 
@@ -39,8 +44,21 @@ static void deepin_desktop_background_finalize (GObject *object)
     G_OBJECT_CLASS (deepin_desktop_background_parent_class)->finalize (object);
 }
 
+static cairo_surface_t * _get_window_surface (MetaScreen *screen, MetaWindow *win)
+{
+    Window xwindow = win->xwindow;
+
+    g_return_val_if_fail (screen->display->desktop_pm != None, NULL);
+
+    screen->display->desktop_surface = cairo_xlib_surface_create (screen->display->xdisplay, 
+            screen->display->desktop_pm, win->xvisual, win->rect.width, win->rect.height); 
+
+    return screen->display->desktop_surface;
+}
+
 static gboolean deepin_desktop_background_real_draw(GtkWidget *widget, cairo_t* cr)
 {
+
     DeepinDesktopBackground* self = DEEPIN_DESKTOP_BACKGROUND(widget);
     MetaScreen *screen = meta_get_display()->active_screen;
 
@@ -52,6 +70,19 @@ static gboolean deepin_desktop_background_real_draw(GtkWidget *widget, cairo_t* 
     if (bg) {
         cairo_set_source_surface(cr, bg, 0, 0);
         cairo_paint(cr);
+    }
+
+    if (screen->display->desktop_surface == NULL) {
+        _get_window_surface(screen, screen->display->desktop_win);
+    }
+
+    if (screen->display->desktop_surface != NULL) {
+        if (cairo_surface_status(screen->display->desktop_surface) == 0) {
+            cairo_set_source_surface(cr, screen->display->desktop_surface, 0, 0);
+            cairo_paint(cr);
+        } else {
+            fprintf(stderr, "%s: status %d\n", __func__, cairo_surface_status(screen->display->desktop_surface));
+        }
     }
     return TRUE;
 }

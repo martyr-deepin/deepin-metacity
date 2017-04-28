@@ -26,6 +26,7 @@
 #include <X11/extensions/XInput2.h>
 #include <gdk/gdkx.h>
 #include "window-private.h"
+#include "display-private.h"
 #include "edge-resistance.h"
 #include "util.h"
 #include "frame-private.h"
@@ -52,6 +53,9 @@
 #include <string.h>
 
 #include <X11/extensions/shape.h>
+
+#include <X11/extensions/Xcomposite.h>
+#include <X11/extensions/Xdamage.h>
 
 static int destroying_windows_disallowed = 0;
 
@@ -854,6 +858,19 @@ meta_window_new_with_attrs (MetaDisplay       *display,
   meta_display_ungrab (display);
 
   window->constructing = FALSE;
+
+  if (window && window->type == META_WINDOW_DESKTOP) {
+      if (display->desktop_win != NULL) {
+          meta_warning ("there is already a desktop window redirected\n");
+          return;
+      }
+      meta_verbose ("%s redirect desktop (0x%x)\n", __func__, xwindow);
+      XCompositeRedirectWindow(display->xdisplay, xwindow, 1);
+      display->desktop_win = window;
+      display->desktop_damage = XDamageCreate(display->xdisplay, xwindow, XDamageReportNonEmpty);
+      display->desktop_pm = XCompositeNameWindowPixmap(display->xdisplay, xwindow);
+      display->desktop_rect = window->rect;
+  }
 
   return window;
 }
