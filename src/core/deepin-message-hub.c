@@ -30,6 +30,7 @@ enum
     SIGNAL_WORKSPACE_REMOVED,
     SIGNAL_WORKSPACE_SWITCHED,
     SIGNAL_WORKSPACE_REORDERED,
+    SIGNAL_COMPOSITING_CHANGED,
     SIGNAL_WINDOW_REMOVED,
     SIGNAL_WINDOW_ADDED,
     SIGNAL_WINDOW_DAMAGED,
@@ -206,6 +207,12 @@ static void deepin_message_hub_class_init (DeepinMessageHubClass *klass)
             NULL, NULL, NULL,
             G_TYPE_NONE, 2, G_TYPE_INT, G_TYPE_INT);
 
+    signals[SIGNAL_COMPOSITING_CHANGED] = g_signal_new ("compositing-changed",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 1, G_TYPE_INT);
+
     signals[SIGNAL_WORKSPACE_REORDERED] = g_signal_new ("workspace-reordered",
             G_OBJECT_CLASS_TYPE (klass),
             G_SIGNAL_RUN_LAST, 0,
@@ -302,6 +309,11 @@ void deepin_message_hub_screen_corner_leaved(MetaScreen *screen, MetaScreenCorne
 {
     meta_verbose("%s: %d\n", __func__, corner);
     g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_SCREEN_CORNER_LEAVED], 0, corner);
+}
+
+void deepin_message_hub_compositing_changed(gboolean enabled)
+{
+    g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_COMPOSITING_CHANGED], 0, enabled);
 }
 
 DeepinMessageHub* deepin_message_hub_get()

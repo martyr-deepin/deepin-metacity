@@ -277,6 +277,8 @@ enable_compositor (MetaDisplay *display,
   if (!display->compositor)
     return;
 
+  deepin_message_hub_compositing_changed (TRUE);
+
   for (list = display->screens; list != NULL; list = list->next)
     {
       MetaScreen *screen = list->data;
@@ -307,6 +309,7 @@ disable_compositor (MetaDisplay *display)
 
   meta_compositor_destroy (display->compositor);
   display->compositor = NULL;
+  deepin_message_hub_compositing_changed (FALSE);
 }
 
 /**

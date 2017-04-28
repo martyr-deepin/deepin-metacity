@@ -257,13 +257,7 @@ styles_DATA = deepin-wm.css texture.png close.png path.svg \
 	close_hover.png \
 	close_normal.png \
 	close_press.png \
-	close_marker_1.png \
-	close_marker_2.png \
-	close_marker_3.png \
-	close_marker_4.png \
-	close_marker_5.png \
-	close_marker_6.png \
-	close_marker_7.png \
+	close_marker_hover.png \
 	close_marker_press.png \
 	sticked_hover.png \
 	sticked_normal.png \
@@ -290,13 +284,7 @@ EXTRA_DIST=$(desktopfiles_files)	 	\
 	close_hover.png \
 	close_normal.png \
 	close_press.png \
-	close_marker_1.png \
-	close_marker_2.png \
-	close_marker_3.png \
-	close_marker_4.png \
-	close_marker_5.png \
-	close_marker_6.png \
-	close_marker_7.png \
+	close_marker_hover.png \
 	close_marker_press.png \
 	sticked_hover.png \
 	sticked_normal.png \

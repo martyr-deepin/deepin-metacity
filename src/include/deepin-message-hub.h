@@ -63,6 +63,7 @@ void deepin_message_hub_workspace_switched(int from, int to);
 void deepin_message_hub_workspace_reordered(int index, int new_index);
 void deepin_message_hub_screen_corner_entered(MetaScreen*, MetaScreenCorner);
 void deepin_message_hub_screen_corner_leaved(MetaScreen*, MetaScreenCorner);
+void deepin_message_hub_compositing_changed(gboolean enabled);
 
 G_END_DECLS
 
