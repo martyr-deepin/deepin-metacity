@@ -422,6 +422,12 @@ meta_display_open (void)
 
   the_display->window_with_menu = NULL;
   the_display->window_menu = NULL;
+#ifdef HAVE_COMPOSITE_EXTENSIONS
+  the_display->desktop_win = NULL;
+  the_display->desktop_surface = NULL;
+  the_display->desktop_pm = None;
+  the_display->desktop_damage = None;
+#endif
 
   the_display->screens = NULL;
   the_display->active_screen = NULL;
@@ -1962,6 +1968,55 @@ handle_input_xevent (MetaDisplay  *display, MetaWindow* window, Window modified,
     }
 }
 
+meta_display_process_compositing_event(MetaDisplay* display, XEvent *event, MetaWindow* window)
+{
+  meta_error_trap_push (display);
+  switch (event->type)
+    {
+    case ConfigureNotify:
+      /*fprintf(stderr, "%s: configure win 0x%x\n", __func__, event->xconfigure.window);*/
+      break;
+
+    case Expose:
+      fprintf(stderr, "%s: expose win 0x%x\n", __func__, event->xexpose.window);
+      break;
+
+    case UnmapNotify:
+      break;
+
+    case MapNotify:
+      break;
+
+    case DestroyNotify:
+      break;
+
+    default:
+      if (event->type == meta_display_get_damage_event_base (display) + XDamageNotify) {
+          fprintf(stderr, "%s: damage \n", __func__);
+          XDamageSubtract (display->xdisplay, display->desktop_damage, None, None);
+          /*if (display->desktop_pm == None) {*/
+              /*XFreePixmap(display->xdisplay, display->desktop_pm);*/
+              /*display->desktop_pm = None;*/
+          /*}*/
+
+          GPtrArray* desktop_bgs = display->active_screen->desktop_bgs;
+          for (int i = 0, n = desktop_bgs->len; i < n; i++) {
+              gtk_widget_queue_draw(g_ptr_array_index(desktop_bgs, i));
+          }
+      }
+      else if (event->type == meta_display_get_shape_event_base (display) + ShapeNotify)
+          fprintf(stderr, "%s: shape \n", __func__);
+      else
+        {
+          meta_error_trap_pop (display, FALSE);
+          return;
+        }
+      break;
+    }
+
+  meta_error_trap_pop (display, FALSE);
+}
+
 /**
  * This is the most important function in the whole program. It is the heart,
  * it is the nexus, it is the Grand Central Station of Metacity's world.
@@ -2669,6 +2724,10 @@ event_callback (XEvent   *event,
       meta_compositor_process_event (display->compositor,
 				     event,
 				     window);
+    }
+  else if (window == display->desktop_win)
+    {
+      meta_display_process_compositing_event(display, event, window);
     }
 
   display->current_time = CurrentTime;
