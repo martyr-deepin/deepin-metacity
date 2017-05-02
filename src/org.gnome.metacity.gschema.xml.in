@@ -11,7 +11,7 @@
   <schema id="com.deepin.wrap.gnome.metacity" path="/com/deepin/wrap/gnome/metacity/"
           gettext-domain="@GETTEXT_PACKAGE@">
     <key name="compositing-manager" type="b">
-      <default>true</default>
+      <default>false</default>
       <_summary>Compositing Manager</_summary>
       <_description>
         Determines whether Metacity is a compositing manager.
