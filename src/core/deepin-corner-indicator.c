@@ -59,7 +59,7 @@ struct _DeepinCornerIndicatorPrivate
     GdkDevice *pointer;
 };
 
-#define CORNER_SIZE 32
+#define CORNER_SIZE 38
 
 G_DEFINE_TYPE (DeepinCornerIndicator, deepin_corner_indicator, GTK_TYPE_WINDOW);
 
@@ -74,7 +74,7 @@ static void deepin_corner_indicator_update_input_shape (DeepinCornerIndicator *s
             cairo_rectangle_int_t r = {CORNER_SIZE - sz, 0, sz, sz};
             shape_region = cairo_region_create_rectangle (&r);
             {
-                cairo_rectangle_int_t r = {5, 0, 27, 32};
+                cairo_rectangle_int_t r = {6, 0, 32, 38};
                 cairo_region_t *reg = cairo_region_create_rectangle (&r);
                 gdk_window_shape_combine_region (gtk_widget_get_window (GTK_WIDGET(self)), 
                         reg, 0, 0);
@@ -623,14 +623,10 @@ static gboolean deepin_corner_indicator_real_draw (GtkWidget *widget, cairo_t* c
         }
 
         if (priv->blind_close_press_down) {
-            float scale = CORNER_SIZE / 38.0;
-            cairo_scale (cr, scale, scale);
-            cairo_set_source_surface(cr, press_hold_surface, 5, 0);
+            cairo_set_source_surface(cr, press_hold_surface, 6, 0);
             cairo_paint_with_alpha(cr, 1.0);
         } else if (deepin_animation_image_get_activated (priv->close_image)) {
-            float scale = CORNER_SIZE / 38.0;
-            cairo_scale (cr, scale, scale);
-            cairo_set_source_surface(cr, close_surface, 5, 0);
+            cairo_set_source_surface(cr, close_surface, 6, 0);
             cairo_paint_with_alpha(cr, 1.0);
         } 
 
