@@ -47,8 +47,6 @@ struct _DeepinCornerIndicatorPrivate
     gint64 last_trigger_time; // 0 is invalid
     gint64 last_reset_time; // 0 is invalid
 
-    cairo_surface_t *effect;
-
     GtkWidget *close_image;
 
     GSettings *settings;
@@ -122,7 +120,6 @@ static void deepin_corner_indicator_init (DeepinCornerIndicator *self)
     priv->last_reset_time = 0;
     priv->last_trigger_time = 0;
 
-    priv->effect = NULL;
     priv->blind_close = FALSE;
     priv->blind_close_press_down = FALSE;
 
@@ -135,7 +132,6 @@ static void deepin_corner_indicator_init (DeepinCornerIndicator *self)
 static void deepin_corner_indicator_finalize (GObject *object)
 {
     DeepinCornerIndicatorPrivate *priv = DEEPIN_CORNER_INDICATOR (object)->priv;
-    g_clear_pointer (&priv->effect, cairo_surface_destroy);
     g_clear_pointer (&priv->settings, g_object_unref);
     g_clear_pointer (&priv->action, g_free);
 
@@ -629,10 +625,6 @@ static gboolean deepin_corner_indicator_real_draw (GtkWidget *widget, cairo_t* c
             cairo_set_source_surface(cr, close_surface, 7, 0);
             cairo_paint_with_alpha(cr, 1.0);
         } 
-
-    } else if (priv->effect) {
-        /*cairo_set_source_surface(cr, priv->effect, 0, 0);*/
-        /*cairo_paint_with_alpha(cr, priv->opacity);*/
     }
 
     return TRUE;
@@ -690,28 +682,6 @@ static void deepin_corner_indicator_class_init (DeepinCornerIndicatorClass *klas
     widget_class->button_press_event = deepin_corner_indicator_button_pressed;
 }
 
-static GdkPixbuf* get_button_pixbuf (DeepinCornerIndicator *self)
-{
-    const char * icon_name = NULL;
-    switch (self->priv->corner) {
-        case META_SCREEN_TOPLEFT: icon_name = "topleft"; break;
-        case META_SCREEN_TOPRIGHT: icon_name = "topright"; break;
-        case META_SCREEN_BOTTOMLEFT: icon_name = "bottomleft"; break;
-        case META_SCREEN_BOTTOMRIGHT: icon_name = "bottomright"; break;
-    }
-
-    GError *error = NULL;
-    char *path = g_strdup_printf (METACITY_PKGDATADIR "/%s.png", icon_name);
-    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file (path, &error);
-    if (!pixbuf) {
-        g_warning ("%s\n", error->message);
-        g_error_free (error);
-        return NULL;
-    }
-
-    return pixbuf;
-}
-
 GtkWidget* deepin_corner_indicator_new (MetaScreen *screen, MetaScreenCorner corner,
         const char* key, int x, int y)
 {
@@ -723,12 +693,6 @@ GtkWidget* deepin_corner_indicator_new (MetaScreen *screen, MetaScreenCorner cor
     priv->corner = corner;
     priv->screen = screen;
     priv->key = strdup(key);
-
-    GdkPixbuf *pixbuf = get_button_pixbuf (self);
-    if (pixbuf) {
-        priv->effect = gdk_cairo_surface_create_from_pixbuf (pixbuf, 0, NULL);
-        g_object_unref (pixbuf);
-    }
 
     if (priv->corner == META_SCREEN_TOPRIGHT) {
         priv->close_image = deepin_animation_image_new ();
