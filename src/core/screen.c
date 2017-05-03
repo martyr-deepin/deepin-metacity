@@ -380,7 +380,7 @@ create_guard_window (Display *xdisplay, MetaScreen *screen)
   return guard_window;
 }
 
-#define CORNER_SIZE 38
+#define CORNER_SIZE 39
 
 static void meta_screen_calc_corner_positions (MetaScreen *screen, int* positions)
 {
