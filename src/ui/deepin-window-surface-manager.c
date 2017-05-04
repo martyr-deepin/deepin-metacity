@@ -121,13 +121,10 @@ static cairo_surface_t* get_window_surface_from_xlib(MetaWindow* window)
         return get_desktop_window_surface_from_xlib(window);
     }
 
-    MetaRectangle r;
-    meta_window_get_input_rect(window, &r);
+    //FIXME: how to get frame window image
+    MetaRectangle r = window->rect;
 
     xwindow = window->xwindow;
-    if (window->frame) {
-        xwindow = window->frame->xwindow;
-    }
     surface = cairo_xlib_surface_create (xdisplay, xwindow, window->xvisual,
             r.width, r.height);
     cairo_xlib_surface_set_size (surface, r.width, r.height);
