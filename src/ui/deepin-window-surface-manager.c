@@ -15,6 +15,7 @@
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
 #include <cairo/cairo-xlib.h>
+#include <cairo/cairo-xlib-xrender.h>
 #include <X11/extensions/Xrender.h>
 #include <X11/extensions/Xcomposite.h>
 
@@ -107,6 +108,83 @@ static cairo_surface_t* get_desktop_window_surface_from_xlib(MetaWindow* win)
             display->desktop_pm, win->xvisual, win->rect.width, win->rect.height); 
 }
 
+static cairo_surface_t* get_window_surface_from_composite(MetaWindow* window)
+{
+    cairo_surface_t *surface;
+    Display *xdisplay;
+    MetaDisplay *display;
+    Window xwindow;
+    XRenderPictFormat *render_fmt;
+
+    display = window->screen->display;
+    xdisplay = display->xdisplay;
+
+    if (window == display->desktop_win) {
+        return get_desktop_window_surface_from_xlib(window);
+    }
+
+    //FIXME: how to get frame window image
+    MetaRectangle r = window->rect;
+    xwindow = window->xwindow;
+    XCompositeRedirectWindow(xdisplay, xwindow, 0);
+    Pixmap pm = XCompositeNameWindowPixmap(xdisplay, xwindow);
+    if (pm == None)
+        return NULL;
+
+    /*surface = cairo_xlib_surface_create(xdisplay, pm, window->xvisual, r.width, r.height);*/
+    render_fmt = XRenderFindVisualFormat(xdisplay, window->xvisual);
+    surface = cairo_xlib_surface_create_with_xrender_format (xdisplay, pm,
+            DefaultScreenOfDisplay(xdisplay), render_fmt, r.width, r.height);
+
+    cairo_format_t format = CAIRO_FORMAT_RGB24;
+    if (window->depth == 32) format = CAIRO_FORMAT_ARGB32;
+    cairo_surface_t* ret = cairo_image_surface_create(format, r.width, r.height);
+    cairo_t* cr = cairo_create(ret);
+    cairo_set_source_surface(cr, surface, 0, 0);
+    cairo_paint(cr);
+    cairo_destroy(cr);
+    cairo_surface_destroy(surface);
+
+    XFreePixmap(xdisplay, pm);
+    XCompositeUnredirectWindow(xdisplay, xwindow, 0);
+
+    return ret;
+}
+
+static cairo_surface_t* get_window_surface_from_xrender(MetaWindow* window)
+{
+    cairo_surface_t *surface;
+    Display *xdisplay;
+    MetaDisplay *display;
+    Window xwindow;
+    XRenderPictFormat *render_fmt;
+
+    display = window->screen->display;
+    xdisplay = display->xdisplay;
+
+    if (window == display->desktop_win) {
+        return get_desktop_window_surface_from_xlib(window);
+    }
+
+    //FIXME: how to get frame window image
+    MetaRectangle r = window->rect;
+    xwindow = window->xwindow;
+
+    render_fmt = XRenderFindVisualFormat(xdisplay, window->xvisual);
+
+    surface = cairo_xlib_surface_create_with_xrender_format (xdisplay, xwindow,
+            DefaultScreenOfDisplay(xdisplay), render_fmt, r.width, r.height);
+    cairo_xlib_surface_set_size (surface, r.width, r.height);
+
+    /*cairo_surface_flush (surface);*/
+
+    if (cairo_surface_status (surface) != CAIRO_STATUS_SUCCESS) {
+        meta_warning ("%s: invalid surface\n", __func__);
+    }
+
+    return surface;
+}
+
 static cairo_surface_t* get_window_surface_from_xlib(MetaWindow* window)
 {
     cairo_surface_t *surface;
@@ -123,8 +201,8 @@ static cairo_surface_t* get_window_surface_from_xlib(MetaWindow* window)
 
     //FIXME: how to get frame window image
     MetaRectangle r = window->rect;
-
     xwindow = window->xwindow;
+
     surface = cairo_xlib_surface_create (xdisplay, xwindow, window->xvisual,
             r.width, r.height);
     cairo_xlib_surface_set_size (surface, r.width, r.height);
@@ -157,7 +235,7 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
         if (window->display->compositor) {
             ref = meta_compositor_get_window_surface(window->display->compositor, window);
         } else {
-            ref = get_window_surface_from_xlib(window);
+            ref = get_window_surface_from_composite(window);
         }
         if (!ref) {
             g_free(s);
@@ -189,7 +267,8 @@ cairo_surface_t* deepin_window_surface_manager_get_surface(MetaWindow* window,
         meta_error_trap_push (window->display);
 
         cairo_t* cr = cairo_create(ret);
-        cairo_set_source_surface(cr, ref, r.x - r2.x, r.y - r2.y);
+        /*cairo_set_source_surface(cr, ref, r.x - r2.x, r.y - r2.y);*/
+        cairo_set_source_surface(cr, ref, 0, 0);
         cairo_paint(cr);
         cairo_destroy(cr);
         cairo_surface_destroy(ref);
