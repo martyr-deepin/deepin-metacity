@@ -866,15 +866,19 @@ meta_window_new_with_attrs (MetaDisplay       *display,
           meta_warning ("there is already a desktop window redirected\n");
           return window;
       }
-      meta_verbose ("%s redirect desktop (0x%x)\n", __func__, xwindow);
+      meta_verbose ("%s redirect desktop %p(0x%x), mapped %d\n", __func__, window, xwindow, 
+              attrs->map_state == IsViewable);
       XCompositeRedirectWindow(display->xdisplay, xwindow, 1);
       display->desktop_win = window;
       display->desktop_damage = XDamageCreate(display->xdisplay, xwindow, XDamageReportNonEmpty);
-      display->desktop_pm = XCompositeNameWindowPixmap(display->xdisplay, xwindow);
-      display->desktop_rect = window->rect;
-      display->desktop_surface = cairo_xlib_surface_create (display->xdisplay, 
-              display->desktop_pm, window->xvisual, window->rect.width, window->rect.height); 
-      XSync (display->xdisplay, False);
+
+      if (attrs->map_state == IsViewable) {
+          display->desktop_pm = XCompositeNameWindowPixmap(display->xdisplay, xwindow);
+          display->desktop_rect = window->rect;
+          display->desktop_surface = cairo_xlib_surface_create (display->xdisplay, 
+                  display->desktop_pm, window->xvisual, window->rect.width, window->rect.height); 
+          XSync (display->xdisplay, False);
+      }
   }
 
   return window;

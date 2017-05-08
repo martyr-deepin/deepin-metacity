@@ -1974,6 +1974,16 @@ static void meta_display_process_compositing_event(MetaDisplay* display,
         XEvent *event, MetaWindow* window)
 {
   switch (event->type) {
+      case MapNotify:
+          if (window != display->desktop_win) return;
+          if (display->desktop_pm == None) {
+              display->desktop_pm = XCompositeNameWindowPixmap(display->xdisplay, window->xwindow);
+              display->desktop_rect = window->rect;
+              display->desktop_surface = cairo_xlib_surface_create (display->xdisplay, 
+                      display->desktop_pm, window->xvisual, window->rect.width, window->rect.height); 
+          }
+          break;
+
       case ConfigureNotify:
           if (window != display->desktop_win) return;
 

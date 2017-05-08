@@ -60,12 +60,15 @@ static gboolean deepin_desktop_background_real_draw(GtkWidget *widget, cairo_t* 
         cairo_paint(cr);
     }
 
+    if (self->priv->monitor != gdk_screen_get_primary_monitor(gdk_screen_get_default()))
+        return TRUE;
+
     if (screen->display->desktop_surface != NULL) {
         if (cairo_surface_status(screen->display->desktop_surface) == 0) {
             cairo_set_source_surface(cr, screen->display->desktop_surface, 0, 0);
             cairo_paint(cr);
         } else {
-            fprintf(stderr, "%s: status %d\n", __func__, cairo_surface_status(screen->display->desktop_surface));
+            meta_verbose ("%s: status %d\n", __func__, cairo_surface_status(screen->display->desktop_surface));
         }
     }
     return TRUE;
