@@ -51,6 +51,7 @@
 #include <X11/Xatom.h>
 #include <X11/Xlibint.h> /* For display->resource_mask */
 #include <string.h>
+#include <cairo/cairo-xlib.h>
 
 #include <X11/extensions/shape.h>
 
@@ -859,10 +860,11 @@ meta_window_new_with_attrs (MetaDisplay       *display,
 
   window->constructing = FALSE;
 
-  if (window && window->type == META_WINDOW_DESKTOP) {
+  if (!window->display->compositor &&
+          window && window->type == META_WINDOW_DESKTOP) {
       if (display->desktop_win != NULL) {
           meta_warning ("there is already a desktop window redirected\n");
-          return;
+          return window;
       }
       meta_verbose ("%s redirect desktop (0x%x)\n", __func__, xwindow);
       XCompositeRedirectWindow(display->xdisplay, xwindow, 1);
@@ -870,6 +872,9 @@ meta_window_new_with_attrs (MetaDisplay       *display,
       display->desktop_damage = XDamageCreate(display->xdisplay, xwindow, XDamageReportNonEmpty);
       display->desktop_pm = XCompositeNameWindowPixmap(display->xdisplay, xwindow);
       display->desktop_rect = window->rect;
+      display->desktop_surface = cairo_xlib_surface_create (display->xdisplay, 
+              display->desktop_pm, window->xvisual, window->rect.width, window->rect.height); 
+      XSync (display->xdisplay, False);
   }
 
   return window;
@@ -1025,6 +1030,26 @@ meta_window_free (MetaWindow  *window,
 
   if (window->display->compositor)
     meta_compositor_free_window (window->display->compositor, window);
+
+  else if (window == window->display->desktop_win) {
+      MetaDisplay *display = window->display;
+      Window xwindow = window->xwindow;
+
+      meta_verbose ("%s: unredirect desktop (0x%x)\n", __func__, xwindow);
+      XFreePixmap(display->xdisplay, display->desktop_pm);
+      meta_error_trap_push (display);
+      XDamageDestroy(display->xdisplay, display->desktop_damage);
+      meta_error_trap_pop (display, FALSE);
+      XSync (display->xdisplay, False);
+
+      g_clear_pointer (&display->desktop_surface, cairo_surface_destroy);
+
+      /*XCompositeUnredirectWindow(display->xdisplay, xwindow, 1);*/
+      display->desktop_damage = None;
+      display->desktop_pm = None;
+      display->desktop_win = NULL;
+      display->desktop_rect = (MetaRectangle){0, 0, 0, 0};
+  }
 
   if (window->display->window_with_menu == window)
     {

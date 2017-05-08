@@ -51,6 +51,8 @@
 #include "bell.h"
 #include "effects.h"
 #include "compositor.h"
+#include <cairo/cairo.h>
+#include <cairo/cairo-xlib.h>
 #include <X11/Xatom.h>
 #include <X11/cursorfont.h>
 #ifdef HAVE_SOLARIS_XINERAMA
@@ -1971,19 +1973,24 @@ handle_input_xevent (MetaDisplay  *display, MetaWindow* window, Window modified,
 static void meta_display_process_compositing_event(MetaDisplay* display,
         XEvent *event, MetaWindow* window)
 {
-  meta_error_trap_push (display);
   switch (event->type) {
       case ConfigureNotify:
+          if (window != display->desktop_win) return;
+
+          meta_error_trap_push (display);
           if (event->xconfigure.width != display->desktop_rect.width ||
                   event->xconfigure.height != display->desktop_rect.height) {
-              meta_verbose ("%s: configure, rebuild pixmap\n", __func__);
+              meta_verbose ("%s:desktop configure, rebuild pixmap\n", __func__);
               if (display->desktop_pm != None) {
                   XFreePixmap(display->xdisplay, display->desktop_pm);
                   display->desktop_pm = XCompositeNameWindowPixmap(display->xdisplay, 
                           window->xwindow);
+
+                  g_clear_pointer (&display->desktop_surface, cairo_surface_destroy);
+                  display->desktop_surface = cairo_xlib_surface_create (display->xdisplay, 
+                          display->desktop_pm, window->xvisual, window->rect.width, window->rect.height); 
               }
 
-              g_clear_pointer (&display->desktop_surface, cairo_surface_destroy);
 
               display->desktop_rect = window->rect;
 
@@ -1993,6 +2000,7 @@ static void meta_display_process_compositing_event(MetaDisplay* display,
                   gtk_widget_queue_draw(g_ptr_array_index(desktop_bgs, i));
               }
           }
+          meta_error_trap_pop (display, FALSE);
 
           break;
 
@@ -2001,7 +2009,10 @@ static void meta_display_process_compositing_event(MetaDisplay* display,
           break;
 
       default:
+          if (window != display->desktop_win) return;
+
           if (event->type == meta_display_get_damage_event_base (display) + XDamageNotify) {
+              meta_error_trap_push (display);
 
               XserverRegion parts = XFixesCreateRegion (display->xdisplay, 0, 0);
               XDamageSubtract (display->xdisplay, display->desktop_damage, None, parts);
@@ -2025,14 +2036,11 @@ static void meta_display_process_compositing_event(MetaDisplay* display,
                   }
               }
 
-          } else {
               meta_error_trap_pop (display, FALSE);
-              return;
           }
           break;
   }
 
-  meta_error_trap_pop (display, FALSE);
 }
 
 /**
@@ -2743,7 +2751,7 @@ event_callback (XEvent   *event,
 				     event,
 				     window);
     }
-  else if (window == display->desktop_win)
+  else if (window != NULL)
     {
       meta_display_process_compositing_event(display, event, window);
     }
