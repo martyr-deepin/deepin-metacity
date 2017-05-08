@@ -1023,6 +1023,18 @@ meta_window_free (MetaWindow  *window,
 
   meta_verbose ("Unmanaging 0x%lx\n", window->xwindow);
 
+  if (window == window->display->desktop_win) {
+      MetaDisplay *display = window->display;
+      Window xwindow = window->xwindow;
+
+      meta_verbose ("%s: unredirect desktop (0x%x)\n", __func__, xwindow);
+      /*XFreePixmap(display->xdisplay, display->desktop_pm);*/
+      /*XDamageDestroy(display->xdisplay, display->desktop_damage);*/
+      /*XCompositeUnredirectWindow(display->xdisplay, xwindow, 1);*/
+      display->desktop_pm = None;
+      display->desktop_win = NULL;
+  }
+
   if (window->display->compositor)
     meta_compositor_free_window (window->display->compositor, window);
 

@@ -46,6 +46,9 @@ static void deepin_desktop_background_finalize (GObject *object)
 
 static cairo_surface_t * _get_window_surface (MetaScreen *screen, MetaWindow *win)
 {
+    if (win == NULL)
+        return NULL;
+
     Window xwindow = win->xwindow;
 
     g_return_val_if_fail (screen->display->desktop_pm != None, NULL);

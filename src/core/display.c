@@ -2743,7 +2743,7 @@ event_callback (XEvent   *event,
 				     event,
 				     window);
     }
-  else if (window == display->desktop_win)
+  else if (window != NULL && window == display->desktop_win)
     {
       meta_display_process_compositing_event(display, event, window);
     }
