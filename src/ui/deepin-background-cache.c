@@ -401,10 +401,22 @@ static const char *transient_uri = NULL;
 
 static char* get_transient_filename_cb(DeepinBackgroundCache *self, int mon, int ws)
 {
-    if (transient_uri)
-        return g_strdup(transient_uri);
+    char *filename = NULL;
 
-    return NULL;
+    if (transient_uri) {
+        if (g_uri_parse_scheme (transient_uri) != NULL) {
+            GFile* file = g_file_new_for_uri (transient_uri);
+            if (g_file_query_exists(file, NULL)) {
+                filename = g_file_get_path (file);
+            }
+            g_object_unref (file);
+
+        } else {
+            filename = g_strdup(transient_uri);
+        }
+    }
+
+    return filename;
 }
 
 void deepin_change_background_transient (int index, const char* uri)
