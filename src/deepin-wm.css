@@ -88,7 +88,9 @@
 }
 
 .deepin-window-switcher-item-sw:selected {
-    background: rgb(1, 189, 255);
+    background: transparent;
+    border-radius: 6px;
+    border: solid 3px #2ca7f8;
 }
 
 .deepin-workspace-thumb-clone-sw {

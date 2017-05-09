@@ -187,8 +187,7 @@ static gboolean on_delayed_popup(PopupData* pd)
 
     if (display->grab_op != META_GRAB_OP_NONE) {
         meta_verbose("%s", __func__);
-        if (!primary_modifier_still_pressed (display,
-                    pd->binding->mask)) {
+        if (!primary_modifier_still_pressed (display, pd->binding->mask)) {
             /* This handles a race where modifier might be released
              * before we establish the grab. must end grab
              * prior to trying to focus a window.
@@ -202,9 +201,6 @@ static gboolean on_delayed_popup(PopupData* pd)
             display->mouse_mode = FALSE;
             _activate_selection_or_desktop(pd->initial_selection, pd->timestamp);
         } else {
-            if (!screen->show_desktop_before_grab)
-                meta_screen_show_desktop(screen, pd->timestamp);
-
             deepin_tab_popup_set_showing(screen->tab_popup, TRUE);
 
             /* rely on auto ungrab when destroyed */

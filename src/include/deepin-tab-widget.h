@@ -43,8 +43,6 @@ GType      meta_deepin_tab_widget_get_type (void) G_GNUC_CONST;
 GtkWidget *meta_deepin_tab_widget_new      (MetaWindow*);
 void       meta_deepin_tab_widget_select   (MetaDeepinTabWidget *);
 void       meta_deepin_tab_widget_unselect (MetaDeepinTabWidget *);
-void       meta_deepin_tab_widget_set_scale(MetaDeepinTabWidget*, gdouble);
-gdouble    meta_deepin_tab_widget_get_scale(MetaDeepinTabWidget*);
 MetaWindow*    meta_deepin_tab_widget_get_meta_window(MetaDeepinTabWidget*);
 
 #endif

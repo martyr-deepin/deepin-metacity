@@ -2182,9 +2182,6 @@ process_tab_grab (MetaDisplay *display,
           display->mouse_mode = FALSE;
 
           if (target_window->type != META_WINDOW_DESKTOP) {
-              if (!screen->show_desktop_before_grab) 
-                  meta_screen_unshow_desktop(screen);
-              screen->show_desktop_before_grab = FALSE;
               meta_window_activate (target_window, event->time);
 
           } else {

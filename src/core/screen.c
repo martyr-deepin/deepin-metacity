@@ -803,8 +803,6 @@ meta_screen_new (MetaDisplay *display,
   screen->keys_grabbed = FALSE;
   meta_screen_grab_keys (screen);
 
-  screen->show_desktop_before_grab = FALSE;
-
   screen->ui = meta_ui_new (screen->display->xdisplay,
                             screen->xscreen);
 

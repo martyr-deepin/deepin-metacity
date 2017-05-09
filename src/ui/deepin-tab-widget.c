@@ -27,16 +27,11 @@
 #include "deepin-background-cache.h"
 #include "deepin-desktop-background.h"
 
-#define ICON_SIZE 48
-
 typedef struct _MetaDeepinTabWidgetPrivate
 {
   gboolean selected;
-  gdouble scale; /* this scale does not used for scaling animation, it only means
-                    that if thumbnail gets shrinked or expanded */
 
   cairo_surface_t* icon;
-  cairo_surface_t* snapshot;
 
   MetaWindow* window;
   MetaRectangle outer_rect; /* cache of window outer rect */
@@ -51,46 +46,7 @@ typedef struct _MetaDeepinTabWidgetPrivate
   GdkWindow* event_window;
 } MetaDeepinTabWidgetPrivate;
 
-enum {
-    PROP_0,
-    PROP_SCALE,
-    N_PROPERTIES
-};
-
-static GParamSpec* property_specs[N_PROPERTIES] = {NULL, };
-
 G_DEFINE_TYPE_WITH_PRIVATE (MetaDeepinTabWidget, meta_deepin_tab_widget, GTK_TYPE_WIDGET);
-
-static void meta_deepin_tab_widget_set_property(GObject *object, guint property_id,
-        const GValue *value, GParamSpec *pspec)
-{
-    MetaDeepinTabWidget* self = META_DEEPIN_TAB_WIDGET(object);
-
-    switch (property_id)
-    {
-        case PROP_SCALE:
-            meta_deepin_tab_widget_set_scale(self, g_value_get_double(value)); 
-            break;
-
-        default:
-            G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
-    }
-}
-
-static void meta_deepin_tab_widget_get_property(GObject *object, guint property_id, GValue *value, GParamSpec *pspec)
-{
-    MetaDeepinTabWidget* self = META_DEEPIN_TAB_WIDGET(object);
-    MetaDeepinTabWidgetPrivate* priv = self->priv;
-
-    switch (property_id)
-    {
-        case PROP_SCALE:
-            g_value_set_double(value, priv->scale); break;
-
-        default:
-            G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
-    }
-}
 
 static void meta_deepin_tab_widget_dispose(GObject *object)
 {
@@ -100,13 +56,7 @@ static void meta_deepin_tab_widget_dispose(GObject *object)
     if (priv->disposed) return;
     priv->disposed = TRUE;
 
-    if (priv->icon) {
-        g_clear_pointer(&priv->icon, cairo_surface_destroy);
-    }
-
-    if (priv->snapshot) {
-        g_clear_pointer(&priv->snapshot, cairo_surface_destroy);
-    }
+    g_clear_pointer(&priv->icon, cairo_surface_destroy);
 
     G_OBJECT_CLASS(meta_deepin_tab_widget_parent_class)->dispose(object);
 }
@@ -117,28 +67,6 @@ static void meta_deepin_tab_widget_finalize(GObject *object)
     G_GNUC_UNUSED MetaDeepinTabWidgetPrivate* priv = head->priv;
 
     G_OBJECT_CLASS(meta_deepin_tab_widget_parent_class)->finalize(object);
-}
-
-static void _do_clip(MetaDeepinTabWidget* self, cairo_t* cr)
-{
-    MetaDeepinTabWidgetPrivate* priv = self->priv;
-
-    GtkRequisition req;
-    gtk_widget_get_preferred_size(GTK_WIDGET(self), &req, NULL);
-
-    int mw = req.width * 1.033, mh = req.height * 1.033;
-    cairo_rectangle_int_t r = {-(mw - req.width)/2, -(mh - req.height)/2, mw, mh};
-    cairo_region_t* reg = cairo_region_create_rectangle(&r);
-
-    r.width = cairo_image_surface_get_width(priv->snapshot);
-    r.height = cairo_image_surface_get_height(priv->snapshot);
-    r.x = (req.width - r.width) / 2.0;
-    r.y = (req.height - r.height) / 2.0;
-    cairo_region_subtract_rectangle(reg, &r);
-
-    gdk_cairo_region(cr, reg);
-    cairo_clip(cr);
-    cairo_region_destroy(reg);
 }
 
 static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
@@ -156,29 +84,18 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
   gdouble w2 = w / 2.0, h2 = h / 2.0;
 
   cairo_save(cr);
-
-  /*if (priv->render_thumb && priv->snapshot) _do_clip(self, cr);*/
-
   cairo_translate(cr, w2, h2);
-
-  if (priv->selected) {
-      cairo_scale(cr, 1.0 + 0.033, 1.0 + 0.033);
-  } else {
-      cairo_scale(cr, 1.033 - 0.033, 1.033 - 0.033);
-  }
-
-  gtk_render_background(context, cr, -w2, -h2, w, h);
+  gtk_render_frame(context, cr, -w2, -h2, w, h);
   cairo_restore(cr);
 
-  MetaRectangle r = priv->outer_rect;
-
-  int primary = gdk_screen_get_primary_monitor(gdk_screen_get_default());
-
-  double sx = RECT_PREFER_WIDTH / (double)r.width;
-  double sy = RECT_PREFER_HEIGHT / (double)r.height;
-  sx = MIN(sx, sy) * priv->scale;
-
   if (priv->window->type == META_WINDOW_DESKTOP) {
+      MetaRectangle r = priv->outer_rect;
+      double sx = RECT_PREFER_WIDTH / (double)r.width;
+      double sy = RECT_PREFER_HEIGHT / (double)r.height;
+      sx = MIN(sx, sy);
+
+      int primary = gdk_screen_get_primary_monitor(gdk_screen_get_default());
+
       MetaScreen *screen = meta_get_display()->active_screen;
       int index = meta_workspace_index(screen->active_workspace);
       cairo_surface_t* ref = deepin_background_cache_get_surface(primary, index, sx);
@@ -190,45 +107,12 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
       }
   }
 
-  if (priv->render_thumb && priv->snapshot && priv->window->type != META_WINDOW_DESKTOP) {
-      cairo_save(cr);
-      cairo_rectangle_int_t r;
-      r.width = RECT_PREFER_WIDTH;
-      r.height = RECT_PREFER_HEIGHT;
-
-      r.x = (w - r.width) / 2.0;
-      r.y = (h - r.height) / 2.0;
-
-      cairo_region_t* reg = cairo_region_create_rectangle(&r);
-      gdk_cairo_region(cr, reg);
-      cairo_clip(cr);
-      cairo_region_destroy(reg);
-
-      x = (w - cairo_image_surface_get_width(priv->snapshot)) / 2.0;
-      y = (h - cairo_image_surface_get_height(priv->snapshot)) / 2.0;
-      if (priv->window->type == META_WINDOW_DESKTOP) {
-          x -= priv->mon_geom.x;
-          y -= priv->mon_geom.y;
-      }
-
-      cairo_set_source_surface(cr, priv->snapshot, x, y);
-      cairo_paint(cr);
-      cairo_restore(cr);
-  }
-  
   if (priv->icon) {
       double iw = cairo_image_surface_get_width(priv->icon);
       double ih = cairo_image_surface_get_height(priv->icon);
 
       x = (w - iw) / 2.0;
-      y = (h - ih);
-
-      if (w - SWITCHER_ITEM_SHAPE_PADDING*2 < ICON_SIZE) {
-          sx = MIN(w / ICON_SIZE, h / ICON_SIZE);
-          cairo_scale(cr, sx, sx);
-          x = (w - iw * sx) / 2.0;
-          y = h - ih * sx;
-      }
+      y = (h - ih) / 2.0;
 
       cairo_set_source_surface(cr, priv->icon, x, y);
       cairo_paint(cr);
@@ -307,7 +191,6 @@ static void meta_deepin_tab_widget_size_allocate(GtkWidget* widget,
 static void meta_deepin_tab_widget_init (MetaDeepinTabWidget *self)
 {
   self->priv = (MetaDeepinTabWidgetPrivate*)meta_deepin_tab_widget_get_instance_private (self);
-  self->priv->scale = 1.0;
   self->priv->render_thumb = TRUE;
   self->priv->real_size.width = SWITCHER_ITEM_PREFER_WIDTH;
   self->priv->real_size.height = SWITCHER_ITEM_PREFER_HEIGHT;
@@ -406,17 +289,8 @@ static void meta_deepin_tab_widget_class_init (MetaDeepinTabWidgetClass *klass)
   widget_class->map = meta_deepin_tab_widget_map;
   widget_class->unmap = meta_deepin_tab_widget_unmap;
 
-  gobject_class->set_property = meta_deepin_tab_widget_set_property;
-  gobject_class->get_property = meta_deepin_tab_widget_get_property;
   gobject_class->dispose = meta_deepin_tab_widget_dispose;
   gobject_class->finalize = meta_deepin_tab_widget_finalize;
-
-  property_specs[PROP_SCALE] = g_param_spec_double(
-          "scale", "scale", "scale",
-          0.0, 1.0, 1.0,
-          G_PARAM_READWRITE);
-
-  g_object_class_install_properties(gobject_class, N_PROPERTIES, property_specs);
 
 }
 
@@ -441,7 +315,7 @@ GtkWidget * meta_deepin_tab_widget_new (MetaWindow* window)
 
   } else {
 
-      GdkPixbuf* pixbuf = meta_window_get_application_icon(window, ICON_SIZE);
+      GdkPixbuf* pixbuf = meta_window_get_application_icon(window, RECT_PREFER_WIDTH);
       widget->priv->icon = gdk_cairo_surface_create_from_pixbuf(pixbuf, 1.0, NULL);
       g_object_unref(pixbuf);
   }
@@ -467,42 +341,6 @@ void meta_deepin_tab_widget_unselect (MetaDeepinTabWidget *self)
     gtk_style_context_set_state (context, GTK_STATE_FLAG_NORMAL);
 
     gtk_widget_queue_draw (GTK_WIDGET (self));
-}
-
-void meta_deepin_tab_widget_set_scale(MetaDeepinTabWidget* self, gdouble val)
-{
-    MetaDeepinTabWidgetPrivate* priv = self->priv;
-    val = MIN(MAX(val, 0.0), 1.0);
-
-    gdouble p = val / priv->scale;
-    priv->scale = val;
-    priv->real_size.width *= p;
-    priv->real_size.height *= p;
-
-    priv->render_thumb = (priv->real_size.width > ICON_SIZE * 1.75f);
-
-    if (priv->render_thumb) {
-        if (priv->snapshot) {
-            g_clear_pointer(&priv->snapshot, cairo_surface_destroy);
-        }
-
-        MetaRectangle r = priv->outer_rect;
-
-        double sx = RECT_PREFER_WIDTH / (double)r.width;
-        double sy = RECT_PREFER_HEIGHT / (double)r.height;
-
-        sx = MIN(sx, sy) * priv->scale;
-        priv->snapshot = deepin_window_surface_manager_get_surface(
-                priv->window, sx);
-        if (priv->snapshot) cairo_surface_reference(priv->snapshot);
-    }
-
-    gtk_widget_queue_resize(GTK_WIDGET(self));
-}
-
-gdouble meta_deepin_tab_widget_get_scale(MetaDeepinTabWidget* self)
-{
-    return self->priv->scale;
 }
 
 MetaWindow* meta_deepin_tab_widget_get_meta_window(MetaDeepinTabWidget* self)

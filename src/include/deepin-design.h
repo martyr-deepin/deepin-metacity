@@ -20,9 +20,9 @@
  * this file contains some design constants by deepin
  * these constants come from deepin-wm for consistency 
  */
-#define SWITCHER_ITEM_PREFER_WIDTH  300
-#define SWITCHER_ITEM_PREFER_HEIGHT 200
-#define SWITCHER_ITEM_SHAPE_PADDING 10
+#define SWITCHER_ITEM_PREFER_WIDTH  128
+#define SWITCHER_ITEM_PREFER_HEIGHT 128
+#define SWITCHER_ITEM_SHAPE_PADDING 16
 
 /**
  * Prefer size for the inner item's rectangle.
@@ -38,8 +38,8 @@
 #define SWITCHER_SELECT_ANIMATION_DURATION 280
 #define SWITCHER_PREVIEW_DURATION 280
 
-#define SWITCHER_COLUMN_SPACING  20
-#define SWITCHER_ROW_SPACING  20
+#define SWITCHER_COLUMN_SPACING  10
+#define SWITCHER_ROW_SPACING  10
 #define SWITCHER_MIN_ITEMS_EACH_ROW  7
 #define SWITCHER_MAX_ROWS  2
  
