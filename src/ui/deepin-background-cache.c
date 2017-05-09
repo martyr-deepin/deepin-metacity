@@ -158,8 +158,9 @@ static cairo_surface_t* _create_solid_background(DeepinBackgroundCache* self, Gd
     return bg;
 }
 
+typedef char* (get_picture_filename_callback)(DeepinBackgroundCache *, int, int);
 
-static char* get_picture_filename(DeepinBackgroundCache *self, int monitor_index, int workspace_index)
+static char* get_picture_filename_cb(DeepinBackgroundCache *self, int monitor_index, int workspace_index)
 {
     DeepinBackgroundCachePrivate *priv = self->priv;
     
@@ -216,7 +217,7 @@ static void deepin_background_cache_load_default_background(DeepinBackgroundCach
 
     MetaScreen *screen = meta_get_display()->active_screen;
     int nr_ws = meta_screen_get_n_workspaces (screen);
-    gchar* path = get_picture_filename (self, 0, nr_ws);
+    gchar* path = get_picture_filename_cb (self, 0, nr_ws);
 
     pixbuf = gdk_pixbuf_new_from_file(path, &error);
     if (!pixbuf) {
@@ -242,7 +243,7 @@ static void deepin_background_cache_load_default_background(DeepinBackgroundCach
 }
 
 static void deepin_background_cache_load_background_for_workspace(DeepinBackgroundCache* self,
-        int workspace_index)
+        int workspace_index, get_picture_filename_callback* get_picture_filename)
 { 
     DeepinBackgroundCachePrivate *priv = self->priv;
 
@@ -314,7 +315,8 @@ static void deepin_background_cache_load_background(DeepinBackgroundCache* self)
     int nr_ws = meta_screen_get_n_workspaces (screen);
 
     for (int workspace_index = 0; workspace_index < nr_ws; workspace_index++) {
-        deepin_background_cache_load_background_for_workspace(self, workspace_index);
+        deepin_background_cache_load_background_for_workspace(self, workspace_index,
+                get_picture_filename_cb);
     }
 }
 
@@ -351,7 +353,7 @@ static void change_background (DeepinBackgroundCache *self, int index, const cha
     int nr_ws = meta_screen_get_n_workspaces (screen);
     if (index > nr_ws) return;
 
-    char* old = get_picture_filename (self, 0, index);
+    char* old = get_picture_filename_cb (self, 0, index);
     if (g_strcmp0(old, uri) == 0) {
         g_free(old);
         return;
@@ -384,7 +386,8 @@ static void change_background (DeepinBackgroundCache *self, int index, const cha
     g_strfreev(extra_uris);
 
     deepin_background_cache_invalidate(self, index);
-    deepin_background_cache_load_background_for_workspace(self, index);
+    deepin_background_cache_load_background_for_workspace(self, index,
+            get_picture_filename_cb);
     deepin_message_hub_desktop_changed();
 }
 
@@ -394,10 +397,34 @@ void deepin_change_background (int index, const char* uri)
     change_background (self, index, uri);
 }
 
+static const char *transient_uri = NULL;
+
+static char* get_transient_filename_cb(DeepinBackgroundCache *self, int mon, int ws)
+{
+    if (transient_uri)
+        return g_strdup(transient_uri);
+
+    return NULL;
+}
+
+void deepin_change_background_transient (int index, const char* uri)
+{
+    DeepinBackgroundCache *self = deepin_get_background ();
+
+    transient_uri = uri;
+
+    deepin_background_cache_invalidate(self, index);
+    deepin_background_cache_load_background_for_workspace(self, index,
+            get_transient_filename_cb);
+    deepin_message_hub_desktop_changed();
+
+    transient_uri = NULL;
+}
+
 char* deepin_get_background_uri (int index)
 {
     DeepinBackgroundCache *self = deepin_get_background ();
-    return get_picture_filename (self, 0, index);
+    return get_picture_filename_cb (self, 0, index);
 }
 
 static void on_workspace_added(DeepinMessageHub* hub, gint index,
@@ -447,7 +474,7 @@ static void on_workspace_removed(DeepinMessageHub* hub, gint index,
 
     for (int i = index; i < nr_ws; i++) {
         deepin_background_cache_invalidate(self, i);
-        deepin_background_cache_load_background_for_workspace(self, i);
+        deepin_background_cache_load_background_for_workspace(self, i, get_picture_filename_cb);
     }
 
     g_idle_add(on_idle_emit_change, NULL);
@@ -490,7 +517,7 @@ static void reorder_workspace_background(DeepinBackgroundCache *self, int from, 
 
     for (int k = from; d > 0 ? k <= to : k >= to; k += d) {
         deepin_background_cache_invalidate(self, k);
-        deepin_background_cache_load_background_for_workspace(self, k);
+        deepin_background_cache_load_background_for_workspace(self, k, get_picture_filename_cb);
     }
     deepin_message_hub_desktop_changed();
 }

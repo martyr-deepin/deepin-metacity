@@ -145,6 +145,20 @@ static gboolean deepin_dbus_service_handle_change_current_workspace_background (
     return TRUE;
 }
 
+static gboolean deepin_dbus_service_handle_set_transient_background (
+        DeepinDBusWm *object,
+        GDBusMethodInvocation *invocation,
+        char *uri, gpointer data)
+{
+    meta_verbose("%s\n", __func__);
+
+    MetaDisplay* display = meta_get_display();
+    int index = meta_workspace_index(display->active_screen->active_workspace);
+    deepin_change_background_transient (index, uri);
+    deepin_dbus_wm_complete_set_transient_background (object, invocation);
+    return TRUE;
+}
+
 static gboolean deepin_dbus_service_handle_get_current_workspace_background (
         DeepinDBusWm *object,
         GDBusMethodInvocation *invocation,
@@ -198,6 +212,8 @@ DeepinDBusWm* deepin_dbus_service_get()
                 "signal::handle_enable_zone_detected", deepin_dbus_service_handle_enable_zone_detected, NULL,
                 "signal::handle_change_current_workspace_background",
                 deepin_dbus_service_handle_change_current_workspace_background, NULL,
+                "signal::handle_set_transient_background",
+                deepin_dbus_service_handle_set_transient_background, NULL,
                 "signal::handle_get_current_workspace_background",
                 deepin_dbus_service_handle_get_current_workspace_background, NULL,
                 NULL);

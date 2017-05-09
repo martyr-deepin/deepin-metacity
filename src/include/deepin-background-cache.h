@@ -49,6 +49,8 @@ cairo_surface_t* deepin_background_cache_get_surface(gint monitor, gint workspac
 cairo_surface_t* deepin_background_cache_get_default(double scale);
 void deepin_change_background (int index, const char* uri);
 char* deepin_get_background_uri (int index);
+// set current background transiently, do not write back into settings 
+void deepin_change_background_transient (int index, const char* uri);
 void deepin_background_cache_request_new_default_uri();
 
 G_END_DECLS
