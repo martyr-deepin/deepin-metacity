@@ -260,6 +260,8 @@ void	 meta_screen_composite_all_windows (MetaScreen *screen);
 void meta_screen_request_hide_windows(MetaScreen* screen);
 void meta_screen_cancel_hide_windows(MetaScreen* screen);
 
+void meta_screen_invalidate_backgrounds(MetaScreen* screen, MetaRectangle* bounds);
+
 void meta_screen_enter_corner (MetaScreen *screen,
                                MetaScreenCorner corner);
 void meta_screen_leave_corner (MetaScreen *screen,

@@ -2005,10 +2005,7 @@ static void meta_display_process_compositing_event(MetaDisplay* display,
               display->desktop_rect = window->rect;
 
               // do a full redraw
-              GPtrArray* desktop_bgs = display->active_screen->desktop_bgs;
-              for (int i = 0, n = desktop_bgs->len; i < n; i++) {
-                  gtk_widget_queue_draw(g_ptr_array_index(desktop_bgs, i));
-              }
+              meta_screen_invalidate_backgrounds(display->active_screen, NULL);
           }
           meta_error_trap_pop (display, FALSE);
 
@@ -2039,11 +2036,8 @@ static void meta_display_process_compositing_event(MetaDisplay* display,
                   XFree (rects);
                   /*meta_verbose ("%s: damage (%d, %d, %d, %d)\n", __func__,*/
                   /*bounds.x, bounds.y, bounds.width, bounds.height);*/
-                  GPtrArray* desktop_bgs = display->active_screen->desktop_bgs;
-                  for (int i = 0, n = desktop_bgs->len; i < n; i++) {
-                      gtk_widget_queue_draw_area(g_ptr_array_index(desktop_bgs, i), 
-                              bounds.x, bounds.y, bounds.width, bounds.height);
-                  }
+                  MetaRectangle r = {bounds.x, bounds.y, bounds.width, bounds.height};
+                  meta_screen_invalidate_backgrounds(display->active_screen, &r);
               }
 
               meta_error_trap_pop (display, FALSE);

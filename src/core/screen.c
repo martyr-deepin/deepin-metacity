@@ -3446,6 +3446,8 @@ meta_screen_request_hide_windows(MetaScreen* screen)
 
   meta_display_focus_the_no_focus_window (display, screen, 0);
   display->hiding_windows_mode = TRUE;
+
+  meta_screen_invalidate_backgrounds(screen, NULL);
 }
 
 void
@@ -3473,6 +3475,21 @@ meta_screen_cancel_hide_windows(MetaScreen* screen)
 
   g_hash_table_remove_all (kept_state_windows);
   display->hiding_windows_mode = FALSE;
+
+  meta_screen_invalidate_backgrounds(screen, NULL);
+}
+
+void meta_screen_invalidate_backgrounds(MetaScreen* screen, MetaRectangle* bounds)
+{
+    GPtrArray* desktop_bgs = screen->desktop_bgs;
+    for (int i = 0, n = desktop_bgs->len; i < n; i++) {
+        if (bounds == NULL) {
+            gtk_widget_queue_draw(g_ptr_array_index(desktop_bgs, i)); 
+        } else {
+            gtk_widget_queue_draw_area(g_ptr_array_index(desktop_bgs, i), 
+                    bounds->x, bounds->y, bounds->width, bounds->height);
+        }
+    }
 }
 
 void          
