@@ -426,8 +426,13 @@ void deepin_change_background_transient (int index, const char* uri)
     transient_uri = uri;
 
     deepin_background_cache_invalidate(self, index);
-    deepin_background_cache_load_background_for_workspace(self, index,
-            get_transient_filename_cb);
+    if (uri == NULL || *uri == 0) {
+        deepin_background_cache_load_background_for_workspace(self, index,
+                get_picture_filename_cb);
+    } else {
+        deepin_background_cache_load_background_for_workspace(self, index,
+                get_transient_filename_cb);
+    }
     deepin_message_hub_desktop_changed();
 
     transient_uri = NULL;
