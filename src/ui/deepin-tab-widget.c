@@ -118,6 +118,26 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
       cairo_paint(cr);
   }
 
+  cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
+
+  if (priv->selected && priv->window->title != NULL) {
+      cairo_text_extents_t extents;
+      double x, y;
+
+      char text[16*8];
+      g_utf8_strncpy(text, priv->window->title, 16);
+
+      cairo_select_font_face (cr, "Sans", CAIRO_FONT_SLANT_NORMAL,
+              CAIRO_FONT_WEIGHT_NORMAL);
+      cairo_set_font_size (cr, 12.0);
+
+      cairo_text_extents (cr, text, &extents);
+      x = (128.0-extents.width)/2 + extents.x_bearing;
+      y = 128.0+20;
+
+      cairo_move_to(cr, x, y);
+      cairo_show_text(cr, text);
+  }
   return TRUE;
 }
 
@@ -181,8 +201,8 @@ static void meta_deepin_tab_widget_size_allocate(GtkWidget* widget,
     }
 
     GtkAllocation expanded;
-    expanded.width = fast_round(allocation->width * 1.033);
-    expanded.height = fast_round(allocation->height * 1.033);
+    expanded.width = allocation->width;
+    expanded.height = allocation->height + 80;
     expanded.x = allocation->x - (expanded.width - allocation->width) / 2;
     expanded.y = allocation->y - (expanded.height - allocation->height) / 2;
     gtk_widget_set_clip(widget, &expanded);
