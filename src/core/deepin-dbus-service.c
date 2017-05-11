@@ -41,8 +41,14 @@ static gboolean deepin_dbus_service_handle_perform_action(DeepinDBusWm *object,
     MetaDisplay* display = meta_get_display();
     guint32 timestamp = meta_display_get_current_time_roundtrip(display);
     switch((enum ActionType)type) {
-        case SHOW_WORKSPACE_VIEW: 
+        case SHOW_WORKSPACE_VIEW: {
+            GError *error = NULL;
+            if (!g_spawn_command_line_async("/usr/lib/deepin-daemon/dde-warning-dialog", &error)) {
+                g_warning("%s", error->message);
+                g_error_free(error);
+            }
             break;
+        }
 
         case WINDOW_OVERVIEW:
             do_expose_windows(display, display->active_screen, NULL, 
