@@ -160,18 +160,27 @@ GdkPixbuf* meta_window_get_application_icon(MetaWindow* window, int icon_size)
             if (image) return image;
         }
 
-        // get icon for application that runs under terminal through wnck
-        if (image == NULL) {
-            meta_verbose("WM_CLASS: %s, %s", window->res_name, window->res_class);
+    }
 
-            /* try to load icon from res_class first, cause window->icon may
-             * contain a broken one 
-             **/
-            char* icon_name = g_ascii_strdown(window->res_class, -1);
-            image = gtk_icon_theme_load_icon(theme, icon_name, icon_size, 0, NULL);
-            g_free(icon_name);
-        }
+    if (!image && window->icon_name) {
+        image = gtk_icon_theme_load_icon(theme, window->icon_name, icon_size, 0, NULL);
+    }
 
+    if (!image && window->icon) {
+        image = window->icon;
+        g_object_ref(window->icon);
+    }
+
+    // get icon for application that runs under terminal through wnck
+    if (image == NULL) {
+        meta_verbose("WM_CLASS: %s, %s", window->res_name, window->res_class);
+
+        /* try to load icon from res_class first, cause window->icon may
+         * contain a broken one 
+         **/
+        char* icon_name = g_ascii_strdown(window->res_class, -1);
+        image = gtk_icon_theme_load_icon(theme, icon_name, icon_size, 0, NULL);
+        g_free(icon_name);
     }
 
     if (!image) {
