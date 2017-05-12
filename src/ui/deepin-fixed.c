@@ -539,8 +539,8 @@ static void deepin_fixed_get_preferred_height (GtkWidget *widget,
     gint primary = gdk_screen_get_primary_monitor(screen);
     gdk_screen_get_monitor_geometry(screen, primary, &mon_geom);
 
-    gint max_width = mon_geom.height - POPUP_SCREEN_PADDING * 2 - POPUP_PADDING * 2;
-    float box_height = 0;
+    gint max_width = mon_geom.width - POPUP_SCREEN_PADDING * 2 - POPUP_PADDING * 2;
+    float box_height = 0.0;
     calculate_preferred_size(g_list_length(priv->children), max_width,
             NULL, &box_height, NULL, NULL, NULL);
     *minimum = *natural = box_height;

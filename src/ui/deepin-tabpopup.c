@@ -183,7 +183,6 @@ static gboolean on_idle_relayout(DeepinTabPopup* self)
     if (entry_count % width)
         height += 1;
 
-
     GtkWidget* grid = gtk_bin_get_child(GTK_BIN(self->window));
 
     int left = 0, top = 0;
@@ -192,8 +191,7 @@ static gboolean on_idle_relayout(DeepinTabPopup* self)
         DeepinTabEntry *te = (DeepinTabEntry*)tmp->data;
 
         deepin_fixed_move(DEEPIN_FIXED(grid), te->widget, 
-                left * (item_width + SWITCHER_COLUMN_SPACING) 
-                + (item_width + SWITCHER_COLUMN_SPACING) / 2,
+                left * item_width + item_width / 2,
                 top * (item_height + SWITCHER_ROW_SPACING) 
                 + (item_height + SWITCHER_ROW_SPACING) / 2,
                 FALSE);
@@ -404,8 +402,7 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
 
         te->widget = w;
         deepin_fixed_put(DEEPIN_FIXED(grid), w, 
-                left * (item_width + SWITCHER_COLUMN_SPACING) 
-                + (item_width + SWITCHER_COLUMN_SPACING) / 2,
+                left * item_width + item_width / 2,
                 top * (item_height + SWITCHER_ROW_SPACING) + item_height / 2);
 
         g_object_connect(G_OBJECT(w), 
