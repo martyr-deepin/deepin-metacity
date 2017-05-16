@@ -27,7 +27,7 @@
 #include "tile-preview.h"
 #include "core.h"
 
-#define OUTLINE_WIDTH 5  /* frame width in non-composite case */
+#define OUTLINE_WIDTH 4  /* frame width in non-composite case */
 
 
 struct _MetaTilePreview {
@@ -65,9 +65,9 @@ meta_tile_preview_draw (GtkWidget *widget,
     }
   else
     {
-      GdkRGBA white = {1.0, 1.0, 1.0, 1.0};
+      GdkRGBA clr = {0.17255, 0.65490, 0.97255, 1.0};
 
-      gdk_cairo_set_source_rgba (cr, &white);
+      gdk_cairo_set_source_rgba (cr, &clr);
 
       cairo_rectangle (cr,
                        OUTLINE_WIDTH - 0.5, OUTLINE_WIDTH - 0.5,
@@ -208,9 +208,9 @@ meta_tile_preview_show (MetaTilePreview *preview,
     {
       cairo_rectangle_int_t outer_rect, inner_rect;
       cairo_region_t *outer_region, *inner_region;
-      GdkRGBA black = {.0, .0, .0, 1.0};
+      GdkRGBA clr = {0.17255, 0.65490, 0.97255, 1.0};
 
-      gdk_window_set_background_rgba (window, &black);
+      gdk_window_set_background_rgba (window, &clr);
 
       outer_rect.x = outer_rect.y = 0;
       outer_rect.width = preview->tile_rect.width;
