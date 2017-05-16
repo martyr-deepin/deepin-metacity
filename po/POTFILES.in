@@ -22,7 +22,6 @@ src/metacity-wm.desktop.in
 src/org.gnome.metacity.gschema.xml.in
 src/tools/metacity-message.c
 src/ui/frames.c
-src/ui/menu.c
 src/ui/deepin-menu.c
 src/ui/deepin-shadow-workspace.c
 src/ui/metaaccellabel.c

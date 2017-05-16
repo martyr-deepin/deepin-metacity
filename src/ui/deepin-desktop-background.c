@@ -61,8 +61,8 @@ static gboolean deepin_desktop_background_real_draw(GtkWidget *widget, cairo_t* 
     }
 
     MetaDisplay *display = screen->display;
-    /*if (display->hiding_windows_mode)*/
-        /*return TRUE;*/
+    if (display->hiding_windows_mode)
+        return TRUE;
 
     if (self->priv->monitor != gdk_screen_get_primary_monitor(gdk_screen_get_default()))
         return TRUE;

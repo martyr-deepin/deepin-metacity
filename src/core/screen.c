@@ -3410,17 +3410,11 @@ meta_screen_new_workspace (MetaScreen   *screen)
   return new_ws;
 }
 
-static GHashTable* kept_state_windows = NULL;
-
 void
 meta_screen_request_hide_windows(MetaScreen* screen)
 {
   GSList *tmp;
   GSList *winlist;
-
-  if (kept_state_windows == NULL) {
-    kept_state_windows = g_hash_table_new (g_direct_hash, g_direct_equal);
-  }
 
   MetaDisplay* display = screen->display;
   if (display->hiding_windows_mode) {
@@ -3428,24 +3422,15 @@ meta_screen_request_hide_windows(MetaScreen* screen)
     return;
   }
 
-  meta_verbose ("%s\n", __func__);
-  winlist = meta_display_list_windows (display);
+  if (screen->active_workspace->showing_desktop)
+    return;
 
-  tmp = winlist;
-  while (tmp != NULL) {
-    MetaWindow* window = (MetaWindow*)tmp->data;
-    if (!window->mapped || window->hidden) {
-      g_hash_table_insert (kept_state_windows, tmp->data, GINT_TO_POINTER(TRUE));
+  screen->active_workspace->showing_desktop = TRUE;
+  queue_windows_showing (screen);
 
-    } else {
-      meta_window_set_showing (tmp->data, FALSE);
-    }
+  guint32 timestamp = meta_display_get_current_time_roundtrip (display);
+  meta_display_focus_the_no_focus_window (display, screen, timestamp);
 
-    tmp = tmp->next;
-  }
-  g_slist_free (winlist);
-
-  meta_display_focus_the_no_focus_window (display, screen, 0);
   display->hiding_windows_mode = TRUE;
 
   meta_screen_invalidate_backgrounds(screen, NULL);
@@ -3457,25 +3442,14 @@ meta_screen_cancel_hide_windows(MetaScreen* screen)
   GSList *tmp;
   GSList *winlist;
 
-  if (kept_state_windows == NULL) {
-    kept_state_windows = g_hash_table_new (g_direct_hash, g_direct_equal);
-  }
+  if (!screen->display->hiding_windows_mode)
+      return;
 
-  meta_verbose ("%s\n", __func__);
-  MetaDisplay* display = screen->display;
-  winlist = meta_display_list_windows (display);
+  screen->active_workspace->showing_desktop = FALSE;
 
-  tmp = winlist;
-  while (tmp != NULL) {
-    if (!g_hash_table_contains (kept_state_windows, tmp->data))
-      meta_window_set_showing (tmp->data, TRUE);
+  queue_windows_showing (screen);
 
-    tmp = tmp->next;
-  }
-  g_slist_free (winlist);
-
-  g_hash_table_remove_all (kept_state_windows);
-  display->hiding_windows_mode = FALSE;
+  screen->display->hiding_windows_mode = FALSE;
 
   meta_screen_invalidate_backgrounds(screen, NULL);
 }
