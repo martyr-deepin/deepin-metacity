@@ -5768,6 +5768,22 @@ meta_window_client_message (MetaWindow *window,
 
       meta_window_update_fullscreen_monitors (window, top, bottom, left, right);
     }
+  else if (event->xclient.message_type ==
+           display->atom__GTK_SHOW_WINDOW_MENU)
+    {
+      gulong x, y;
+      guint32 timestamp;
+
+      meta_verbose ("_GTK_SHOW_WINDOW_MENU request for window '%s'\n",
+                    window->desc);
+
+      /* event->xclient.data.l[0] is device_id */
+      x = event->xclient.data.l[1];
+      y = event->xclient.data.l[2];
+      timestamp = meta_display_get_current_time_roundtrip (window->display);
+
+      meta_window_show_menu (window, x, y, 1, timestamp);
+    }
 
   return FALSE;
 }
@@ -6863,7 +6879,7 @@ recalc_window_features (MetaWindow *window)
 }
 
 static void
-menu_callback (MetaWindowMenu *menu,
+menu_callback (DeepinWindowMenu *menu,
                Display        *xdisplay,
                Window          client_xwindow,
                guint32         timestamp,
@@ -7014,7 +7030,7 @@ meta_window_show_menu (MetaWindow *window,
 {
   MetaMenuOp ops;
   MetaMenuOp insensitive;
-  MetaWindowMenu *menu;
+  DeepinWindowMenu *menu;
   MetaWorkspaceLayout layout;
   int n_workspaces;
   gboolean ltr;

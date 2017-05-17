@@ -83,10 +83,9 @@ typedef enum
   META_MENU_OP_RECOVER     = 1 << 17
 } MetaMenuOp;
 
-typedef struct _MetaWindowMenu MetaWindowMenu;
 typedef struct _DeepinWindowMenu DeepinWindowMenu;
 
-typedef void (* MetaWindowMenuFunc) (MetaWindowMenu *menu,
+typedef void (* MetaWindowMenuFunc) (DeepinWindowMenu *menu,
                                      Display        *xdisplay,
                                      Window          client_xwindow,
                                      guint32         timestamp,

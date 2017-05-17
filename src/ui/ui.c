@@ -493,7 +493,7 @@ meta_ui_set_frame_title (MetaUI     *ui,
   meta_frames_set_title (ui->frames, xwindow, title);
 }
 
-MetaWindowMenu*
+DeepinWindowMenu*
 meta_ui_window_menu_new  (MetaUI             *ui,
                           Window              client_xwindow,
                           MetaMenuOp          ops,
@@ -512,7 +512,7 @@ meta_ui_window_menu_new  (MetaUI             *ui,
 }
 
 void
-meta_ui_window_menu_popup (MetaWindowMenu     *menu,
+meta_ui_window_menu_popup (DeepinWindowMenu     *menu,
                            int                 root_x,
                            int                 root_y,
                            int                 button,
@@ -522,7 +522,7 @@ meta_ui_window_menu_popup (MetaWindowMenu     *menu,
 }
 
 void
-meta_ui_window_menu_free (MetaWindowMenu *menu)
+meta_ui_window_menu_free (DeepinWindowMenu *menu)
 {
   deepin_window_menu_free (menu);
 }

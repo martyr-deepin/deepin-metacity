@@ -244,7 +244,7 @@ struct _MetaDisplay
   GHashTable *groups_by_leader;
 
   /* currently-active window menu if any */
-  MetaWindowMenu *window_menu;
+  DeepinWindowMenu *window_menu;
   MetaWindow *window_with_menu;
 
   MetaWindow *desktop_win;
