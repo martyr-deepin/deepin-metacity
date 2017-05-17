@@ -125,9 +125,14 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
       double x, y;
 
       char text[16*8];
-      g_utf8_strncpy(text, priv->window->title, 16);
+      g_utf8_strncpy (text, priv->window->title, 16);
 
-      cairo_select_font_face (cr, "Sans", CAIRO_FONT_SLANT_NORMAL,
+      cairo_font_options_t* opts = cairo_font_options_create ();
+      cairo_font_options_set_antialias (opts, CAIRO_ANTIALIAS_GOOD);
+      cairo_set_font_options(cr, opts);
+      cairo_font_options_destroy (opts);
+
+      cairo_select_font_face (cr, "sans", CAIRO_FONT_SLANT_NORMAL,
               CAIRO_FONT_WEIGHT_NORMAL);
       cairo_set_font_size (cr, 12.0);
 
