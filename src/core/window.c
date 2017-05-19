@@ -2484,12 +2484,19 @@ meta_window_show (MetaWindow *window)
             }
         } 
 
-      if (window->hidden)
+      if (window->display->compositor) 
         {
-          meta_stack_freeze (window->screen->stack);
+          if (window->hidden)
+            {
+              meta_stack_freeze (window->screen->stack);
+              window->hidden = FALSE;
+              meta_stack_thaw (window->screen->stack);
+              did_show = TRUE;
+            }
+        }
+      else
+        {
           window->hidden = FALSE;
-          meta_stack_thaw (window->screen->stack);
-          did_show = TRUE;
         }
 
       if (window->iconic)
@@ -2553,38 +2560,41 @@ meta_window_hide (MetaWindow *window)
 
   did_hide = FALSE;
 
-#if 0
-  if (window->frame && window->frame->mapped)
+  if (!window->display->compositor)
     {
-      meta_topic (META_DEBUG_WINDOW_STATE, "Frame actually needs unmap\n");
-      window->frame->mapped = FALSE;
-      meta_ui_unmap_frame (window->screen->ui, window->frame->xwindow);
-      did_hide = TRUE;
-    }
+      if (window->frame && window->frame->mapped)
+        {
+          meta_topic (META_DEBUG_WINDOW_STATE, "Frame actually needs unmap\n");
+          window->frame->mapped = FALSE;
+          meta_ui_unmap_frame (window->screen->ui, window->frame->xwindow);
+          did_hide = TRUE;
+        }
 
-  if (window->mapped)
-    {
-      meta_topic (META_DEBUG_WINDOW_STATE,
-                  "%s actually needs unmap\n", window->desc);
-      meta_topic (META_DEBUG_WINDOW_STATE,
-                  "Incrementing unmaps_pending on %s for hide\n",
-                  window->desc);
-      window->mapped = FALSE;
-      window->unmaps_pending += 1;
-      meta_error_trap_push (window->display);
-      XUnmapWindow (window->display->xdisplay, window->xwindow);
-      meta_error_trap_pop (window->display, FALSE);
-      did_hide = TRUE;
-    }
-#endif
+      if (window->mapped)
+        {
+          meta_topic (META_DEBUG_WINDOW_STATE,
+                      "%s actually needs unmap\n", window->desc);
+          meta_topic (META_DEBUG_WINDOW_STATE,
+                      "Incrementing unmaps_pending on %s for hide\n",
+                      window->desc);
+          window->mapped = FALSE;
+          window->unmaps_pending += 1;
+          meta_error_trap_push (window->display);
+          XUnmapWindow (window->display->xdisplay, window->xwindow);
+          meta_error_trap_pop (window->display, FALSE);
+          did_hide = TRUE;
+        }
 
-  if (!window->hidden)
-    {
-      meta_stack_freeze (window->screen->stack);
       window->hidden = TRUE;
-      meta_stack_thaw (window->screen->stack);
-
-      did_hide = TRUE;
+    }
+  else 
+    {
+      if (!window->hidden)
+        {
+          meta_stack_freeze (window->screen->stack);
+          window->hidden = TRUE;
+          meta_stack_thaw (window->screen->stack);
+        }
     }
 
   if (!window->iconic)

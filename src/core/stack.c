@@ -1347,8 +1347,8 @@ stack_sync_to_server (MetaStack *stack)
   /* Push hidden windows to the bottom of the stack under the guard window */
   XLowerWindow (stack->screen->display->xdisplay, stack->screen->guard_window);
   XRestackWindows (stack->screen->display->xdisplay,
-		   (Window *)all_hidden->data,
-		   all_hidden->len);
+           (Window *)all_hidden->data,
+           all_hidden->len);
   g_array_free (all_hidden, TRUE);
 
   meta_error_trap_pop (stack->screen->display, FALSE);
