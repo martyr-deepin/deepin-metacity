@@ -479,15 +479,19 @@ static void mouse_move(DeepinCornerIndicator *self, GdkPoint pos)
         } 
 
         if (inside_close_region (self, pos)) {
-            deepin_animation_image_activate (priv->close_image);
-            deepin_corner_indicator_update_input_shape (self);
-            gdk_window_set_composited (gtk_widget_get_window (self), FALSE);
+            if (!deepin_animation_image_get_activated(priv->close_image)) {
+                deepin_animation_image_activate (priv->close_image);
+                deepin_corner_indicator_update_input_shape (self);
+                gdk_window_set_composited (gtk_widget_get_window (self), FALSE);
+            }
         } else {
-            deepin_animation_image_deactivate (priv->close_image);
-            priv->blind_close_press_down = FALSE;
-            deepin_corner_indicator_update_input_shape (self);
-            if (!priv->compositing) {
-                gdk_window_set_composited (gtk_widget_get_window (self), TRUE);
+            if (deepin_animation_image_get_activated(priv->close_image)) {
+                deepin_animation_image_deactivate (priv->close_image);
+                priv->blind_close_press_down = FALSE;
+                deepin_corner_indicator_update_input_shape (self);
+                if (!priv->compositing) {
+                    gdk_window_set_composited (gtk_widget_get_window (self), TRUE);
+                }
             }
         }
         return;
@@ -642,26 +646,37 @@ static gboolean deepin_corner_indicator_button_pressed (GtkWidget *widget, GdkEv
     return TRUE;
 }
 
+static gboolean on_delayed_close (DeepinCornerIndicator *self)
+{
+    DeepinCornerIndicatorPrivate* priv = self->priv;
+    MetaWindow *active_window = meta_display_get_focus_window (priv->screen->display);
+
+    meta_window_delete (active_window, meta_display_get_current_time (priv->screen->display));
+    deepin_animation_image_deactivate (priv->close_image);
+    deepin_corner_indicator_update_input_shape (DEEPIN_CORNER_INDICATOR (self));
+    if (!priv->compositing) {
+        gdk_window_set_composited (gtk_widget_get_window (self), TRUE);
+    }
+    return FALSE;
+}
+ 
 static gboolean deepin_corner_indicator_button_released (GtkWidget *widget, GdkEventButton *kev)
 {
-    DeepinCornerIndicatorPrivate* priv = DEEPIN_CORNER_INDICATOR(widget)->priv;
+    DeepinCornerIndicator* self = DEEPIN_CORNER_INDICATOR(widget);
+    DeepinCornerIndicatorPrivate* priv = self->priv;
 
     if (priv->blind_close && deepin_animation_image_get_activated (priv->close_image)) {
         priv->blind_close_press_down = FALSE;
 
         GdkPoint pos;
         gdk_device_get_position (priv->pointer, NULL, &pos.x, &pos.y);
-        if (is_blind_close_viable (DEEPIN_CORNER_INDICATOR(widget), pos)) {
-            MetaWindow *active_window = meta_display_get_focus_window (priv->screen->display);
-            meta_window_delete (active_window, meta_display_get_current_time (priv->screen->display));
+        if (is_blind_close_viable (self, pos)) {
+            g_timeout_add(0, G_CALLBACK(on_delayed_close), widget);
+
+            push_back (widget, pos);
+            gtk_widget_queue_draw (widget);
         }
 
-        deepin_animation_image_deactivate (priv->close_image);
-        deepin_corner_indicator_update_input_shape (DEEPIN_CORNER_INDICATOR (widget));
-        gtk_widget_queue_draw (widget);
-        if (!priv->compositing) {
-            gdk_window_set_composited (gtk_widget_get_window (widget), TRUE);
-        }
     } 
 
     return TRUE;
