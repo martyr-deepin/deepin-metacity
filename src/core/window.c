@@ -1652,6 +1652,7 @@ implement_showing (MetaWindow *window,
       meta_window_show (window);
     }
 
+  if (window->display->compositor)
     sync_client_window_mapped (window);
 }
 
