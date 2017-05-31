@@ -40,6 +40,8 @@ struct _DeepinCornerIndicatorPrivate
     char* key;
     char* action;
 
+    MetaWindow *last_killed_window;
+
     gboolean startRecord;
 
     float last_distance_factor;
@@ -427,6 +429,14 @@ static gboolean is_blind_close_viable (DeepinCornerIndicator *self, GdkPoint pos
     if (active_window == NULL) 
         return FALSE;
 
+    // kill window takes time, so there is a time gap between current activate window 
+    // really gets killed
+    if (priv->last_killed_window == active_window || active_window->unmanaging) {
+        return FALSE;
+    }
+    // its safe to set to null since previous active window should have be killed or changed
+    priv->last_killed_window = NULL;
+
     if (active_window->type == META_WINDOW_DESKTOP) {
         return FALSE;
     }
@@ -481,12 +491,14 @@ static void mouse_move(DeepinCornerIndicator *self, GdkPoint pos)
         if (inside_close_region (self, pos)) {
             if (!deepin_animation_image_get_activated(priv->close_image)) {
                 deepin_animation_image_activate (priv->close_image);
+                gtk_widget_queue_draw (self);
                 deepin_corner_indicator_update_input_shape (self);
                 gdk_window_set_composited (gtk_widget_get_window (self), FALSE);
             }
         } else {
             if (deepin_animation_image_get_activated(priv->close_image)) {
                 deepin_animation_image_deactivate (priv->close_image);
+                gtk_widget_queue_draw (self);
                 priv->blind_close_press_down = FALSE;
                 deepin_corner_indicator_update_input_shape (self);
                 if (!priv->compositing) {
@@ -650,8 +662,9 @@ static gboolean on_delayed_close (DeepinCornerIndicator *self)
 {
     DeepinCornerIndicatorPrivate* priv = self->priv;
     MetaWindow *active_window = meta_display_get_focus_window (priv->screen->display);
-
+    priv->last_killed_window = active_window;
     meta_window_delete (active_window, meta_display_get_current_time (priv->screen->display));
+
     deepin_animation_image_deactivate (priv->close_image);
     deepin_corner_indicator_update_input_shape (DEEPIN_CORNER_INDICATOR (self));
     if (!priv->compositing) {
