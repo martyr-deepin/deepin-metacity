@@ -446,11 +446,8 @@ static gboolean is_blind_close_viable (DeepinCornerIndicator *self, GdkPoint pos
     }
 
     if (meta_window_is_maximized (active_window)) {
-        int id = meta_screen_get_xinerama_for_window (priv->screen, active_window)->number;
-        if (meta_screen_get_current_xinerama (priv->screen)->number == id) {
-            meta_verbose ("blind_close is viable\n");
-            return TRUE;
-        }
+        meta_verbose ("blind_close is viable\n");
+        return TRUE;
     }
 
     return FALSE;
