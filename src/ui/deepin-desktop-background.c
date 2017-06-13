@@ -27,6 +27,8 @@ struct _DeepinDesktopBackgroundPrivate
     GdkRectangle geometry;
     gint monitor;
     MetaWorkspace* active_workspace;
+    cairo_surface_t *last_background;
+    gint delay_switch_count;
 };
 
 
@@ -36,11 +38,16 @@ static void deepin_desktop_background_init (DeepinDesktopBackground *self)
 {
     self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self,
             DEEPIN_TYPE_DESKTOP_BACKGROUND, DeepinDesktopBackgroundPrivate);
+    self->priv->last_background = NULL;
+    self->priv->delay_switch_count = 5;
 }
 
 static void deepin_desktop_background_finalize (GObject *object)
 {
+    DeepinDesktopBackground* self = DEEPIN_DESKTOP_BACKGROUND(object);
     g_signal_handlers_disconnect_by_data(G_OBJECT(deepin_message_hub_get()), object);
+    g_clear_pointer(&self->priv->last_background, cairo_surface_destroy);
+
     G_OBJECT_CLASS (deepin_desktop_background_parent_class)->finalize (object);
 }
 
@@ -48,23 +55,42 @@ static gboolean deepin_desktop_background_real_draw(GtkWidget *widget, cairo_t* 
 {
 
     DeepinDesktopBackground* self = DEEPIN_DESKTOP_BACKGROUND(widget);
+    DeepinDesktopBackgroundPrivate *priv = self->priv;
+
     MetaScreen *screen = meta_get_display()->active_screen;
 
-    if (self->priv->monitor >= gdk_screen_get_n_monitors(gdk_screen_get_default()))
+    if (priv->monitor >= gdk_screen_get_n_monitors(gdk_screen_get_default()))
         return FALSE;
 
+    if (priv->last_background) {
+        if (priv->delay_switch_count > 0) {
+            cairo_set_source_surface(cr, priv->last_background, 0, 0);
+            cairo_paint(cr);
+            priv->delay_switch_count--;
+        } else {
+            g_clear_pointer(&priv->last_background, cairo_surface_destroy);
+        }
+    }
+
     int index = meta_workspace_index(screen->active_workspace);
-    cairo_surface_t* bg = deepin_background_cache_get_surface(self->priv->monitor, index, 1.0);
+    cairo_surface_t* bg = deepin_background_cache_get_surface(priv->monitor, index, 1.0);
     if (bg) {
         cairo_set_source_surface(cr, bg, 0, 0);
         cairo_paint(cr);
+    }
+
+    if (priv->delay_switch_count == 0) {
+        if (priv->last_background != bg) {
+            g_clear_pointer(&priv->last_background, cairo_surface_destroy);
+            priv->last_background = cairo_surface_reference(bg);
+        }
     }
 
     MetaDisplay *display = screen->display;
     if (display->hiding_windows_mode)
         return TRUE;
 
-    if (self->priv->monitor != gdk_screen_get_primary_monitor(gdk_screen_get_default()))
+    if (priv->monitor != gdk_screen_get_primary_monitor(gdk_screen_get_default()))
         return TRUE;
 
     if (display->desktop_win && display->desktop_win->hidden)
@@ -111,6 +137,7 @@ static void on_screen_changed(DeepinMessageHub* hub, MetaScreen* screen,
 
 static void on_desktop_changed(DeepinMessageHub* hub, DeepinDesktopBackground* self)
 {
+    self->priv->delay_switch_count = 5;
     gtk_widget_queue_draw(GTK_WIDGET(self));
 }
 
