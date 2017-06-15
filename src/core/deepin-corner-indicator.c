@@ -33,6 +33,7 @@ struct _DeepinCornerIndicatorPrivate
     guint blind_close: 1;
     guint blind_close_press_down: 1;
     guint compositing: 1;
+    guint delayed_action_scheduled: 1;
 
     MetaScreenCorner corner;
     MetaScreen *screen;
@@ -223,6 +224,9 @@ static gboolean should_perform_action (DeepinCornerIndicator *self)
 {
     DeepinCornerIndicatorPrivate *priv = self->priv;
 
+    if (priv->delayed_action_scheduled)
+        return FALSE;
+
     char** black_list = g_settings_get_strv(priv->settings, "black-list");
 
     MetaWindow *active_window = meta_display_get_focus_window (priv->screen->display);
@@ -371,6 +375,8 @@ static gboolean on_delayed_action (DeepinCornerIndicator *self)
 {
     DeepinCornerIndicatorPrivate *priv = self->priv;
 
+    priv->delayed_action_scheduled = FALSE;
+
     GError *error = NULL;
     if (!g_spawn_command_line_async(priv->action, &error)) {
         g_warning("%s", error->message);
@@ -393,6 +399,7 @@ static void perform_action (DeepinCornerIndicator *self)
         if (string_contains(priv->action, "com.deepin.dde.ControlCenter")) 
             d = g_settings_get_int(priv->settings, "delay");
 
+        priv->delayed_action_scheduled = TRUE;
         g_timeout_add(d, on_delayed_action, self);
     }
 }
