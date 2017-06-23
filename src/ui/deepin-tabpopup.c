@@ -361,7 +361,6 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
         popup->entries = g_list_prepend (popup->entries, new_entry);
     }
 
-#if 0
     if (show_desktop && entry_count > 1) {
         // desktop entry
         MetaTabEntry* tmp = _desktop_entry(popup);
@@ -374,7 +373,6 @@ DeepinTabPopup* deepin_tab_popup_new (const MetaTabEntry *entries,
             i++;
         }
     }
-#endif
 
     popup->entries = g_list_reverse (popup->entries);
 

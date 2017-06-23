@@ -259,6 +259,7 @@ styles_DATA = deepin-wm.css texture.png close.png path.svg \
 	unsticked_hover.png \
 	unsticked_normal.png \
 	unsticked_press.png \
+	deepin-toggle-desktop.svg \
 	topleft.png \
 	topright.png \
 	bottomleft.png \
@@ -287,6 +288,7 @@ EXTRA_DIST=$(desktopfiles_files)	 	\
 	unsticked_normal.png \
 	unsticked_press.png \
 	topleft.png \
+	deepin-toggle-desktop.svg \
 	topright.png \
 	bottomleft.png \
 	bottomright.png

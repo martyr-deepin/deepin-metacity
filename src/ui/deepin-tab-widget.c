@@ -34,8 +34,6 @@ typedef struct _MetaDeepinTabWidgetPrivate
   cairo_surface_t* icon;
 
   MetaWindow* window;
-  MetaRectangle outer_rect; /* cache of window outer rect */
-  GdkRectangle mon_geom; /* primary monitor geometry */
 
   gint disposed: 1;
   gint render_thumb: 1; /* if size is too small, do not render it */
@@ -87,25 +85,6 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
   cairo_translate(cr, w2, h2);
   gtk_render_frame(context, cr, -w2, -h2, w, h);
   cairo_restore(cr);
-
-  if (priv->window->type == META_WINDOW_DESKTOP) {
-      MetaRectangle r = priv->outer_rect;
-      double sx = RECT_PREFER_WIDTH / (double)r.width;
-      double sy = RECT_PREFER_HEIGHT / (double)r.height;
-      sx = MIN(sx, sy);
-
-      int primary = gdk_screen_get_primary_monitor(gdk_screen_get_default());
-
-      MetaScreen *screen = meta_get_display()->active_screen;
-      int index = meta_workspace_index(screen->active_workspace);
-      cairo_surface_t* ref = deepin_background_cache_get_surface(primary, index, sx);
-      if (ref) {
-          x = (w - cairo_image_surface_get_width(ref)) / 2.0,
-            y = (h - cairo_image_surface_get_height(ref)) / 2.0;
-          cairo_set_source_surface(cr, ref, x, y);
-          cairo_paint(cr);
-      }
-  }
 
   if (priv->icon) {
       double iw = cairo_image_surface_get_width(priv->icon);
@@ -326,17 +305,20 @@ GtkWidget * meta_deepin_tab_widget_new (MetaWindow* window)
   widget = (MetaDeepinTabWidget*)g_object_new (META_TYPE_DEEPIN_TAB_WIDGET, NULL);
 
   widget->priv->window = window;
-  meta_window_get_outer_rect(window, &widget->priv->outer_rect);
-
-  GdkRectangle mon_geom;
-  int primary = gdk_screen_get_primary_monitor(gdk_screen_get_default());
-  gdk_screen_get_monitor_geometry(gdk_screen_get_default(), primary,
-          &mon_geom);
-  widget->priv->mon_geom = mon_geom;
 
   if (window->type == META_WINDOW_DESKTOP) {
-      /* clip out part that resides on primary */
-      widget->priv->outer_rect = *(MetaRectangle*)&mon_geom;
+      GError *error = NULL;
+      GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_scale (
+              METACITY_PKGDATADIR "/deepin-toggle-desktop.svg",
+              RECT_PREFER_WIDTH,
+              RECT_PREFER_HEIGHT,
+              TRUE, &error);
+      if (pixbuf == NULL) {
+          g_warning ("%s\n", error->message);
+          g_error_free (error);
+      }
+      widget->priv->icon = gdk_cairo_surface_create_from_pixbuf(pixbuf, 1.0, NULL);
+      g_object_unref(pixbuf);
 
   } else {
 

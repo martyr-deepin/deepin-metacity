@@ -56,7 +56,6 @@ void calculate_preferred_size(gint entry_count, gint max_width,
 
     int rows = (entry_count + cols - 1) / cols;
     bh = (ih + SWITCHER_ROW_SPACING) * rows - SWITCHER_ROW_SPACING;
-    fprintf(stderr, "%s:rows %d, cols %d\n", __func__, rows, cols);
 
     cached.box_width = bw;
     cached.box_height = bh;
