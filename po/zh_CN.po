@@ -15,7 +15,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: metacity master\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-12-30 10:19+0800\n"
+"POT-Creation-Date: 2017-06-23 15:38+0800\n"
 "PO-Revision-Date: 2014-01-12 19:50+0800\n"
 "Last-Translator: Wylmer Wang <wantinghard@gmail.com>\n"
 "Language-Team: Chinese (simplified) <i18n-zh@googlegroups.com>\n"
@@ -249,12 +249,12 @@ msgstr "强制退出(_F)"
 msgid "Failed to get hostname: %s\n"
 msgstr "无法获取主机名：%s\n"
 
-#: ../src/core/display.c:345
+#: ../src/core/display.c:351
 #, c-format
 msgid "Failed to open X Window System display '%s'\n"
 msgstr "无法打开 X Window System 显示“%s”\n"
 
-#: ../src/core/keybindings.c:736
+#: ../src/core/keybindings.c:735
 #, c-format
 msgid ""
 "Some other program is already using the key %s with modifiers %x as a "
@@ -350,47 +350,47 @@ msgid ""
 "modifier\n"
 msgstr "在配置数据库中找到的“%s”不是鼠标按钮修饰键的有效值\n"
 
-#: ../src/core/prefs.c:1622
+#: ../src/core/prefs.c:1630
 #, c-format
 msgid ""
 "\"%s\" found in configuration database is not a valid value for keybinding "
 "\"%s\"\n"
 msgstr "在配置数据库中找到的“%s”不是按键组合“%s”的有效值\n"
 
-#: ../src/core/prefs.c:1725
+#: ../src/core/prefs.c:1733
 #, c-format
 msgid "Workspace %d"
 msgstr "工作区 %d"
 
-#: ../src/core/prefs.c:1984
+#: ../src/core/prefs.c:1992
 #, c-format
 msgid "Missing %s extension required for compositing\n"
 msgstr "缺少复合效果所需的 %s 扩展\n"
 
-#: ../src/core/screen.c:438
+#: ../src/core/screen.c:549
 #, c-format
 msgid "Screen %d on display '%s' is invalid\n"
 msgstr "显示“%2$s”上的屏幕 %1$d 无效\n"
 
-#: ../src/core/screen.c:454
+#: ../src/core/screen.c:565
 #, c-format
 msgid ""
 "Screen %d on display \"%s\" already has a window manager; try using the "
 "--replace option to replace the current window manager.\n"
 msgstr "显示“%2$s”上的屏幕 %1$d 已经有一个窗口管理器；请尝试使用 --replace 选项替换当前的窗口管理器。\n"
 
-#: ../src/core/screen.c:481
+#: ../src/core/screen.c:592
 #, c-format
 msgid ""
 "Could not acquire window manager selection on screen %d display \"%s\"\n"
 msgstr "无法获得显示“%2$s”上的屏幕 %1$d 的窗口管理器选定项\n"
 
-#: ../src/core/screen.c:560
+#: ../src/core/screen.c:671
 #, c-format
 msgid "Screen %d on display \"%s\" already has a window manager\n"
 msgstr "在显示 \"%2$s\" 上的 %1$d 屏幕已经有一个窗口管理器\n"
 
-#: ../src/core/screen.c:783
+#: ../src/core/screen.c:923
 #, c-format
 msgid "Could not release screen %d on display \"%s\"\n"
 msgstr "无法释放显示“%2$s”上的屏幕 %1$d\n"
@@ -491,7 +491,7 @@ msgid "Metacity"
 msgstr "Metacity"
 
 #. first time through
-#: ../src/core/window.c:6156
+#: ../src/core/window.c:6236
 #, c-format
 msgid ""
 "Window %s sets SM_CLIENT_ID on itself, instead of on the WM_CLIENT_LEADER "
@@ -506,7 +506,7 @@ msgstr ""
 #. * MWM but not WM_NORMAL_HINTS are basically broken. We complain
 #. * about these apps but make them work.
 #.
-#: ../src/core/window.c:6639
+#: ../src/core/window.c:6719
 #, c-format
 msgid ""
 "Window %s sets an MWM hint indicating it isn't resizable, but sets min size "
@@ -650,157 +650,95 @@ msgstr "主题决定窗口边框、标题栏等的外观。"
 msgid "Usage: %s\n"
 msgstr "用法：%s\n"
 
-#: ../src/ui/frames.c:1299
+#: ../src/ui/frames.c:1298
 msgid "Close Window"
 msgstr "关闭窗口"
 
-#: ../src/ui/frames.c:1302
+#: ../src/ui/frames.c:1301
 msgid "Window Menu"
 msgstr "窗口菜单"
 
-#: ../src/ui/frames.c:1305
+#: ../src/ui/frames.c:1304
 msgid "Window App Menu"
 msgstr "窗口菜单"
 
-#: ../src/ui/frames.c:1308
+#: ../src/ui/frames.c:1307
 msgid "Minimize Window"
 msgstr "最小化窗口"
 
-#: ../src/ui/frames.c:1311
+#: ../src/ui/frames.c:1310
 msgid "Maximize Window"
 msgstr "最大化窗口"
 
-#: ../src/ui/frames.c:1314
+#: ../src/ui/frames.c:1313
 msgid "Restore Window"
 msgstr "恢复窗口"
 
-#: ../src/ui/frames.c:1317
+#: ../src/ui/frames.c:1316
 msgid "Roll Up Window"
 msgstr "卷起窗口"
 
-#: ../src/ui/frames.c:1320
+#: ../src/ui/frames.c:1319
 msgid "Unroll Window"
 msgstr "展开窗口"
 
-#: ../src/ui/frames.c:1323
+#: ../src/ui/frames.c:1322
 msgid "Keep Window On Top"
 msgstr "窗口常居顶端"
 
-#: ../src/ui/frames.c:1326
+#: ../src/ui/frames.c:1325
 msgid "Remove Window From Top"
 msgstr "取消窗口常居顶端"
 
-#: ../src/ui/frames.c:1329
+#: ../src/ui/frames.c:1328
 msgid "Always On Visible Workspace"
 msgstr "总在可见工作区"
 
-#: ../src/ui/frames.c:1332
+#: ../src/ui/frames.c:1331
 msgid "Put Window On Only One Workspace"
 msgstr "只将窗口放在一个工作区"
 
-#. Translators: Translate this string the same way as you do in libwnck!
-#: ../src/ui/menu.c:65 ../src/ui/deepin-menu.c:42
+#: ../src/ui/deepin-menu.c:42
 msgid "Mi_nimize"
 msgstr "最小化(_N)"
 
-#. Translators: Translate this string the same way as you do in libwnck!
-#: ../src/ui/menu.c:67 ../src/ui/deepin-menu.c:43
+#: ../src/ui/deepin-menu.c:43
 msgid "Ma_ximize"
 msgstr "最大化(_X)"
 
-#. Translators: Translate this string the same way as you do in libwnck!
-#: ../src/ui/menu.c:69 ../src/ui/deepin-menu.c:44
+#: ../src/ui/deepin-menu.c:44
 msgid "Unma_ximize"
 msgstr "还原(_X)"
 
-#. Translators: Translate this string the same way as you do in libwnck!
-#: ../src/ui/menu.c:71
-msgid "Roll _Up"
-msgstr "卷起(_U)"
-
-#. Translators: Translate this string the same way as you do in libwnck!
-#: ../src/ui/menu.c:73
-msgid "_Unroll"
-msgstr "展开(_U)"
-
-#. Translators: Translate this string the same way as you do in libwnck!
-#: ../src/ui/menu.c:75 ../src/ui/deepin-menu.c:45
+#: ../src/ui/deepin-menu.c:45
 msgid "_Move"
 msgstr "移动(_M)"
 
-#. Translators: Translate this string the same way as you do in libwnck!
-#: ../src/ui/menu.c:77 ../src/ui/deepin-menu.c:46
+#: ../src/ui/deepin-menu.c:46
 msgid "_Resize"
 msgstr "改变大小(_R)"
 
-#. Translators: Translate this string the same way as you do in libwnck!
-#: ../src/ui/menu.c:79
-msgid "Move Titlebar On_screen"
-msgstr "将标题栏上移动到屏幕上(_S)"
-
-#. separator
-#. Translators: Translate this string the same way as you do in libwnck!
-#: ../src/ui/menu.c:82 ../src/ui/menu.c:84 ../src/ui/deepin-menu.c:47
-#: ../src/ui/deepin-menu.c:48
+#: ../src/ui/deepin-menu.c:47 ../src/ui/deepin-menu.c:48
 msgid "Always on _Top"
 msgstr "总在最前(_T)"
 
-#. Translators: Translate this string the same way as you do in libwnck!
-#: ../src/ui/menu.c:86 ../src/ui/deepin-menu.c:49 ../src/ui/deepin-menu.c:50
+#: ../src/ui/deepin-menu.c:49 ../src/ui/deepin-menu.c:50
 msgid "_Always on Visible Workspace"
 msgstr "总在可见工作区(_A)"
 
-#. Translators: Translate this string the same way as you do in libwnck!
-#: ../src/ui/menu.c:88
-msgid "_Only on This Workspace"
-msgstr "只在此工作区(_O)"
-
-#. Translators: Translate this string the same way as you do in libwnck!
-#: ../src/ui/menu.c:90 ../src/ui/deepin-menu.c:51
+#: ../src/ui/deepin-menu.c:51
 msgid "Move to Workspace _Left"
 msgstr "移动到左侧工作区(_L)"
 
-#. Translators: Translate this string the same way as you do in libwnck!
-#: ../src/ui/menu.c:92 ../src/ui/deepin-menu.c:52
+#: ../src/ui/deepin-menu.c:52
 msgid "Move to Workspace R_ight"
 msgstr "移动到右侧工作区(_I)"
 
-#. Translators: Translate this string the same way as you do in libwnck!
-#: ../src/ui/menu.c:94
-msgid "Move to Workspace _Up"
-msgstr "移动到上侧工作区(_U)"
-
-#. Translators: Translate this string the same way as you do in libwnck!
-#: ../src/ui/menu.c:96
-msgid "Move to Workspace _Down"
-msgstr "移动到下侧工作区(_D)"
-
-#. separator
-#. Translators: Translate this string the same way as you do in libwnck!
-#: ../src/ui/menu.c:100 ../src/ui/deepin-menu.c:53
+#: ../src/ui/deepin-menu.c:53
 msgid "_Close"
 msgstr "关闭(_C)"
 
-#: ../src/ui/menu.c:200
-#, c-format
-msgid "Workspace %d%n"
-msgstr "工作区 %d%n"
-
-#: ../src/ui/menu.c:210
-#, c-format
-msgid "Workspace 1_0"
-msgstr "工作区 1_0"
-
-#: ../src/ui/menu.c:212
-#, c-format
-msgid "Workspace %s%d"
-msgstr "工作区 %s%d"
-
-#: ../src/ui/menu.c:379
-msgid "Move to Another _Workspace"
-msgstr "移动到另外的工作区(_W)"
-
-#: ../src/ui/deepin-shadow-workspace.c:872
+#: ../src/ui/deepin-shadow-workspace.c:907
 msgid "Drag upwards to remove"
 msgstr "向上拖拽删除"
 
@@ -1672,6 +1610,41 @@ msgstr "y 值为 %d，但应该为 %d "
 msgid "%d coordinate expressions parsed in %g seconds (%g seconds average)\n"
 msgstr "在 %2$g 秒内处理了 %1$d 个坐标表达式(平均 %3$g 秒)\n"
 
+#: ../src/ui/deepin-tab-widget.c:108
+msgid "show desktop"
+msgstr "显示桌面"
+
+#~ msgid "Roll _Up"
+#~ msgstr "卷起(_U)"
+
+#~ msgid "_Unroll"
+#~ msgstr "展开(_U)"
+
+#~ msgid "Move Titlebar On_screen"
+#~ msgstr "将标题栏上移动到屏幕上(_S)"
+
+#~ msgid "_Only on This Workspace"
+#~ msgstr "只在此工作区(_O)"
+
+#~ msgid "Move to Workspace _Up"
+#~ msgstr "移动到上侧工作区(_U)"
+
+#~ msgid "Move to Workspace _Down"
+#~ msgstr "移动到下侧工作区(_D)"
+
+#, qt-format
+#~ msgid "Workspace %d%n"
+#~ msgstr "工作区 %d%n"
+
+#~ msgid "Workspace 1_0"
+#~ msgstr "工作区 1_0"
+
+#~ msgid "Workspace %s%d"
+#~ msgstr "工作区 %s%d"
+
+#~ msgid "Move to Another _Workspace"
+#~ msgstr "移动到另外的工作区(_W)"
+
 #~ msgid "Workspace"
 #~ msgstr "工作区"
 
@@ -1722,9 +1695,6 @@ msgstr "在 %2$g 秒内处理了 %1$d 个坐标表达式(平均 %3$g 秒)\n"
 
 #~ msgid "_All docks"
 #~ msgstr "全部停靠(_A)"
-
-#~ msgid "Des_ktop"
-#~ msgstr "桌面(_K)"
 
 #~ msgid "Open another one of these windows"
 #~ msgstr "打开这些窗口中的另外一个"

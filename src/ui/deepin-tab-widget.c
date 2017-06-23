@@ -104,7 +104,11 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
       double x, y;
 
       char text[16*8];
-      g_utf8_strncpy (text, priv->window->title, 16);
+      if (priv->window->type == META_WINDOW_DESKTOP) {
+          g_utf8_strncpy (text, _("show desktop"), 16);
+      } else {
+          g_utf8_strncpy (text, priv->window->title, 16);
+      }
 
       cairo_font_options_t* opts = cairo_font_options_create ();
       cairo_font_options_set_antialias (opts, CAIRO_ANTIALIAS_GOOD);
