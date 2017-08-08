@@ -4893,7 +4893,7 @@ _in_same_res_class(MetaWindow* win)
   MetaWindow* focused = display->focus_window;
   
   if (!focused) return FALSE;
-  return (g_str_equal(focused->res_class, win->res_class));
+  return (focused->res_class && win->res_class && g_str_equal(focused->res_class, win->res_class));
 }
 
 #define IN_TAB_CHAIN(w,t) (((t) == META_TAB_LIST_NORMAL && META_WINDOW_IN_NORMAL_TAB_CHAIN (w)) \
