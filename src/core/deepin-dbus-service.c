@@ -199,6 +199,64 @@ static gboolean deepin_dbus_service_handle_get_current_workspace_background (
     return TRUE;
 }
 
+static gboolean deepin_dbus_service_handle_switch_application (
+        DeepinDBusWm *object,
+        GDBusMethodInvocation *invocation,
+        gboolean backward, gpointer data)
+{
+    meta_verbose("%s\n", __func__);
+
+/*
+            var current = display.get_tab_current (Meta.TabList.NORMAL, workspace);
+            var window = display.get_tab_next (Meta.TabList.NORMAL, workspace,
+                    current, backward);
+            if (window == null) {
+                window = current;
+            }
+
+            window.activate (display.get_current_time_roundtrip ());
+            */
+
+    MetaDisplay* display = meta_get_display();
+    MetaWorkspace* workspace = display->active_screen->active_workspace;
+    MetaWindow* current = meta_display_get_tab_current(display, META_TAB_LIST_NORMAL,
+            display->active_screen, workspace);
+    MetaWindow* next = meta_display_get_tab_next(display, META_TAB_LIST_NORMAL,
+            display->active_screen, workspace, current, backward);
+    if (!next) {
+        next = current;
+    }
+
+    if (next) {
+        guint32 timestamp = meta_display_get_current_time_roundtrip(display);
+        meta_window_activate(next, timestamp);
+    }
+    deepin_dbus_wm_complete_switch_application (object, invocation);
+    return TRUE;
+}
+
+static gboolean deepin_dbus_service_handle_switch_to_workspace (
+        DeepinDBusWm *object,
+        GDBusMethodInvocation *invocation,
+        gboolean backward, gpointer data)
+{
+    meta_verbose("%s\n", __func__);
+
+    MetaDisplay* display = meta_get_display();
+    MetaScreen* screen = display->active_screen;
+    {
+        gint motion = backward ? META_MOTION_LEFT: META_MOTION_RIGHT;
+        MetaWorkspace *next = meta_workspace_get_neighbor(screen->active_workspace, motion);
+
+        if (next && next != screen->active_workspace) {
+            guint32 timestamp = meta_display_get_current_time_roundtrip(display);
+            meta_workspace_activate(next, timestamp);
+        }
+    }
+    deepin_dbus_wm_complete_switch_to_workspace (object, invocation);
+    return TRUE;
+}
+
 static void on_bus_acquired(GDBusConnection *connection,
         const gchar *name, gpointer user_data)
 {
@@ -241,6 +299,10 @@ DeepinDBusWm* deepin_dbus_service_get()
                 deepin_dbus_service_handle_set_transient_background, NULL,
                 "signal::handle_get_current_workspace_background",
                 deepin_dbus_service_handle_get_current_workspace_background, NULL,
+                "signal::handle_switch_application",
+                deepin_dbus_service_handle_switch_application, NULL,
+                "signal::handle_switch_to_workspace",
+                deepin_dbus_service_handle_switch_to_workspace, NULL,
                 NULL);
 
         g_object_connect (G_OBJECT(deepin_message_hub_get ()),

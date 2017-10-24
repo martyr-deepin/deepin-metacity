@@ -34,6 +34,12 @@
     <method name="EnableZoneDetected">
         <arg type="b" name="val" direction="in"/>
     </method>
+    <method name="SwitchApplication">
+        <arg type="b" name="backward" direction="in"/>
+    </method>
+    <method name="SwitchToWorkspace">
+        <arg type="b" name="backward" direction="in"/>
+    </method>
     <signal name="WorkspaceRemoved"> 
         <arg type="i" name="index"/> 
     </signal> 
