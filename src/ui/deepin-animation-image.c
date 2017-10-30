@@ -19,14 +19,12 @@
 #include <cairo.h>
 
 #include "deepin-animation-image.h"
+#include "deepin-message-hub.h"
 
 struct _DeepinAnimationImagePrivate
 {
     guint disposed: 1;
     guint activated: 1;
-
-    int width;
-    int height;
 };
 
 enum
@@ -45,7 +43,7 @@ static void deepin_animation_image_get_preferred_width (GtkWidget *widget,
     DeepinAnimationImage *image = DEEPIN_ANIMATION_IMAGE (widget);
     DeepinAnimationImagePrivate *priv = image->priv;
 
-    *minimum = *natural = priv->width;
+    *minimum = *natural = 39 * deepin_message_hub_get_screen_scale ();
 }
 
 static void deepin_animation_image_get_preferred_height (GtkWidget *widget,
@@ -54,7 +52,7 @@ static void deepin_animation_image_get_preferred_height (GtkWidget *widget,
     DeepinAnimationImage *image = DEEPIN_ANIMATION_IMAGE (widget);
     DeepinAnimationImagePrivate *priv = image->priv;
 
-    *minimum = *natural = priv->height;
+    *minimum = *natural = 39 * deepin_message_hub_get_screen_scale ();
 }
 
 static void deepin_animation_image_init (DeepinAnimationImage *image)
@@ -63,7 +61,6 @@ static void deepin_animation_image_init (DeepinAnimationImage *image)
 
     image->priv = deepin_animation_image_get_instance_private (image);
     priv = image->priv;
-    priv->width = priv->height = 38; //default
 
     priv->activated = FALSE;
 }

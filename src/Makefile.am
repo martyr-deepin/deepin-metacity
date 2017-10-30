@@ -248,22 +248,22 @@ pkgconfig_DATA = libmetacity-private.pc
 
 stylesdir = $(pkgdatadir)
 styles_DATA = deepin-wm.css texture.png close.png path.svg \
-	close_hover.png \
-	close_normal.png \
-	close_press.png \
-	close_marker_hover.png \
-	close_marker_press.png \
-	sticked_hover.png \
-	sticked_normal.png \
-	sticked_press.png \
-	unsticked_hover.png \
-	unsticked_normal.png \
-	unsticked_press.png \
+	close_hover.svg \
+	close_normal.svg \
+	close_press.svg \
+	close_marker_hover.svg \
+	close_marker_press.svg \
+	sticked_hover.svg \
+	sticked_normal.svg \
+	sticked_press.svg \
+	unsticked_hover.svg \
+	unsticked_normal.svg \
+	unsticked_press.svg \
 	deepin-toggle-desktop.svg \
-	topleft.png \
-	topright.png \
-	bottomleft.png \
-	bottomright.png
+	topleft.svg \
+	topright.svg \
+	bottomleft.svg \
+	bottomright.svg
 
 EXTRA_DIST=$(desktopfiles_files)	 	\
 	$(wmproperties_files)			\
@@ -276,22 +276,22 @@ EXTRA_DIST=$(desktopfiles_files)	 	\
 	libmetacity-private.pc.in \
 	deepin-wm.css \
 	close.png \
-	close_hover.png \
-	close_normal.png \
-	close_press.png \
-	close_marker_hover.png \
-	close_marker_press.png \
-	sticked_hover.png \
-	sticked_normal.png \
-	sticked_press.png \
-	unsticked_hover.png \
-	unsticked_normal.png \
-	unsticked_press.png \
-	topleft.png \
+	close_hover.svg \
+	close_normal.svg \
+	close_press.svg \
+	close_marker_hover.svg \
+	close_marker_press.svg \
+	sticked_hover.svg \
+	sticked_normal.svg \
+	sticked_press.svg \
+	unsticked_hover.svg \
+	unsticked_normal.svg \
+	unsticked_press.svg \
+	topleft.svg \
 	deepin-toggle-desktop.svg \
-	topright.png \
-	bottomleft.png \
-	bottomright.png
+	topright.svg \
+	bottomleft.svg \
+	bottomright.svg
 	texture.png \
 	path.svg \
 	com.deepin.wm.xml

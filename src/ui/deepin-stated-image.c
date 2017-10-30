@@ -110,7 +110,7 @@ static void deepin_stated_image_set_from_file (DeepinStatedImage    *image,
     const char * states[] = {"normal", "hover", "press"};
     GdkPixbuf** pbs[] = {&priv->normal, &priv->hover, &priv->press};
     for (int i = 0; i < G_N_ELEMENTS(pbs); i++) {
-        char *name = g_strdup_printf (METACITY_PKGDATADIR "/%s_%s.png", priv->filename, states[i]);
+        char *name = g_strdup_printf (METACITY_PKGDATADIR "/%s_%s.svg", priv->filename, states[i]);
 
         GError *error = NULL;
         *pbs[i] = gdk_pixbuf_new_from_file (name, &error);

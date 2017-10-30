@@ -20,6 +20,8 @@
 #include "metaaccellabel.h"
 #include "ui.h"
 #include "core/screen-private.h"
+#include "deepin-message-hub.h"
+
 typedef struct _MenuItem MenuItem;
 
 typedef enum
@@ -271,6 +273,9 @@ void deepin_window_menu_popup (DeepinWindowMenu     *menu,
         int                 button,
         guint32             timestamp)
 {
+    double scale = deepin_message_hub_get_screen_scale ();
+    root_x /= scale;
+    root_y /= scale;
 
     JsonBuilder* builder = json_builder_new();
 

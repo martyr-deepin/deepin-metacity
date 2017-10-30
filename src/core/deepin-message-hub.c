@@ -16,11 +16,15 @@
 #include "deepin-message-hub.h"
 #include "window-private.h"
 
+#define DEEPIN_XSETTINGS "com.deepin.xsettings"
+
 static DeepinMessageHub* _the_hub = NULL;
 
 struct _DeepinMessageHubPrivate
 {
     guint disposed: 1;
+    GSettings *xsettings;
+    gdouble cached_scale;
 };
 
 
@@ -42,6 +46,7 @@ enum
     SIGNAL_UNABLE_TO_OPERATE,
     SIGNAL_SCREEN_CORNER_ENTERED,
     SIGNAL_SCREEN_CORNER_LEAVED,
+    SIGNAL_SCREEN_SCALE_CHANGED,
 
     LAST_SIGNAL
 };
@@ -51,17 +56,31 @@ static guint signals[LAST_SIGNAL] = { 0 };
 
 G_DEFINE_TYPE (DeepinMessageHub, deepin_message_hub, G_TYPE_OBJECT);
 
+static void deepin_message_hub_settings_chagned(GSettings *settings,
+        gchar* key, gpointer user_data)
+{
+    DeepinMessageHub* self = deepin_message_hub_get();
+    gdouble scale = g_settings_get_double (self->priv->xsettings, "scale-factor");
+    if (self->priv->cached_scale != scale) {
+        self->priv->cached_scale = scale;
+        g_signal_emit(self, signals[SIGNAL_SCREEN_SCALE_CHANGED], 0, scale);
+    }
+}
+
 static void deepin_message_hub_init (DeepinMessageHub *self)
 {
     self->priv = G_TYPE_INSTANCE_GET_PRIVATE (self, DEEPIN_TYPE_MESSAGE_HUB, DeepinMessageHubPrivate);
 
-    /* TODO: Add initialization code here */
+    self->priv->xsettings = g_settings_new (DEEPIN_XSETTINGS);
+    g_signal_connect (G_OBJECT(self->priv->xsettings), "changed",
+            (GCallback)deepin_message_hub_settings_chagned, self);
+    self->priv->cached_scale = g_settings_get_double (self->priv->xsettings, "scale-factor");
 }
 
 static void deepin_message_hub_finalize (GObject *object)
 {
-    /* TODO: Add deinitalization code here */
-
+    DeepinMessageHub *self = DEEPIN_MESSAGE_HUB (object);
+    g_clear_pointer (&self->priv->xsettings, g_object_unref);
     G_OBJECT_CLASS (deepin_message_hub_parent_class)->finalize (object);
 }
 
@@ -230,6 +249,12 @@ static void deepin_message_hub_class_init (DeepinMessageHubClass *klass)
             G_SIGNAL_RUN_LAST, 0,
             NULL, NULL, NULL,
             G_TYPE_NONE, 1, G_TYPE_INT);
+
+    signals[SIGNAL_SCREEN_SCALE_CHANGED] = g_signal_new ("screen-scaled",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 1, G_TYPE_DOUBLE);
 }
 
 static void on_message_unable_to_operate(MetaWindow* window, gpointer data)
@@ -314,6 +339,12 @@ void deepin_message_hub_screen_corner_leaved(MetaScreen *screen, MetaScreenCorne
 void deepin_message_hub_compositing_changed(gboolean enabled)
 {
     g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_COMPOSITING_CHANGED], 0, enabled);
+}
+
+gdouble deepin_message_hub_get_screen_scale()
+{
+    DeepinMessageHub* self = deepin_message_hub_get();
+    return self->priv->cached_scale;
 }
 
 DeepinMessageHub* deepin_message_hub_get()

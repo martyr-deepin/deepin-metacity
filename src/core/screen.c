@@ -73,6 +73,9 @@ static void set_desktop_viewport_hint (MetaScreen *screen);
 static void on_screen_changed         (DeepinMessageHub* hub,
                                        MetaScreen* screen,
                                        gpointer data);
+static void on_screen_scaled          (DeepinMessageHub* hub,
+                                       gdouble scale,
+                                       gpointer data);
 
 #ifdef HAVE_STARTUP_NOTIFICATION
 static void meta_screen_sn_event   (SnMonitorEvent *event,
@@ -381,11 +384,12 @@ create_guard_window (Display *xdisplay, MetaScreen *screen)
   return guard_window;
 }
 
-#define CORNER_SIZE 39
+#define CORNER_BASE_SIZE 39
 
 static void meta_screen_calc_corner_positions (MetaScreen *screen, int* positions)
 {
     int width = screen->rect.width, height = screen->rect.height;
+    int CORNER_SIZE = CORNER_BASE_SIZE * deepin_message_hub_get_screen_scale ();
 
     int n = gdk_screen_get_n_monitors(gdk_screen_get_default());
     int tl_x, tl_y, tr_x, tr_y, bl_x, bl_y, br_x, br_y;
@@ -442,7 +446,8 @@ create_screen_corner_window (Display *xdisplay, MetaScreen *screen, MetaScreenCo
   XSetWindowAttributes attributes;
   Window edge_window;
   gulong create_serial;
-  int w = CORNER_SIZE, h = CORNER_SIZE;
+  int w = CORNER_BASE_SIZE * deepin_message_hub_get_screen_scale (),
+      h = CORNER_BASE_SIZE * deepin_message_hub_get_screen_scale ();
 
   attributes.event_mask = PointerMotionMask | EnterWindowMask | LeaveWindowMask;
   attributes.override_redirect = True;
@@ -841,8 +846,10 @@ meta_screen_new (MetaDisplay *display,
       meta_workspace_activate (space, timestamp);
   }
 
-  g_signal_connect(deepin_message_hub_get(), "screen-changed", 
-          (GCallback)on_screen_changed, NULL);
+  g_object_connect(G_OBJECT(deepin_message_hub_get()),
+          "signal::screen-changed", (GCallback)on_screen_changed, NULL,
+          "signal::screen-scaled", (GCallback)on_screen_scaled, screen, 
+          NULL);
 
   MetaScreenCorner corners[] = {
       META_SCREEN_TOPLEFT,
@@ -2613,6 +2620,51 @@ meta_screen_resize_func (MetaScreen *screen,
   meta_window_queue (window, META_QUEUE_MOVE_RESIZE);
 
   meta_window_recalc_features (window);
+}
+
+static void
+on_screen_scaled(DeepinMessageHub* hub, gdouble scale,
+        gpointer data)
+{
+  MetaScreen *screen = (MetaScreen*)data;
+
+  if (screen->corner_windows[0] != None) 
+    {
+      int i;
+      MetaScreenCorner corners[] = {
+          META_SCREEN_TOPLEFT,
+          META_SCREEN_TOPRIGHT,
+          META_SCREEN_BOTTOMLEFT,
+          META_SCREEN_BOTTOMRIGHT,
+      };
+
+      int CORNER_SIZE = CORNER_BASE_SIZE * deepin_message_hub_get_screen_scale ();
+      int positions[8];
+      meta_screen_calc_corner_positions (screen, positions);
+
+      for (i = 0; i < 4; i++) 
+        {
+          int x = positions[i * 2];
+          int y = positions[i * 2 + 1];
+
+          GdkWindow *window = gtk_widget_get_window (screen->corner_indicator[i]);
+          gdk_window_move_resize (window, x, y, CORNER_SIZE, CORNER_SIZE);
+          gdk_window_raise (window);
+        }
+
+      for (i = 0; i < 4; i++) 
+        {
+          XWindowChanges changes;
+
+          changes.x = positions[i * 2];
+          changes.y = positions[i * 2 + 1];
+          changes.width = CORNER_SIZE;
+          changes.height = CORNER_SIZE;
+
+          XConfigureWindow(screen->display->xdisplay, screen->corner_windows[i],
+                  CWX | CWY | CWWidth | CWHeight, &changes);
+        }
+    }
 }
 
 static void

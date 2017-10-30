@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32px" height="39px" viewBox="0 0 32 39" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 47 (45396) - http://www.bohemiancoding.com/sketch -->
+    <title>close_press</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="2D右上角关闭" transform="translate(-125.000000, -57.000000)">
+            <g id="close_press" transform="translate(125.000000, 57.000000)">
+                <rect id="Rectangle-10" fill="#FF364E" x="0" y="0" width="32" height="39"></rect>
+                <polygon id="Combined-Shape-Copy" fill="#FFFFFF" fill-rule="nonzero" points="12.25 23.5833333 11.8333333 24 11 23.1666667 11.4166667 22.75 15.1666667 19 11.4166667 15.25 11 14.8333333 11.8333333 14 12.25 14.4166667 16 18.1666667 19.75 14.4166667 20.1666667 14 21 14.8333333 20.5833333 15.25 16.8333333 19 20.5833333 22.75 21 23.1666667 20.1666667 24 19.75 23.5833333 16 19.8333333"></polygon>
+            </g>
+        </g>
+    </g>
+</svg>

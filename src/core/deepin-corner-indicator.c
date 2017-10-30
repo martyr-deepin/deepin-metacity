@@ -60,22 +60,25 @@ struct _DeepinCornerIndicatorPrivate
     GdkDevice *pointer;
 };
 
-#define CORNER_SIZE 39
+#define CORNER_BASE_SIZE 39
 
 G_DEFINE_TYPE (DeepinCornerIndicator, deepin_corner_indicator, GTK_TYPE_WINDOW);
 
 static void deepin_corner_indicator_update_input_shape (DeepinCornerIndicator *self)
 {
     DeepinCornerIndicatorPrivate *priv = self->priv;
+    double sx = deepin_message_hub_get_screen_scale ();
+    int CORNER_SIZE = CORNER_BASE_SIZE * deepin_message_hub_get_screen_scale ();
 
     if (priv->corner == META_SCREEN_TOPRIGHT) {
         cairo_region_t *shape_region = NULL;
         if (priv->blind_close) {
             int sz = deepin_animation_image_get_activated (priv->close_image) ? 24 : 4;
+            sz *= sx;
             cairo_rectangle_int_t r = {CORNER_SIZE - sz, 0, sz, sz};
             shape_region = cairo_region_create_rectangle (&r);
             {
-                cairo_rectangle_int_t r = {7, 0, 32, 39};
+                cairo_rectangle_int_t r = {7 * sx, 0, 32 * sx, 39 * sx};
                 cairo_region_t *reg = cairo_region_create_rectangle (&r);
                 gdk_window_shape_combine_region (gtk_widget_get_window (GTK_WIDGET(self)), 
                         reg, 0, 0);
@@ -291,6 +294,7 @@ static gboolean inside_effect_region(DeepinCornerIndicator *self, GdkPoint pos)
 static float distance_factor(DeepinCornerIndicator *self, GdkPoint pos, float cx, float cy)
 {
     DeepinCornerIndicatorPrivate *priv = self->priv;
+    int CORNER_SIZE = CORNER_BASE_SIZE * deepin_message_hub_get_screen_scale ();
 
     float ex = pos.x, ey = pos.y;
 
@@ -546,6 +550,12 @@ static gboolean polling_timeout (DeepinCornerIndicator *self)
     return TRUE;
 }
 
+static void on_screen_scaled(DeepinMessageHub* hub, gdouble scale,
+        DeepinCornerIndicator *self)
+{
+    gtk_widget_queue_resize (self);
+}
+
 static void compositing_changed(DeepinMessageHub *hub, int enabled,
         DeepinCornerIndicator *self)
 {
@@ -582,6 +592,7 @@ static void deepin_corner_indicator_size_allocate (GtkWidget* widget, GtkAllocat
     DeepinCornerIndicatorPrivate *priv = DEEPIN_CORNER_INDICATOR (widget)->priv;
     GtkAllocation child_allocation;
     GtkRequisition child_requisition;
+    int CORNER_SIZE = CORNER_BASE_SIZE * deepin_message_hub_get_screen_scale ();
 
     GTK_WIDGET_CLASS(deepin_corner_indicator_parent_class)->size_allocate(
             widget, allocation);
@@ -614,8 +625,9 @@ static gboolean deepin_corner_indicator_real_draw (GtkWidget *widget, cairo_t* c
 
         if (close_surface == NULL) {
             GError *error = NULL;
-            const char * name = METACITY_PKGDATADIR "/close_marker_hover.png";
-            GdkPixbuf *pb = gdk_pixbuf_new_from_file (name, &error);
+            const char * name = METACITY_PKGDATADIR "/close_marker_hover.svg";
+            GdkPixbuf *pb = gdk_pixbuf_new_from_file_at_scale (name,
+                    32*2, 39*2, TRUE, &error);
             if (pb == NULL) {
                 g_warning ("%s\n", error->message);
                 g_error_free (error);
@@ -627,8 +639,9 @@ static gboolean deepin_corner_indicator_real_draw (GtkWidget *widget, cairo_t* c
 
         if (press_hold_surface == NULL) {
             GError *error = NULL;
-            const char * name = METACITY_PKGDATADIR "/close_marker_press.png";
-            GdkPixbuf *pb = gdk_pixbuf_new_from_file (name, &error);
+            const char * name = METACITY_PKGDATADIR "/close_marker_press.svg";
+            GdkPixbuf *pb = gdk_pixbuf_new_from_file_at_scale (name,
+                    32*2, 39*2, TRUE, &error);
             if (pb == NULL) {
                 g_warning ("%s\n", error->message);
                 g_error_free (error);
@@ -638,12 +651,14 @@ static gboolean deepin_corner_indicator_real_draw (GtkWidget *widget, cairo_t* c
             g_object_unref (pb);
         }
 
+        double scale = deepin_message_hub_get_screen_scale () / 2.0;
+        cairo_scale (cr, scale, scale);
         if (priv->blind_close_press_down) {
-            cairo_set_source_surface(cr, press_hold_surface, 7, 0);
+            cairo_set_source_surface (cr, press_hold_surface, 14, 0);
             cairo_paint_with_alpha(cr, 1.0);
         } else if (deepin_animation_image_get_activated (priv->close_image)) {
-            cairo_set_source_surface(cr, close_surface, 7, 0);
-            cairo_paint_with_alpha(cr, 1.0);
+            cairo_set_source_surface (cr, close_surface, 14, 0);
+            cairo_paint_with_alpha (cr, 1.0);
         } 
     }
 
@@ -718,6 +733,7 @@ GtkWidget* deepin_corner_indicator_new (MetaScreen *screen, MetaScreenCorner cor
         const char* key, int x, int y)
 {
     GtkWidget *widget = g_object_new (DEEPIN_TYPE_CORNER_INDICATOR, NULL);
+    int CORNER_SIZE = CORNER_BASE_SIZE * deepin_message_hub_get_screen_scale ();
 
     DeepinCornerIndicator *self = DEEPIN_CORNER_INDICATOR (widget);
     DeepinCornerIndicatorPrivate *priv = self->priv;
@@ -757,6 +773,7 @@ GtkWidget* deepin_corner_indicator_new (MetaScreen *screen, MetaScreenCorner cor
     g_object_connect(G_OBJECT(deepin_message_hub_get()),
             "signal::screen-corner-entered", (GCallback)corner_entered, self, 
             "signal::compositing-changed", (GCallback)compositing_changed, self, 
+            "signal::screen-scaled", (GCallback)on_screen_scaled, self, 
             NULL);
 
     return widget;
