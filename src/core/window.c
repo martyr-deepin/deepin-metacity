@@ -8998,3 +8998,30 @@ meta_window_get_frame_bounds (MetaWindow *window)
 
   return window->frame_bounds;
 }
+
+void
+meta_window_tile_by_side (MetaWindow *window, MetaTileSide side)
+{
+    switch (side) {
+        case META_TILE_SIDE_LEFT:
+            window->tile_mode = META_TILE_LEFT; break;
+        case META_TILE_SIDE_RIGHT:
+            window->tile_mode = META_TILE_RIGHT; break;
+        default: return;
+    }
+
+    meta_window_tile (window);
+}
+
+void
+meta_window_begin_to_move (MetaWindow *window)
+{
+    if (META_WINDOW_ALLOWS_MOVE (window)) {
+        guint32 timestamp = meta_display_get_current_time_roundtrip (window->display);
+        meta_window_begin_grab_op (window,
+                                   META_GRAB_OP_KEYBOARD_MOVING,
+                                   FALSE,
+                                   timestamp);
+    }
+}
+

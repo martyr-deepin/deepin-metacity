@@ -257,6 +257,53 @@ static gboolean deepin_dbus_service_handle_switch_to_workspace (
     return TRUE;
 }
 
+static gboolean deepin_dbus_service_handle_tile_active_window (
+        DeepinDBusWm *object,
+        GDBusMethodInvocation *invocation,
+        guint side, gpointer data)
+{
+    meta_verbose("%s\n", __func__);
+
+    MetaDisplay* display = meta_get_display();
+    MetaScreen* screen = display->active_screen;
+    MetaWindow* current = meta_display_get_focus_window (display);
+    if (current == NULL || current->type != META_WINDOW_NORMAL || 
+            !meta_window_can_tile_side_by_side(current)) {
+        goto done;
+    }
+
+    if (META_WINDOW_MAXIMIZED_VERTICALLY(current) || META_WINDOW_MAXIMIZED_HORIZONTALLY(current)) {
+        goto done;
+    }
+
+    meta_window_tile_by_side(current, (MetaTileSide)side);
+
+done:
+    deepin_dbus_wm_complete_tile_active_window (object, invocation);
+    return TRUE;
+}
+
+static gboolean deepin_dbus_service_handle_begin_to_move_active_window (
+        DeepinDBusWm *object,
+        GDBusMethodInvocation *invocation,
+        gpointer data)
+{
+    meta_verbose("%s\n", __func__);
+
+    MetaDisplay* display = meta_get_display();
+    MetaScreen* screen = display->active_screen;
+    MetaWindow* current = meta_display_get_focus_window (display);
+    if (current == NULL || current->type != META_WINDOW_NORMAL) {
+        goto done;
+    }
+
+    meta_window_begin_to_move(current);
+
+done:
+    deepin_dbus_wm_complete_begin_to_move_active_window (object, invocation);
+    return TRUE;
+}
+
 static void on_bus_acquired(GDBusConnection *connection,
         const gchar *name, gpointer user_data)
 {
@@ -303,6 +350,10 @@ DeepinDBusWm* deepin_dbus_service_get()
                 deepin_dbus_service_handle_switch_application, NULL,
                 "signal::handle_switch_to_workspace",
                 deepin_dbus_service_handle_switch_to_workspace, NULL,
+                "signal::handle_tile_active_window",
+                deepin_dbus_service_handle_tile_active_window, NULL,
+                "signal::handle_begin_to_move_active_window",
+                deepin_dbus_service_handle_begin_to_move_active_window, NULL,
                 NULL);
 
         g_object_connect (G_OBJECT(deepin_message_hub_get ()),

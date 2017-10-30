@@ -81,6 +81,20 @@ typedef enum {
   META_QUEUE_UPDATE_ICON  = 1 << 2,
 } MetaQueueType;
 
+/**
+ * MetaTileSide
+ * @META_TILE_SIDE_NONE: none
+ * @META_TILE_SIDE_LEFT: left
+ * @META_TILE_SIDE_RIGHT: right
+ * for user tile request
+ */
+typedef enum
+{
+    META_TILE_SIDE_NONE,
+    META_TILE_SIDE_LEFT,
+    META_TILE_SIDE_RIGHT,
+} MetaTileSide;
+
 #define NUMBER_OF_QUEUES 3
 
 struct _MetaWindow
@@ -684,4 +698,8 @@ void meta_window_get_titlebar_rect (MetaWindow    *window,
                                     MetaRectangle *titlebar_rect);
 
 void meta_window_set_showing (MetaWindow *window, gboolean val);
+
+void meta_window_tile_by_side (MetaWindow *window, MetaTileSide side);
+void meta_window_begin_to_move (MetaWindow *window);
+
 #endif
