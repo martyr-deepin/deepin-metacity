@@ -39,7 +39,9 @@ static gboolean deepin_dbus_service_handle_perform_action(DeepinDBusWm *object,
     meta_verbose("%s\n", __func__);
 
     MetaDisplay* display = meta_get_display();
-    guint32 timestamp = meta_display_get_current_time_roundtrip(display);
+    MetaScreen* screen = display->active_screen;
+    guint32 timestamp = 0;
+    MetaWindow* current = NULL;
 
     if (!display->compositor) {
         switch((enum ActionType)type) {
@@ -54,6 +56,21 @@ static gboolean deepin_dbus_service_handle_perform_action(DeepinDBusWm *object,
                 }
                 break;
             }
+/*
+				case ActionType.MAXIMIZE_CURRENT:
+					if (current == null || current.window_type != WindowType.NORMAL)
+						break;
+
+					if (current.get_maximized () == (MaximizeFlags.HORIZONTAL | MaximizeFlags.VERTICAL))
+						current.unmaximize (MaximizeFlags.HORIZONTAL | MaximizeFlags.VERTICAL);
+					else
+						current.maximize (MaximizeFlags.HORIZONTAL | MaximizeFlags.VERTICAL);
+					break;
+				case ActionType.MINIMIZE_CURRENT:
+					if (current != null && current.window_type == WindowType.NORMAL)
+						current.minimize ();
+					break;
+                    */
 
             default: break;
         }
@@ -63,12 +80,14 @@ static gboolean deepin_dbus_service_handle_perform_action(DeepinDBusWm *object,
                 break;
 
             case WINDOW_OVERVIEW: {
+                timestamp = meta_display_get_current_time_roundtrip(display);
                 do_expose_windows(display, display->active_screen, NULL, 
                         timestamp, NULL, 1, NULL);
                 break;
             }
 
             case WINDOW_OVERVIEW_ALL: {
+                timestamp = meta_display_get_current_time_roundtrip(display);
                 do_expose_windows(display, display->active_screen, NULL, 
                         timestamp, NULL, 2, NULL);
                 break;
@@ -78,6 +97,29 @@ static gboolean deepin_dbus_service_handle_perform_action(DeepinDBusWm *object,
         }
     }
 
+    if (type == MAXIMIZE_CURRENT) {
+        current = meta_display_get_focus_window (display);
+        if (current == NULL || current->type != META_WINDOW_NORMAL) {
+            goto done;
+        }
+
+        if (META_WINDOW_MAXIMIZED(current)) {
+            meta_window_unmaximize(current,
+                    META_MAXIMIZE_VERTICAL | META_MAXIMIZE_HORIZONTAL);
+        } else {
+            meta_window_maximize(current,
+                    META_MAXIMIZE_VERTICAL | META_MAXIMIZE_HORIZONTAL);
+        }
+    } else if (type == MINIMIZE_CURRENT) {
+        current = meta_display_get_focus_window (display);
+        if (current == NULL || current->type != META_WINDOW_NORMAL) {
+            goto done;
+        }
+
+        meta_window_minimize(current);
+    }
+
+done:
     deepin_dbus_wm_complete_perform_action(object, invocation);
     return TRUE;
 }

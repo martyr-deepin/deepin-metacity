@@ -43,9 +43,7 @@
     <method name="TileActiveWindow">
       <arg type="u" name="side" direction="in"/>
     </method>
-    <method name="BeginToMoveActiveWindow">
-      <arg type="u" name="side" direction="in"/>
-    </method>
+    <method name="BeginToMoveActiveWindow" />
     <signal name="WorkspaceRemoved"> 
         <arg type="i" name="index"/> 
     </signal> 
