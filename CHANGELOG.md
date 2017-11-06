@@ -1,8 +1,10 @@
-## 3.22.12 (2017-11-06)
+##  3.22.12 (2017-11-06)
+
 
 #### Features
 
-*   allow consective tiling ([b81d8e09](b81d8e09))
+*   allow consective tiling ([a13e582e](a13e582e))
+
 
 
 ## 3.22.11 (2017-11-01)
