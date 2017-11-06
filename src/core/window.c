@@ -9010,6 +9010,7 @@ meta_window_tile_by_side (MetaWindow *window, MetaTileSide side)
         default: return;
     }
 
+    window->tile_monitor_number = meta_screen_get_xinerama_for_window (window->screen, window)->number;
     meta_window_tile (window);
 }
 

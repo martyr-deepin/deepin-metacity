@@ -310,11 +310,8 @@ static gboolean deepin_dbus_service_handle_tile_active_window (
     MetaScreen* screen = display->active_screen;
     MetaWindow* current = meta_display_get_focus_window (display);
     if (current == NULL || current->type != META_WINDOW_NORMAL || 
+            meta_window_is_maximized(current) ||
             !meta_window_can_tile_side_by_side(current)) {
-        goto done;
-    }
-
-    if (META_WINDOW_MAXIMIZED_VERTICALLY(current) || META_WINDOW_MAXIMIZED_HORIZONTALLY(current)) {
         goto done;
     }
 
