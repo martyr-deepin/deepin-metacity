@@ -106,13 +106,13 @@ static gboolean deepin_dbus_service_handle_perform_action(DeepinDBusWm *object,
         if (META_WINDOW_MAXIMIZED(current)) {
             meta_window_unmaximize(current,
                     META_MAXIMIZE_VERTICAL | META_MAXIMIZE_HORIZONTAL);
-        } else {
+        } else if (current->has_maximize_func) {
             meta_window_maximize(current,
                     META_MAXIMIZE_VERTICAL | META_MAXIMIZE_HORIZONTAL);
         }
     } else if (type == MINIMIZE_CURRENT) {
         current = meta_display_get_focus_window (display);
-        if (current == NULL || current->type != META_WINDOW_NORMAL) {
+        if (current == NULL || current->type != META_WINDOW_NORMAL || current->has_minimize_func) {
             goto done;
         }
 
