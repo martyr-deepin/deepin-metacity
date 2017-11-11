@@ -272,7 +272,7 @@ static void on_message_unable_to_operate(MetaWindow* window, gpointer data)
         return;
     }
 
-    g_dbus_proxy_call_sync(sound_effect, "PlaySystemSound", g_variant_new("(s)", "app-error"), 
+    g_dbus_proxy_call_sync(sound_effect, "PlaySystemSound", g_variant_new("(s)", "dialog-error"), 
             G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error);
 
     if (error) {
