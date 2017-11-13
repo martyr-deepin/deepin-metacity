@@ -1018,6 +1018,28 @@ reload_mwm_hints (MetaWindow    *window,
 }
 
 static void
+reload_flatpak_appid (MetaWindow    *window,
+                          MetaPropValue *value,
+                          gboolean       initial)
+{
+  g_free (window->flatpak_appid);
+  window->flatpak_appid = NULL;
+
+  if (value->type != META_PROP_VALUE_INVALID)
+    {
+      window->flatpak_appid = g_strdup (value->v.str);
+    }
+  else
+    {
+      window->flatpak_appid = NULL;
+    }
+
+  meta_verbose ("Window %s has flatpak_appid \"%s\"\n",
+          window->desc,
+          window->flatpak_appid ? window->flatpak_appid : "unset");
+}
+
+static void
 reload_wm_class (MetaWindow    *window,
                  MetaPropValue *value,
                  gboolean       initial)
@@ -1842,6 +1864,12 @@ meta_display_init_window_prop_hooks (MetaDisplay *display)
       META_PROP_VALUE_CARDINAL,
       reload_deepin_override,
       LOAD_INIT
+    },
+    {
+        display->atom_FLATPAK_APPID,
+        META_PROP_VALUE_STRING,
+        reload_flatpak_appid,
+        LOAD_INIT
     },
     { 
       display->atom__GTK_HIDE_TITLEBAR_WHEN_MAXIMIZED,

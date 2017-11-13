@@ -10,9 +10,12 @@
  * (at your option) any later version.
  **/
 
+#define _GNU_SOURCE
 #include <config.h>
 #include <util.h>
 #include <math.h>
+#include <string.h>
+#include <unistd.h>
 #include <gio/gdesktopappinfo.h>
 #include <libbamf/libbamf.h>
 #include "deepin-design.h"
@@ -102,12 +105,76 @@ void deepin_setup_style_class(GtkWidget* widget, const char* class_name)
     gtk_style_context_add_class(style_ctx, class_name);
 }
 
+static char ** xdg_dirs = NULL;
+
+static char* build_desktop_path_for (const char* appid)
+{
+    if (xdg_dirs == NULL) {
+        const char* xdg_dirs_string = g_getenv ("XDG_DATA_DIRS");
+        if (!xdg_dirs_string) {
+            xdg_dirs_string = "/usr/share";
+        }
+        xdg_dirs = g_strsplit (xdg_dirs_string, ":", 0);
+    }
+
+    char *target = NULL;
+    const char** sp = &xdg_dirs[0];
+    while (*sp != NULL) {
+        char *path = g_strdup_printf ("%s/applications/%s.desktop", *sp, appid);
+        fprintf(stderr, "%s\n", *sp);
+        if (access(path, F_OK) == 0) {
+            fprintf(stderr, "%s: matched %s for %s\n", __func__, path, appid);
+            target = path;
+            break;
+        }
+        g_free (path);
+        sp++;
+    }
+
+    return target;
+}
+
+static GdkPixbuf* get_icon_for_flatpak_app (const char* appid, int size)
+{
+    GdkPixbuf* image = NULL;
+
+    const char *idx = strchr(appid+4, '/');
+    if (!idx) idx = appid+4;
+    char *id = strndupa(appid+4, idx - appid - 4);
+
+    char *desktop_path = build_desktop_path_for(id);
+    GDesktopAppInfo* appinfo = g_desktop_app_info_new_from_filename(desktop_path);
+    if (appinfo) {
+        GtkIconInfo* iconinfo = NULL;
+        GIcon* icon = NULL;
+        GtkIconTheme* theme = gtk_icon_theme_get_default();
+        icon = g_app_info_get_icon(appinfo);
+        if (icon) {
+            iconinfo = gtk_icon_theme_lookup_by_gicon(theme, icon, size, 0);
+            if (iconinfo) {
+                image = gtk_icon_info_load_icon(iconinfo, NULL);
+            }
+        }
+
+        g_object_unref(appinfo);
+        if (iconinfo) g_object_unref(iconinfo);
+    }
+    g_free(desktop_path);
+
+    return image;
+}
+
 GdkPixbuf* meta_window_get_application_icon(MetaWindow* window, int icon_size)
 {
+    GdkPixbuf* image = NULL;
+    if (window->flatpak_appid != NULL) {
+        image = get_icon_for_flatpak_app(window->flatpak_appid, icon_size);
+        if (image) return image;
+    }
+
     BamfMatcher* matcher = bamf_matcher_get_default();
     BamfApplication* app = bamf_matcher_get_application_for_xid(matcher, window->xwindow);
 
-    GdkPixbuf* image = NULL;
     GtkIconTheme* theme = gtk_icon_theme_get_default();
 
     if (app) {
