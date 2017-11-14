@@ -20,15 +20,13 @@
  * this file contains some design constants by deepin
  * these constants come from deepin-wm for consistency 
  */
-#define SWITCHER_ITEM_PREFER_WIDTH  128
-#define SWITCHER_ITEM_PREFER_HEIGHT 128
-#define SWITCHER_ITEM_SHAPE_PADDING 16
+void deepin_switcher_get_prefer_size(int *width, int *height);
+
 
 /**
  * Prefer size for the inner item's rectangle.
  */
-#define RECT_PREFER_WIDTH  (SWITCHER_ITEM_PREFER_WIDTH - SWITCHER_ITEM_SHAPE_PADDING * 2)
-#define RECT_PREFER_HEIGHT (SWITCHER_ITEM_PREFER_HEIGHT - SWITCHER_ITEM_SHAPE_PADDING * 2)
+void deepin_switcher_get_inner_prefer_size(int *width, int *height);
 
 #define POPUP_DELAY_TIMEOUT 150 /* milliseconds, keep popup window hidden when clicked alt-tab quickly*/
 #define MIN_DELTA           100 /* milliseconds, repeat key pressing minimum delta time after popup shown */

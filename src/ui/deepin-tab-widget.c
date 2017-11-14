@@ -23,6 +23,7 @@
 #include "deepin-tab-widget.h"
 #include "deepin-design.h"
 #include "deepin-ease.h"
+#include "deepin-message-hub.h"
 #include "deepin-window-surface-manager.h"
 #include "deepin-background-cache.h"
 #include "deepin-desktop-background.h"
@@ -40,6 +41,8 @@ typedef struct _MetaDeepinTabWidgetPrivate
 
   GtkRequisition init_size;
   GtkRequisition real_size;
+
+  float font_size;
 
   GdkWindow* event_window;
 } MetaDeepinTabWidgetPrivate;
@@ -117,11 +120,11 @@ static gboolean meta_deepin_tab_widget_draw (GtkWidget *widget, cairo_t* cr)
 
       cairo_select_font_face (cr, "sans", CAIRO_FONT_SLANT_NORMAL,
               CAIRO_FONT_WEIGHT_NORMAL);
-      cairo_set_font_size (cr, 12.0);
+      cairo_set_font_size (cr, priv->font_size);
 
       cairo_text_extents (cr, text, &extents);
-      x = (128.0-extents.width)/2 + extents.x_bearing;
-      y = 128.0+20;
+      x = (priv->real_size.width - extents.width)/2 + extents.x_bearing;
+      y = priv->real_size.height + 20;
 
       cairo_move_to(cr, x, y);
       cairo_show_text(cr, text);
@@ -200,9 +203,9 @@ static void meta_deepin_tab_widget_init (MetaDeepinTabWidget *self)
 {
   self->priv = (MetaDeepinTabWidgetPrivate*)meta_deepin_tab_widget_get_instance_private (self);
   self->priv->render_thumb = TRUE;
-  self->priv->real_size.width = SWITCHER_ITEM_PREFER_WIDTH;
-  self->priv->real_size.height = SWITCHER_ITEM_PREFER_HEIGHT;
+  deepin_switcher_get_prefer_size(&self->priv->real_size.width, &self->priv->real_size.height);
   self->priv->init_size = self->priv->real_size;
+  self->priv->font_size = 12.0 * deepin_message_hub_get_screen_scale();
   gtk_widget_set_has_window(GTK_WIDGET(self), FALSE);
 }
 
@@ -310,12 +313,15 @@ GtkWidget * meta_deepin_tab_widget_new (MetaWindow* window)
 
   widget->priv->window = window;
 
+  int inner_width, inner_height;
+  deepin_switcher_get_inner_prefer_size(&inner_width, &inner_height);
+
   if (window->type == META_WINDOW_DESKTOP) {
       GError *error = NULL;
       GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_scale (
               METACITY_PKGDATADIR "/deepin-toggle-desktop.svg",
-              RECT_PREFER_WIDTH,
-              RECT_PREFER_HEIGHT,
+              inner_width,
+              inner_height,
               TRUE, &error);
       if (pixbuf == NULL) {
           g_warning ("%s\n", error->message);
@@ -326,7 +332,13 @@ GtkWidget * meta_deepin_tab_widget_new (MetaWindow* window)
 
   } else {
 
-      GdkPixbuf* pixbuf = meta_window_get_application_icon(window, RECT_PREFER_WIDTH);
+      GdkPixbuf* pixbuf = meta_window_get_application_icon(window, inner_width);
+      if (gdk_pixbuf_get_width(pixbuf) != inner_width) {
+          GdkPixbuf *scaled = gdk_pixbuf_scale_simple(pixbuf, inner_width, inner_height, 
+                  GDK_INTERP_BILINEAR);
+          g_object_unref(pixbuf);
+          pixbuf = scaled;
+      }
       widget->priv->icon = gdk_cairo_surface_create_from_pixbuf(pixbuf, 1.0, NULL);
       g_object_unref(pixbuf);
   }

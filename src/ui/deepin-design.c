@@ -19,6 +19,7 @@
 #include <gio/gdesktopappinfo.h>
 #include <libbamf/libbamf.h>
 #include "deepin-design.h"
+#include "deepin-message-hub.h"
 #include "boxes.h"
 #include "../core/window-private.h"
 
@@ -47,10 +48,13 @@ void calculate_preferred_size(gint entry_count, gint max_width,
     float bw, bh, iw, ih;
     gint cols;
 
-    iw = SWITCHER_ITEM_PREFER_WIDTH;
-    ih = SWITCHER_ITEM_PREFER_HEIGHT;
+    int prefered_width, prefered_height;
+    deepin_switcher_get_prefer_size(&prefered_width, &prefered_height);
 
-    cols = (int) max_width / SWITCHER_ITEM_PREFER_WIDTH;
+    iw = prefered_width;
+    ih = prefered_height;
+
+    cols = (int) max_width / iw;
     if (entry_count < cols) {
         bw = iw * entry_count;
     } else {
@@ -121,9 +125,7 @@ static char* build_desktop_path_for (const char* appid)
     const char** sp = &xdg_dirs[0];
     while (*sp != NULL) {
         char *path = g_strdup_printf ("%s/applications/%s.desktop", *sp, appid);
-        fprintf(stderr, "%s\n", *sp);
         if (access(path, F_OK) == 0) {
-            fprintf(stderr, "%s: matched %s for %s\n", __func__, path, appid);
             target = path;
             break;
         }
@@ -233,5 +235,29 @@ GdkPixbuf* meta_window_get_application_icon(MetaWindow* window, int icon_size)
     }
 
     return image;
+}
+
+#define SWITCHER_ITEM_SHAPE_PADDING 16
+
+void deepin_switcher_get_inner_prefer_size(int *width, int *height)
+{
+    int iw, ih;
+
+    double sx = deepin_message_hub_get_screen_scale ();
+
+    deepin_switcher_get_prefer_size(&iw, &ih);
+
+    int w = (iw - SWITCHER_ITEM_SHAPE_PADDING * 2);
+    int h = (ih - SWITCHER_ITEM_SHAPE_PADDING * 2);
+
+    if (width) *width = w;
+    if (height) *height = h;
+}
+
+void deepin_switcher_get_prefer_size(int *width, int *height)
+{
+    double sx = deepin_message_hub_get_screen_scale ();
+    if (width) *width = 128 * sx;
+    if (height) *height = 128 * sx;
 }
 

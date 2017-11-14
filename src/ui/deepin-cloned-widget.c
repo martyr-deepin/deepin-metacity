@@ -550,7 +550,10 @@ static void on_deepin_cloned_widget_drag_begin(GtkWidget* widget, GdkDragContext
     gint w = cairo_image_surface_get_width(priv->snapshot); 
     gint h = cairo_image_surface_get_height(priv->snapshot); 
 
-    float sx = RECT_PREFER_WIDTH / (float)w;
+    int prefered_width;
+    deepin_switcher_get_prefer_size(&prefered_width, NULL);
+
+    float sx = prefered_width / (float)w;
     w *= sx; 
     h *= sx;
     cairo_surface_t* dest = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, w, h);
