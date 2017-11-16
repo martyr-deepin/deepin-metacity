@@ -1,3 +1,18 @@
+##  3.22.13 (2017-11-16)
+
+
+#### Features
+
+*   tab widget layout adapts to scale factor ([53e36c15](53e36c15))
+*   support flatpak app icon ([53f74964](53f74964))
+
+#### Bug Fixes
+
+*   update system sound name to play it correctly ([a3d32e53](a3d32e53))
+*   check relative functionality before action ([e8b05a60](e8b05a60))
+
+
+
 ##  3.22.12 (2017-11-06)
 
 
