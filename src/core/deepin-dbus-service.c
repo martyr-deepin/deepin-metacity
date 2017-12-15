@@ -11,6 +11,7 @@
 
 #include <config.h>
 #include <gio/gio.h>
+#include <stdlib.h>
 #include <util.h>
 #include "screen-private.h"
 #include "deepin-dbus-service.h"

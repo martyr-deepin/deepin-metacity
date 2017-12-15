@@ -24,6 +24,8 @@
 #include "util.h"
 #include <string.h>
 #include <stdlib.h>
+#include <glib.h>
+#include <glib/gstdio.h>
 
 /* We were intending to put the version number
  * in the subdirectory name, but we ended up

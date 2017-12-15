@@ -57,6 +57,7 @@
 #include <locale.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 static char* get_screen_name (MetaDisplay *display,
                               int          number);
