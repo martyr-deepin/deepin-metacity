@@ -1137,6 +1137,9 @@ restack_override_redirected_windows_relative_to_managed (MetaStack *stack)
       ++i;
   }
 
+  /* raise corner windows above */
+  meta_screen_update_corner (screen, CORNER_UPDATE_STACK);
+
 out:
   g_array_free (or_windows, TRUE);
 

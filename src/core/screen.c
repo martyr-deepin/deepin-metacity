@@ -2668,6 +2668,69 @@ on_screen_scaled(DeepinMessageHub* hub, gdouble scale,
     }
 }
 
+void
+meta_screen_update_corner (MetaScreen* screen, CornerUpdateMask update)
+{
+  if (screen->corner_windows[0] != None) 
+    {
+      int i;
+      MetaScreenCorner corners[] = {
+          META_SCREEN_TOPLEFT,
+          META_SCREEN_TOPRIGHT,
+          META_SCREEN_BOTTOMLEFT,
+          META_SCREEN_BOTTOMRIGHT,
+      };
+
+      int positions[8];
+      if (update & CORNER_UPDATE_POS)
+        {
+          meta_screen_calc_corner_positions (screen, positions);
+        }
+
+      // re-arrange all corner related windows
+      Window windows[8];
+      for (i = 0; i < 4; i++)
+        {
+          windows[i*2] = GDK_WINDOW_XID(gtk_widget_get_window(screen->corner_indicator[i]));
+          windows[i*2+1] = screen->corner_windows[i];
+        }
+
+      for (i = 0; i < 8; i++) 
+        {
+          XWindowChanges changes;
+
+          if (update & CORNER_UPDATE_POS)
+            {
+              changes.x = positions[(i/2) * 2];
+              changes.y = positions[(i/2) * 2 + 1];
+            }
+
+          unsigned mask = 0;
+          if (update & CORNER_UPDATE_POS)
+              mask |= CWX | CWY;
+
+          if (update & CORNER_UPDATE_STACK)
+              mask |= CWStackMode;
+
+          if (i == 0) {
+              if (update & CORNER_UPDATE_STACK)
+                changes.stack_mode = Above;
+              XConfigureWindow(screen->display->xdisplay, windows[i],
+                      mask, &changes);
+          } else {
+              if (update & CORNER_UPDATE_STACK)
+                {
+                  changes.stack_mode = Below;
+                  mask |= CWSibling;
+                }
+              changes.sibling = windows[i-1];
+              XConfigureWindow(screen->display->xdisplay, windows[i],
+                      mask, &changes);
+          }
+        }
+    }
+}
+
 static void
 on_screen_changed(DeepinMessageHub* hub, MetaScreen* screen,
         gpointer data)
@@ -2692,46 +2755,7 @@ on_screen_changed(DeepinMessageHub* hub, MetaScreen* screen,
                        &changes);
     }
 
-  if (screen->corner_windows[0] != None) 
-    {
-      int i;
-      MetaScreenCorner corners[] = {
-          META_SCREEN_TOPLEFT,
-          META_SCREEN_TOPRIGHT,
-          META_SCREEN_BOTTOMLEFT,
-          META_SCREEN_BOTTOMRIGHT,
-      };
-
-      int positions[8];
-      meta_screen_calc_corner_positions (screen, positions);
-
-      // re-arrange all corner related windows
-      Window windows[8];
-      for (i = 0; i < 4; i++)
-        {
-          windows[i*2] = GDK_WINDOW_XID(gtk_widget_get_window(screen->corner_indicator[i]));
-          windows[i*2+1] = screen->corner_windows[i];
-        }
-
-      for (i = 0; i < 8; i++) 
-        {
-          XWindowChanges changes;
-
-          changes.x = positions[(i/2) * 2];
-          changes.y = positions[(i/2) * 2 + 1];
-
-          if (i == 0) {
-              changes.stack_mode = Above;
-              XConfigureWindow(screen->display->xdisplay, windows[i],
-                      CWX | CWY | CWStackMode, &changes);
-          } else {
-              changes.stack_mode = Below;
-              changes.sibling = windows[i-1];
-              XConfigureWindow(screen->display->xdisplay, windows[i],
-                      CWX | CWY | CWStackMode | CWSibling, &changes);
-          }
-        }
-    }
+  meta_screen_update_corner (screen, CORNER_UPDATE_POS | CORNER_UPDATE_STACK);
 
   meta_screen_rebuild_backgrounds (screen);
 

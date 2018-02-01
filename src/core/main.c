@@ -66,6 +66,7 @@
 #include <locale.h>
 #include <time.h>
 #include <unistd.h>
+#include <mcheck.h>
 
 static void prefs_changed_callback (MetaPreference pref,
                                     gpointer       data);

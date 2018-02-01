@@ -65,6 +65,13 @@ typedef enum
   META_SCREEN_RIGHT
 } MetaScreenDirection;
 
+typedef enum
+{
+    CORNER_UPDATE_NONE  = 0x00,
+    CORNER_UPDATE_POS   = 0x01,
+    CORNER_UPDATE_STACK = 0x02,
+} CornerUpdateMask;
+
 #define META_WIREFRAME_XOR_LINE_WIDTH 2
 
 struct _MetaScreen
@@ -271,5 +278,6 @@ void          meta_screen_enable_corner        (MetaScreen                 *scre
                                                MetaScreenCorner            corner, 
                                                gboolean                    val);
 
+void meta_screen_update_corner (MetaScreen* screen, CornerUpdateMask update);
 
 #endif
