@@ -15,6 +15,8 @@
 #include <util.h>
 #include <math.h>
 #include <string.h>
+#include <stdlib.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <gio/gdesktopappinfo.h>
 #include <libbamf/libbamf.h>
@@ -166,6 +168,33 @@ static GdkPixbuf* get_icon_for_flatpak_app (const char* appid, int size)
     return image;
 }
 
+static GdkPixbuf* get_icon_from_desktop_file(const char* desktop_filename, int icon_size)
+{
+    GdkPixbuf* image = NULL;
+    GIcon* icon = NULL;
+    GtkIconInfo* iconinfo = NULL;
+    GtkIconTheme* theme = gtk_icon_theme_get_default();
+
+    meta_verbose("get icon from %s");
+
+    GDesktopAppInfo* appinfo = g_desktop_app_info_new_from_filename(desktop_filename);
+    if (appinfo) {
+        icon = g_app_info_get_icon(appinfo);
+        if (icon) {
+            iconinfo = gtk_icon_theme_lookup_by_gicon(theme, icon, icon_size, 
+                    GTK_ICON_LOOKUP_FORCE_SIZE);
+            if (iconinfo) {
+                image = gtk_icon_info_load_icon(iconinfo, NULL);
+            }
+        }
+
+        g_object_unref(appinfo);
+    }
+    if (iconinfo) g_object_unref(iconinfo);
+
+    if (image) return image;
+}
+
 GdkPixbuf* meta_window_get_application_icon(MetaWindow* window, int icon_size)
 {
     GdkPixbuf* image = NULL;
@@ -174,34 +203,65 @@ GdkPixbuf* meta_window_get_application_icon(MetaWindow* window, int icon_size)
         if (image) return image;
     }
 
+    if (g_strcmp0(window->res_class, "Wine") == 0) {
+        int pid = window->net_wm_pid;
+        if (pid > 0) {
+            char* proc_env = g_strdup_printf ("/proc/%d/environ", pid);
+            if (access(proc_env, F_OK) < 0) {
+                goto out;
+            }
+
+            FILE* fp = fopen(proc_env, "r");
+            long sz = 0, cap = 1024;
+            char *buf = (char*)malloc(cap);
+
+            char buf2[128];
+            long len = 0;
+            while ((len = fread(buf2, 1, 128, fp)) != 0) {
+                if (sz + len > cap) {
+                    cap *= 2;
+                    buf = (char*)realloc(buf, cap);
+                }
+                memcpy(buf+sz, buf2, len);
+                sz += len;
+            }
+
+            char* s = buf;
+            while (s-buf < sz) {
+                int len = strlen(s);
+
+                char *sp = strchr(s, '=');
+                if (sp == NULL) break;
+                *sp = '\0';
+                sp++;
+                if (g_strcmp0(s, "GIO_LAUNCHED_DESKTOP_FILE") == 0) {
+                    image = get_icon_from_desktop_file(sp, icon_size);
+                    break;
+                }
+                s += len+1;
+            }
+
+error:
+            free(buf);
+            fclose(fp);
+
+            if (image) return image;
+        }
+    }
+
+
     BamfMatcher* matcher = bamf_matcher_get_default();
     BamfApplication* app = bamf_matcher_get_application_for_xid(matcher, window->xwindow);
 
     GtkIconTheme* theme = gtk_icon_theme_get_default();
 
+out:
     if (app) {
         const gchar* desktop_filename = bamf_application_get_desktop_file(app);
         if (desktop_filename) {
-            GIcon* icon = NULL;
-            GtkIconInfo* iconinfo = NULL;
-
-            GDesktopAppInfo* appinfo = g_desktop_app_info_new_from_filename(desktop_filename);
-            if (appinfo) {
-                icon = g_app_info_get_icon(appinfo);
-                if (icon) {
-                    iconinfo = gtk_icon_theme_lookup_by_gicon(theme, icon, icon_size, 0);
-                    if (iconinfo) {
-                        image = gtk_icon_info_load_icon(iconinfo, NULL);
-                    }
-                }
-
-                g_object_unref(appinfo);
-            }
-            if (iconinfo) g_object_unref(iconinfo);
-
+            image = get_icon_from_desktop_file(desktop_filename, icon_size);
             if (image) return image;
         }
-
     }
 
     if (!image && window->icon_name) {
