@@ -1,3 +1,17 @@
+##  3.22.14 (2018-03-09)
+
+
+#### Features
+
+*   support lookup icon for wine app ([bd5c7f7d](bd5c7f7d))
+*   keep corner windows on top of OR stack ([e5161bd8](e5161bd8))
+
+#### Bug Fixes
+
+*   add missing headers ([e599fa0e](e599fa0e))
+
+
+
 ##  3.22.13 (2017-11-16)
 
 
