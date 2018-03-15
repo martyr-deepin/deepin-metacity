@@ -203,7 +203,9 @@ GdkPixbuf* meta_window_get_application_icon(MetaWindow* window, int icon_size)
         if (image) return image;
     }
 
-    if (g_strcmp0(window->res_class, "Wine") == 0) {
+    // check if app has GIO_LAUNCHED_DESKTOP_FILE defined and use that info to
+    // load icon
+    {
         int pid = window->net_wm_pid;
         if (pid > 0) {
             char* proc_env = g_strdup_printf ("/proc/%d/environ", pid);
