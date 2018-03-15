@@ -1027,11 +1027,21 @@ static void meta_screen_rebuild_backgrounds (MetaScreen *screen)
           (GDestroyNotify)gtk_widget_destroy);
   screen->desktop_bg_windows = g_array_sized_new(FALSE, FALSE, sizeof(Window), n_monitors);
 
+  int primary = gdk_screen_get_primary_monitor(gdk_screen_get_default());
   for (int monitor = 0; monitor < n_monitors; monitor++) {
       DeepinDesktopBackground* widget = create_desktop_background(screen, monitor);
-      g_ptr_array_add(screen->desktop_bgs, widget);
       Window xid = GDK_WINDOW_XID(gtk_widget_get_window(widget));
-      g_array_append_val(screen->desktop_bg_windows, xid);
+      /**
+       * keep primary on top, since we only render the desktop surface into the 
+       * primary desktop window
+       */
+      if (monitor == primary) {
+          g_array_prepend_val(screen->desktop_bg_windows, xid);
+          g_ptr_array_insert(screen->desktop_bgs, 0, widget);
+      } else {
+          g_array_append_val(screen->desktop_bg_windows, xid);
+          g_ptr_array_add(screen->desktop_bgs, widget);
+      }
   }
 
   if (screen->desktop_bg_windows->len) {

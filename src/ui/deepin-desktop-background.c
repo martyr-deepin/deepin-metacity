@@ -118,23 +118,6 @@ static void deepin_desktop_background_class_init (DeepinDesktopBackgroundClass *
     object_class->finalize = deepin_desktop_background_finalize;
 }
 
-static void on_screen_changed(DeepinMessageHub* hub, MetaScreen* screen,
-        DeepinDesktopBackground* self)
-{
-    DeepinDesktopBackgroundPrivate* priv = self->priv;
-    if (screen == priv->screen) {
-        //FIXME: this means the monitor gets deleted, need to be handled by outsider
-        if (priv->monitor >= gdk_screen_get_n_monitors(gdk_screen_get_default()))
-            return;
-
-        gdk_screen_get_monitor_geometry(gdk_screen_get_default(),
-                priv->monitor, &priv->geometry);
-        gdk_window_move_resize(gtk_widget_get_window(GTK_WIDGET(self)),
-                priv->geometry.x, priv->geometry.y,
-                priv->geometry.width, priv->geometry.height);
-    }
-}
-
 static void on_desktop_changed(DeepinMessageHub* hub, DeepinDesktopBackground* self)
 {
     self->priv->delay_switch_count = 5;
@@ -166,6 +149,10 @@ DeepinDesktopBackground* deepin_desktop_background_new(MetaScreen* screen, gint 
     priv->monitor = monitor;
     gdk_screen_get_monitor_geometry(gdk_screen_get_default(), monitor, &priv->geometry);
 
+    char *title = g_strdup_printf ("metacity background %d", monitor);
+    gtk_window_set_title(GTK_WINDOW(widget), title);
+    free(title);
+
     gtk_window_move(GTK_WINDOW(widget), priv->geometry.x, priv->geometry.y);
     gtk_window_set_default_size(GTK_WINDOW(widget), priv->geometry.width, priv->geometry.height);
 
@@ -174,7 +161,6 @@ DeepinDesktopBackground* deepin_desktop_background_new(MetaScreen* screen, gint 
 
     g_object_connect(G_OBJECT(deepin_message_hub_get()),
             "signal::desktop-changed", on_desktop_changed, widget,
-            "signal::screen-changed", on_screen_changed, widget,
             "signal::workspace-switched", on_workspace_switched, widget,
             NULL);
     return self;
