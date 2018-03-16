@@ -1,3 +1,16 @@
+##  3.22.15 (2018-03-16)
+
+
+#### Bug Fixes
+
+*   render desktop in any cases ([03f006ac](03f006ac))
+
+#### Features
+
+*   search desktop file by env first ([bb572ac1](bb572ac1))
+
+
+
 ##  3.22.14 (2018-03-09)
 
 
