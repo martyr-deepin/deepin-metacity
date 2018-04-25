@@ -853,6 +853,8 @@ meta_display_open (void)
   /* Done opening new display */
   the_display->display_opening = FALSE;
 
+  deepin_message_hub_register_to_session ();
+
   return TRUE;
 }
 
