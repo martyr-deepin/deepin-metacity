@@ -283,6 +283,33 @@ static void on_message_unable_to_operate(MetaWindow* window, gpointer data)
     g_object_unref(sound_effect);
 }
 
+void deepin_message_hub_register_to_session()
+{
+    GError* error = NULL;
+
+    GDBusProxy* sm = g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SESSION, 
+            G_DBUS_PROXY_FLAGS_NONE, NULL, 
+            "com.deepin.SessionManager", "/com/deepin/SessionManager",
+            "com.deepin.SessionManager", NULL, &error);
+
+    if (error) {
+        meta_warning ("%s: %s\n", __func__, error->message);
+        g_error_free(error);
+        return;
+    }
+
+    
+    const gchar* cookie = g_getenv("DDE_SESSION_PROCESS_COOKIE_ID");
+    if (cookie) {
+        g_dbus_proxy_call(sm, "Register", g_variant_new("(s)", cookie), 
+                G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
+        g_unsetenv("DDE_SESSION_PROCESS_COOKIE_ID");
+    }
+
+    g_object_unref(sm);
+
+}
+
 static void on_monitors_changed(GdkScreen *gdkscreen, gpointer user_data)
 {
     meta_verbose("%s\n", __func__);

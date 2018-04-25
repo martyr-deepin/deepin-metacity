@@ -65,6 +65,7 @@ void deepin_message_hub_screen_corner_entered(MetaScreen*, MetaScreenCorner);
 void deepin_message_hub_screen_corner_leaved(MetaScreen*, MetaScreenCorner);
 void deepin_message_hub_compositing_changed(gboolean enabled);
 gdouble deepin_message_hub_get_screen_scale();
+void deepin_message_hub_register_to_session();
 
 G_END_DECLS
 
