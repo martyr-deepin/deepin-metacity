@@ -1,3 +1,12 @@
+##  3.22.16 (2018-05-14)
+
+
+#### Features
+
+*   register to DDE session manager ([db2c106d](db2c106d))
+
+
+
 ##  3.22.15 (2018-03-16)
 
 
