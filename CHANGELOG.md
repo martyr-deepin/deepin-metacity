@@ -1,3 +1,12 @@
+##  3.22.15.1 (2018-05-23)
+
+
+#### Features
+
+*   register to DDE session manager ([3762ede1](3762ede1))
+
+
+
 ##  3.22.15 (2018-03-16)
 
 
