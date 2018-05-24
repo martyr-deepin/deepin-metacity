@@ -620,8 +620,6 @@ meta_screen_new (MetaDisplay *display,
   /* Wait for old window manager to go away */
   if (current_wm_sn_owner != None)
     {
-      guint timeout = 5 * G_USEC_PER_SEC;
-      guint passed = 0;
       XEvent event;
 
       /* We sort of block infinitely here which is probably lame. */
@@ -629,16 +627,11 @@ meta_screen_new (MetaDisplay *display,
       meta_verbose ("Waiting for old window manager to exit\n");
       do
         {
-          XWindowEvent (xdisplay, current_wm_sn_owner,
-                        StructureNotifyMask, &event);
+          XWindowEvent (xdisplay, current_wm_sn_owner, StructureNotifyMask, &event);
           g_usleep(G_USEC_PER_SEC / 10);
-          passed += G_USEC_PER_SEC / 10;
-
-          if (passed > timeout) 
-            return NULL;
         }
       while (event.type != DestroyNotify);
-      g_usleep(G_USEC_PER_SEC);
+      g_usleep(G_USEC_PER_SEC * 3);
     }
 
   /* select our root window events */
