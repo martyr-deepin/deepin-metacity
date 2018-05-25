@@ -1,3 +1,17 @@
+<a name=""></a>
+##  3.22.17 (2018-05-25)
+
+
+#### Bug Fixes
+
+*   workaround key grab failure ([b8bd2297](b8bd2297))
+
+#### Features
+
+*   register to DDE session manager ([db2c106d](db2c106d))
+
+
+
 ##  3.22.16 (2018-05-14)
 
 
