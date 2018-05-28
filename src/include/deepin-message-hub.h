@@ -56,11 +56,14 @@ void deepin_message_hub_desktop_changed(void);
 void deepin_message_hub_window_about_to_change_workspace(MetaWindow*, MetaWorkspace*);
 void deepin_message_hub_window_above_state_changed(MetaWindow*, gboolean above);
 void deepin_message_hub_unable_to_operate(MetaWindow* window);
+
 void deepin_message_hub_drag_end(void);
 void deepin_message_hub_workspace_added(int index);
 void deepin_message_hub_workspace_removed(int index);
 void deepin_message_hub_workspace_switched(int from, int to);
 void deepin_message_hub_workspace_reordered(int index, int new_index);
+void deepin_message_hub_startup_ready();
+
 void deepin_message_hub_screen_corner_entered(MetaScreen*, MetaScreenCorner);
 void deepin_message_hub_screen_corner_leaved(MetaScreen*, MetaScreenCorner);
 void deepin_message_hub_compositing_changed(gboolean enabled);

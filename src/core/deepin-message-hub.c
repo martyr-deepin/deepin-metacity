@@ -47,6 +47,7 @@ enum
     SIGNAL_SCREEN_CORNER_ENTERED,
     SIGNAL_SCREEN_CORNER_LEAVED,
     SIGNAL_SCREEN_SCALE_CHANGED,
+    SIGNAL_STARTUP_READY,
 
     LAST_SIGNAL
 };
@@ -255,6 +256,13 @@ static void deepin_message_hub_class_init (DeepinMessageHubClass *klass)
             G_SIGNAL_RUN_LAST, 0,
             NULL, NULL, NULL,
             G_TYPE_NONE, 1, G_TYPE_DOUBLE);
+
+    signals[SIGNAL_STARTUP_READY] = g_signal_new ("startup-ready",
+            G_OBJECT_CLASS_TYPE (klass),
+            G_SIGNAL_RUN_LAST, 0,
+            NULL, NULL, NULL,
+            G_TYPE_NONE, 0);
+
 }
 
 static void on_message_unable_to_operate(MetaWindow* window, gpointer data)
@@ -328,6 +336,16 @@ void deepin_message_hub_workspace_added(int index)
     meta_verbose("%s: %d\n", __func__, index);
     if (!meta_get_display ()->display_opening) {
         g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_WORKSPACE_ADDED], 0, index);
+    }
+}
+
+void deepin_message_hub_startup_ready()
+{
+    static gboolean emitted = FALSE;
+    if (!emitted) {
+        emitted = TRUE;
+        meta_verbose("%s\n", __func__);
+        g_signal_emit(deepin_message_hub_get(), signals[SIGNAL_STARTUP_READY], 0);
     }
 }
 
