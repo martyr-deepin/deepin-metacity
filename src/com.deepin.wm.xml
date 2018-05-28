@@ -44,6 +44,9 @@
       <arg type="u" name="side" direction="in"/>
     </method>
     <method name="BeginToMoveActiveWindow" />
+    <signal name="StartupReady"> 
+        <arg type="s" name="wm"/> 
+    </signal> 
     <signal name="WorkspaceRemoved"> 
         <arg type="i" name="index"/> 
     </signal> 

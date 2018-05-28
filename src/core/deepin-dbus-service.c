@@ -344,6 +344,12 @@ done:
     return TRUE;
 }
 
+static gboolean on_idle_startup (gpointer data)
+{
+    deepin_message_hub_startup_ready ();
+    return FALSE;
+}
+
 static void on_bus_acquired(GDBusConnection *connection,
         const gchar *name, gpointer user_data)
 {
@@ -351,6 +357,8 @@ static void on_bus_acquired(GDBusConnection *connection,
             G_DBUS_INTERFACE_SKELETON(user_data), 
             connection, "/com/deepin/wm", NULL);
     meta_verbose("%s result %s\n", __func__, ret ? "success":"failure");
+
+    g_timeout_add (0, on_idle_startup, NULL);
 }
 
 static void on_workspace_added (DeepinMessageHub *hub, int index, DeepinDBusWm *object)
@@ -366,6 +374,11 @@ static void on_workspace_removed (DeepinMessageHub *hub, int index, DeepinDBusWm
 static void on_workspace_switched (DeepinMessageHub *hub, int from, int to, DeepinDBusWm *object)
 {
     deepin_dbus_wm_emit_workspace_switched (object, from ,to);
+}
+
+static void on_startup_ready (DeepinMessageHub *hub, DeepinDBusWm *object)
+{
+    deepin_dbus_wm_emit_startup_ready (object, "deepin-metacity");
 }
 
 DeepinDBusWm* deepin_dbus_service_get()
@@ -400,6 +413,7 @@ DeepinDBusWm* deepin_dbus_service_get()
                 "signal::workspace-added", on_workspace_added, _the_service,
                 "signal::workspace-removed", on_workspace_removed, _the_service,
                 "signal::workspace-switched", on_workspace_switched, _the_service,
+                "signal::startup-ready", on_startup_ready, _the_service,
                 NULL);
 
         g_bus_own_name(G_BUS_TYPE_SESSION, 
