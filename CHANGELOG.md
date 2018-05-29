@@ -1,4 +1,14 @@
 <a name=""></a>
+##  3.22.18 (2018-05-29)
+
+
+#### Features
+
+*   provide wm ready signal ([cde85829](cde85829))
+
+
+
+<a name=""></a>
 ##  3.22.17 (2018-05-25)
 
 
