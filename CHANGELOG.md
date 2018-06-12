@@ -1,3 +1,18 @@
+<a name=""></a>
+##  3.22.15.2 (2018-06-12)
+
+
+#### Features
+
+*   provide wm ready signal ([a4b50371](a4b50371))
+*   register to DDE session manager ([3762ede1](3762ede1))
+
+#### Bug Fixes
+
+*   workaround key grab failure ([549b6274](549b6274))
+
+
+
 ##  3.22.15.1 (2018-05-23)
 
 
