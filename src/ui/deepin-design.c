@@ -228,6 +228,10 @@ GdkPixbuf* meta_window_get_application_icon(MetaWindow* window, int icon_size)
                 sz += len;
             }
 
+            int launch_info = 0;
+            int pid_match = 0;
+            char* desktop_file = NULL;
+
             char* s = buf;
             while (s-buf < sz) {
                 int len = strlen(s);
@@ -236,9 +240,21 @@ GdkPixbuf* meta_window_get_application_icon(MetaWindow* window, int icon_size)
                 if (sp == NULL) break;
                 *sp = '\0';
                 sp++;
+
+                if (launch_info >= 2) break;
                 if (g_strcmp0(s, "GIO_LAUNCHED_DESKTOP_FILE") == 0) {
-                    image = get_icon_from_desktop_file(sp, icon_size);
+                    desktop_file = g_strdup(sp);
+                    launch_info++;
                     break;
+                }
+
+                if (g_strcmp0(s, "GIO_LAUNCHED_DESKTOP_FILE_PID") == 0) {
+                    launch_info++;
+                    int desktop_pid = -1;
+                    sscanf(sp, "%d", &desktop_pid);
+                    if (pid == desktop_pid) {
+                        pid_match = 1;
+                    }
                 }
                 s += len+1;
             }
@@ -246,6 +262,12 @@ GdkPixbuf* meta_window_get_application_icon(MetaWindow* window, int icon_size)
 error:
             free(buf);
             fclose(fp);
+
+            if (pid_match && desktop_file) {
+                image = get_icon_from_desktop_file(desktop_file, icon_size);
+            }
+
+            if (desktop_file) g_free(desktop_file);
 
             if (image) return image;
         }
