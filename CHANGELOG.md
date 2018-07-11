@@ -1,4 +1,20 @@
 <a name=""></a>
+##  3.22.19 (2018-07-11)
+
+
+#### Bug Fixes
+
+*   match GIO icon only if PID matched ([62748530](62748530))
+*   workaround key grab failure ([b8bd2297](b8bd2297))
+
+#### Features
+
+*   provide wm ready signal ([cde85829](cde85829))
+*   register to DDE session manager ([db2c106d](db2c106d))
+
+
+
+<a name=""></a>
 ##  3.22.18 (2018-05-29)
 
 
