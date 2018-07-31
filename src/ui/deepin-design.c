@@ -216,9 +216,15 @@ GdkPixbuf* meta_window_get_application_icon(MetaWindow* window, int icon_size)
             FILE* fp = fopen(proc_env, "r");
             long sz = 0, cap = 1024;
             char *buf = (char*)malloc(cap);
+            char* desktop_file = NULL;
 
             char buf2[128];
             long len = 0;
+
+            if (!fp) {
+                goto error;
+            }
+
             while ((len = fread(buf2, 1, 128, fp)) != 0) {
                 if (sz + len > cap) {
                     cap *= 2;
@@ -230,7 +236,6 @@ GdkPixbuf* meta_window_get_application_icon(MetaWindow* window, int icon_size)
 
             int launch_info = 0;
             int pid_match = 0;
-            char* desktop_file = NULL;
 
             char* s = buf;
             while (s-buf < sz) {
@@ -260,8 +265,8 @@ GdkPixbuf* meta_window_get_application_icon(MetaWindow* window, int icon_size)
             }
 
 error:
-            free(buf);
-            fclose(fp);
+            if (buf) free(buf);
+            if (fp) fclose(fp);
 
             if (pid_match && desktop_file) {
                 image = get_icon_from_desktop_file(desktop_file, icon_size);
