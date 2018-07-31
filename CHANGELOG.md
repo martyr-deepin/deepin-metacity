@@ -1,4 +1,14 @@
 <a name=""></a>
+##  3.22.20 (2018-07-31)
+
+
+#### Bug Fixes
+
+*   check if environ is opened ([23d87a8f](23d87a8f))
+
+
+
+<a name=""></a>
 ##  3.22.19 (2018-07-11)
 
 
