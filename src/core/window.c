@@ -26,7 +26,6 @@
 #include <X11/extensions/XInput2.h>
 #include <gdk/gdkx.h>
 #include "window-private.h"
-#include "display-private.h"
 #include "edge-resistance.h"
 #include "util.h"
 #include "frame-private.h"
@@ -54,9 +53,6 @@
 #include <cairo/cairo-xlib.h>
 
 #include <X11/extensions/shape.h>
-
-#include <X11/extensions/Xcomposite.h>
-#include <X11/extensions/Xdamage.h>
 
 static int destroying_windows_disallowed = 0;
 
@@ -861,27 +857,6 @@ meta_window_new_with_attrs (MetaDisplay       *display,
 
   window->constructing = FALSE;
 
-  if (!window->display->compositor &&
-          window && window->type == META_WINDOW_DESKTOP) {
-      if (display->desktop_win != NULL) {
-          meta_warning ("there is already a desktop window redirected\n");
-          return window;
-      }
-      meta_verbose ("%s redirect desktop %p(0x%x), mapped %d\n", __func__, window, xwindow, 
-              attrs->map_state == IsViewable);
-      XCompositeRedirectWindow(display->xdisplay, xwindow, 1);
-      display->desktop_win = window;
-      display->desktop_damage = XDamageCreate(display->xdisplay, xwindow, XDamageReportNonEmpty);
-
-      if (attrs->map_state == IsViewable) {
-          display->desktop_pm = XCompositeNameWindowPixmap(display->xdisplay, xwindow);
-          display->desktop_rect = window->rect;
-          display->desktop_surface = cairo_xlib_surface_create (display->xdisplay, 
-                  display->desktop_pm, window->xvisual, window->rect.width, window->rect.height); 
-          XSync (display->xdisplay, False);
-      }
-  }
-
   return window;
 }
 
@@ -1035,26 +1010,6 @@ meta_window_free (MetaWindow  *window,
 
   if (window->display->compositor)
     meta_compositor_free_window (window->display->compositor, window);
-
-  else if (window == window->display->desktop_win) {
-      MetaDisplay *display = window->display;
-      Window xwindow = window->xwindow;
-
-      meta_verbose ("%s: unredirect desktop (0x%x)\n", __func__, xwindow);
-      XFreePixmap(display->xdisplay, display->desktop_pm);
-      meta_error_trap_push (display);
-      XDamageDestroy(display->xdisplay, display->desktop_damage);
-      meta_error_trap_pop (display, FALSE);
-      XSync (display->xdisplay, False);
-
-      g_clear_pointer (&display->desktop_surface, cairo_surface_destroy);
-
-      /*XCompositeUnredirectWindow(display->xdisplay, xwindow, 1);*/
-      display->desktop_damage = None;
-      display->desktop_pm = None;
-      display->desktop_win = NULL;
-      display->desktop_rect = (MetaRectangle){0, 0, 0, 0};
-  }
 
   if (window->display->window_with_menu == window)
     {

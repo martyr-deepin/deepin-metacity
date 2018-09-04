@@ -90,23 +90,6 @@ static gint scale_compare(gconstpointer a, gconstpointer b, gpointer data)
     return 0;
 }
 
-static cairo_surface_t* get_desktop_window_surface_from_xlib(MetaWindow* win)
-{
-    MetaDisplay *display;
-    Display *xdisplay;
-    MetaScreen *screen;
-    Window xwindow;
-
-    display = win->screen->display;
-    xdisplay = display->xdisplay;
-    xwindow = win->xwindow;
-
-    g_return_val_if_fail (display->desktop_pm != None, NULL);
-
-    return cairo_xlib_surface_create (xdisplay, 
-            display->desktop_pm, win->xvisual, win->rect.width, win->rect.height); 
-}
-
 static cairo_surface_t* get_window_surface_from_xlib(MetaWindow* window)
 {
     cairo_surface_t *surface;
@@ -116,10 +99,6 @@ static cairo_surface_t* get_window_surface_from_xlib(MetaWindow* window)
 
     display = window->screen->display;
     xdisplay = display->xdisplay;
-
-    if (window == display->desktop_win) {
-        return get_desktop_window_surface_from_xlib(window);
-    }
 
     //FIXME: how to get frame window image
     MetaRectangle r = window->rect;

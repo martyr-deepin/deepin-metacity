@@ -31,7 +31,6 @@
 
 #include <glib.h>
 #include <X11/Xlib.h>
-#include <cairo/cairo.h>
 #include "eventqueue.h"
 #include "common.h"
 #include "boxes.h"
@@ -42,7 +41,6 @@
 #endif
 
 #include <X11/extensions/sync.h>
-#include <X11/extensions/Xdamage.h>
 
 typedef struct _MetaKeyBinding MetaKeyBinding;
 typedef struct _MetaStack      MetaStack;
@@ -246,12 +244,6 @@ struct _MetaDisplay
   /* currently-active window menu if any */
   DeepinWindowMenu *window_menu;
   MetaWindow *window_with_menu;
-
-  MetaWindow *desktop_win;
-  Damage desktop_damage;
-  Pixmap desktop_pm;
-  cairo_surface_t *desktop_surface;
-  MetaRectangle desktop_rect; // origin rect
 
   /* Managed by window-props.c */
   MetaWindowPropHooks *prop_hooks_table;

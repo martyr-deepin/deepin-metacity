@@ -16,8 +16,6 @@
 #include "deepin-background-cache.h"
 #include "deepin-window-surface-manager.h"
 #include "../core/workspace.h"
-#include "../core/window-private.h"
-#include "../core/display-private.h"
 #include "../core/screen-private.h"
 #include "deepin-message-hub.h"
 
@@ -90,20 +88,6 @@ static gboolean deepin_desktop_background_real_draw(GtkWidget *widget, cairo_t* 
     if (display->hiding_windows_mode)
         return TRUE;
 
-    if (priv->monitor != gdk_screen_get_primary_monitor(gdk_screen_get_default()))
-        return TRUE;
-
-    if (display->desktop_win && display->desktop_win->hidden)
-        return TRUE;
-
-    if (display->desktop_surface != NULL) {
-        if (cairo_surface_status(display->desktop_surface) == 0) {
-            cairo_set_source_surface(cr, display->desktop_surface, 0, 0);
-            cairo_paint(cr);
-        } else {
-            meta_verbose ("%s: status %d\n", __func__, cairo_surface_status(display->desktop_surface));
-        }
-    }
     return TRUE;
 }
 
