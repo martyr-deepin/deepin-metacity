@@ -1,4 +1,14 @@
 <a name=""></a>
+##  3.22.21 (2018-09-06)
+
+
+#### Features
+
+*   disable desktop window compositing ([349e45fa](349e45fa))
+
+
+
+<a name=""></a>
 ##  3.22.20 (2018-07-31)
 
 
