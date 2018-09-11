@@ -3506,12 +3506,12 @@ meta_screen_request_hide_windows(MetaScreen* screen)
     return;
 
   screen->active_workspace->showing_desktop = TRUE;
+  display->hiding_windows_mode = TRUE;
   queue_windows_showing (screen);
 
   guint32 timestamp = meta_display_get_current_time_roundtrip (display);
   meta_display_focus_the_no_focus_window (display, screen, timestamp);
 
-  display->hiding_windows_mode = TRUE;
 
   meta_screen_invalidate_backgrounds(screen, NULL);
 }
@@ -3526,10 +3526,9 @@ meta_screen_cancel_hide_windows(MetaScreen* screen)
       return;
 
   screen->active_workspace->showing_desktop = FALSE;
+  screen->display->hiding_windows_mode = FALSE;
 
   queue_windows_showing (screen);
-
-  screen->display->hiding_windows_mode = FALSE;
 
   meta_screen_invalidate_backgrounds(screen, NULL);
 }

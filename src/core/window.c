@@ -1441,6 +1441,11 @@ meta_window_showing_on_its_workspace (MetaWindow *window)
       showing = FALSE;
     }
 
+  if (window->type == META_WINDOW_DESKTOP && window->display->hiding_windows_mode)
+    {
+      showing = FALSE;
+    }
+
   /* 3. See if an ancestor is minimized (note that
    *    ancestor's "mapped" field may not be up to date
    *    since it's being computed in this same idle queue)
