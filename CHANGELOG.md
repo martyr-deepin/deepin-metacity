@@ -1,4 +1,14 @@
 <a name=""></a>
+##  3.22.22 (2018-09-13)
+
+
+#### Features
+
+*   hide desktop when request to hide windows ([54a4284b](54a4284b))
+
+
+
+<a name=""></a>
 ##  3.22.21 (2018-09-06)
 
 
