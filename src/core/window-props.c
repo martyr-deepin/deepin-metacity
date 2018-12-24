@@ -528,6 +528,8 @@ reload_net_wm_user_time_window (MetaWindow    *window,
                                           &window->user_time_window,
                                           window);
 
+          meta_error_trap_push (window->display);
+
           /* Just listen for property notify events */
           XSelectInput (window->display->xdisplay,
                         window->user_time_window,
@@ -542,6 +544,14 @@ reload_net_wm_user_time_window (MetaWindow    *window,
             window->user_time_window,
             window->display->atom__NET_WM_USER_TIME,
             initial);
+
+          if (meta_error_trap_pop_with_return (window->display, 0) != Success)
+            {
+              meta_warning ("failed to register time window 0x%lx for 0x%lx, which may be invalid.\n",
+                      value->v.xwindow, window->xwindow);
+              meta_display_unregister_x_window (window->display, value->v.xwindow);
+              window->user_time_window = None;
+            }
         }
     }
 }
