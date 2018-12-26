@@ -1,4 +1,11 @@
 <a name=""></a>
+##  3.22.23 (2018-12-26)
+
+* x11: Do check if time window is valid ([2db5e648](2db5e648))
+* x11: Double check whether the user time window was previously used ([f4a6a625](f4a6a625))
+
+
+<a name=""></a>
 ##  3.22.22 (2018-09-13)
 
 
