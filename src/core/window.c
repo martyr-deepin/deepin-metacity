@@ -1441,7 +1441,7 @@ meta_window_showing_on_its_workspace (MetaWindow *window)
       showing = FALSE;
     }
 
-  if (window->type == META_WINDOW_DESKTOP && window->display->hiding_windows_mode)
+  if (window->type != META_WINDOW_DOCK && window->display->hiding_windows_mode)
     {
       showing = FALSE;
     }
@@ -5721,6 +5721,13 @@ meta_window_client_message (MetaWindow *window,
                         "timestamp of 0 for %s\n",
                         window->desc);
           timestamp = meta_display_get_current_time (display);
+        }
+
+      // 在隐藏窗口模式下，不允许桌面类型的窗口Active
+      if (window->type == META_WINDOW_DESKTOP
+          && display->hiding_windows_mode)
+        {
+          return TRUE;
         }
 
       window_activate (window, timestamp, source_indication, NULL);

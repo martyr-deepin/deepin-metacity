@@ -2850,7 +2850,7 @@ meta_screen_show_desktop (MetaScreen *screen,
    * see bug 159257.
    */
   windows = screen->active_workspace->mru_list;
-  while (windows != NULL)
+  while (!screen->display->hiding_windows_mode && windows != NULL)
     {
       MetaWindow *w = windows->data;
 
@@ -3493,19 +3493,12 @@ meta_screen_new_workspace (MetaScreen   *screen)
 void
 meta_screen_request_hide_windows(MetaScreen* screen)
 {
-  GSList *tmp;
-  GSList *winlist;
-
   MetaDisplay* display = screen->display;
   if (display->hiding_windows_mode) {
     meta_verbose ("already in hiding_windows_mode\n");
     return;
   }
 
-  if (screen->active_workspace->showing_desktop)
-    return;
-
-  screen->active_workspace->showing_desktop = TRUE;
   display->hiding_windows_mode = TRUE;
   queue_windows_showing (screen);
 
@@ -3519,16 +3512,30 @@ meta_screen_request_hide_windows(MetaScreen* screen)
 void
 meta_screen_cancel_hide_windows(MetaScreen* screen)
 {
-  GSList *tmp;
-  GSList *winlist;
+  GSList *windows;
 
   if (!screen->display->hiding_windows_mode)
       return;
 
-  screen->active_workspace->showing_desktop = FALSE;
   screen->display->hiding_windows_mode = FALSE;
 
   queue_windows_showing (screen);
+
+  guint32 timestamp = meta_display_get_current_time_roundtrip (screen->display);
+
+  windows = screen->active_workspace->mru_list;
+  while (windows != NULL)
+    {
+      MetaWindow *w = windows->data;
+
+      if (w->screen == screen && meta_window_showing_on_its_workspace (w))
+        {
+          meta_window_focus (w, timestamp);
+          break;
+        }
+
+      windows = windows->next;
+    }
 
   meta_screen_invalidate_backgrounds(screen, NULL);
 }
