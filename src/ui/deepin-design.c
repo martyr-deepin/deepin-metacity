@@ -175,8 +175,6 @@ static GdkPixbuf* get_icon_from_desktop_file(const char* desktop_filename, int i
     GtkIconInfo* iconinfo = NULL;
     GtkIconTheme* theme = gtk_icon_theme_get_default();
 
-    meta_verbose("get icon from %s");
-
     GDesktopAppInfo* appinfo = g_desktop_app_info_new_from_filename(desktop_filename);
     if (appinfo) {
         icon = g_app_info_get_icon(appinfo);
