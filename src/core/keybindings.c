@@ -731,6 +731,7 @@ meta_change_keygrab (MetaDisplay *display,
 
     if (grab && result) {
         for (int i = 0; i < result; i++) {
+            display->all_keys_grabbed_initially = !(mods[i].status == BadAccess);
             if (mods[i].status == BadAccess)
                 meta_warning (_("Some other program is already using the key %s with modifiers %x as a binding\n"),
                         keysym_to_string (keysym), mods[i].modifiers);

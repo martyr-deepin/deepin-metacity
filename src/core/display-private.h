@@ -235,6 +235,11 @@ struct _MetaDisplay
   /* Opening the display */
   unsigned int display_opening : 1;
 
+  /* there is a chance that key grabbing will fail due to messy stage of 
+   * replacing an existing wm */
+  unsigned int all_keys_grabbed_initially : 1;
+
+
   /* Closing down the display */
   int closing;
 

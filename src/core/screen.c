@@ -532,6 +532,7 @@ meta_screen_new (MetaDisplay *display,
   char buf[128];
   guint32 manager_timestamp;
   gulong current_workspace;
+  int retry;
 
   replace_current_wm = meta_get_replace_current_wm ();
 
@@ -801,7 +802,17 @@ meta_screen_new (MetaDisplay *display,
 
   screen->all_keys_grabbed = FALSE;
   screen->keys_grabbed = FALSE;
-  meta_screen_grab_keys (screen);
+
+  retry = 10;
+  do {
+      meta_screen_ungrab_keys (screen);
+
+      display->all_keys_grabbed_initially = TRUE;
+
+      meta_screen_grab_keys (screen);
+      g_usleep(G_USEC_PER_SEC / 10);
+
+  } while (retry-- > 0 && !display->all_keys_grabbed_initially);
 
   screen->ui = meta_ui_new (screen->display->xdisplay,
                             screen->xscreen);
