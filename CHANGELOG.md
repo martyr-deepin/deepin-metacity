@@ -1,4 +1,16 @@
 <a name=""></a>
+##  3.22.24 (2019-01-25)
+
+
+#### Bug Fixes
+
+*   keep trying acquire all grab keys during init ([717754f6](717754f6))
+*   remove bad verbose output ([059c5b6c](059c5b6c))
+*   can not hide the desktop window on meta_screen_request_hide_windows when called meta_screen_show_desktop after ([ade1bf8f](ade1bf8f))
+
+
+
+<a name=""></a>
 ##  3.22.23 (2018-12-26)
 
 * x11: Do check if time window is valid ([2db5e648](2db5e648))
